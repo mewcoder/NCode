@@ -126,7 +126,6 @@ export type { ProviderConfigRuntimeOptions } from "./model-provider/providerConf
 export {
   createProviderRuntime,
   createProviderRuntimeFromConfigRuntime,
-  EmptyAccountProviderConfigSource,
   ProviderRuntime,
 } from "./model-provider/providerRuntime.js";
 export type {
@@ -150,11 +149,6 @@ export {
   IModelSelectionService,
   IProviderSettingsService,
 } from "./model-provider/providerFacadeServices.js";
-export {
-  createAccountRequestAuthService,
-  createDisabledAccountRequestAuthService,
-} from "./model-provider/accountRequestAuthService.js";
-export type { IAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
 export { createUsageStatsService } from "./usage-stats/usageStatsService.js";
 // Storage：service 与 adapters 工厂；desktop host 负责组装（Worker runner 在 desktop 包内）
 export { createStorageService } from "./storage/app/storageService.js";
@@ -207,7 +201,6 @@ export {
 export { AutomationService, InvalidCronExprError } from "./session/automationService.js";
 // host 域终态回填 files_changed 复用现有 task diff 汇总。
 export { buildTaskChangeSummary } from "./session/taskChangeSummary.js";
-export { IOffPeakTaskService } from "./session/offPeakTask.js";
 export { createServiceLogger } from "./logger/serviceLogger.js";
 export {
   computeAutomationNextRunAt,
@@ -287,10 +280,6 @@ import {
 } from "./model-provider/providerProvisioningSource.js";
 import { createProviderProvisioningTarget } from "./model-provider/providerProvisioningTarget.js";
 import { IProviderProvisioningTargetService } from "./model-provider/providerProvisioning.js";
-import {
-  createDisabledAccountRequestAuthService,
-  type IAccountRequestAuthService,
-} from "./model-provider/accountRequestAuthService.js";
 import { createUsageStatsService } from "./usage-stats/usageStatsService.js";
 import { createSkillsService } from "./skills/skillsService.js";
 import { createSkillSyncService } from "./skill-sync/skillSyncService.js";
@@ -313,15 +302,10 @@ import type {
   RuntimeTaskReporter,
 } from "#src/process/runtimeProcessLifecycle.js";
 import { initializeRuntimeProcessEnv } from "./runtime-tools/runtimeCommandEnv.js";
-import {
-  buildAgentEndpointOriginEnv,
-  buildAgentRuntimeEnv,
-} from "./runtime-tools/agentProxyEnv.js";
+import { buildAgentRuntimeEnv } from "./runtime-tools/agentProxyEnv.js";
 import { ensureAppCaCert } from "./runtime-tools/appCaCert.js";
 import { buildHelperOpenArgs, isCuaLocalDevelopmentRuntime } from "@zcode/zcode-cua/broker/server";
 import { createServiceLogger, type ServiceLogger } from "#src/logger/serviceLogger.js";
-import { IOffPeakTaskService } from "./session/offPeakTask.js";
-import { createDisabledOffPeakTaskService } from "./session/disabledOffPeakTaskService.js";
 import {
   BROKER_SOCKET_ENV,
   BROKER_UNAVAILABLE_ENV,
@@ -368,7 +352,6 @@ import {
   DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
   formatLogPrefix,
   type ServiceAuthorityMode,
-  resolveRuntimeZCodeEndpointOrigin,
   type BrowserBackendDescriptor,
   type BrowserClientMode,
   type BrowserCommand,
@@ -498,15 +481,6 @@ const providerProvisioningTriggerDisposers = new WeakMap<
 // （stdioDesktopPresentationSurface 单测稳定复现），Linux 的 unlink-while-open 语义掩盖了泄漏。
 // 与其它侧表一样按 ServiceCollection 登记并在 dispose 时统一 close。
 const sharedSqliteRepos = new WeakMap<ServiceCollection, ReadonlyArray<{ close(): void }>>();
-const accountRequestAuthServices = new WeakMap<ServiceCollection, IAccountRequestAuthService>();
-
-/** Local Host 进程内能力；不会随 ServiceCollection 暴露到通用 RPC Channel。 */
-export function getAccountRequestAuthService(
-  services: ServiceCollection,
-): IAccountRequestAuthService | undefined {
-  return accountRequestAuthServices.get(services);
-}
-
 /** Local Host 进程内的 Provisioning Source；不会把凭据通过通用 RPC 暴露给 Renderer。 */
 export function getProviderProvisioningSource(
   services: ServiceCollection,
@@ -1229,10 +1203,6 @@ export function createLocalServices(options: {
   const settingService = createObservableSettingService(
     options?.settingService ?? localSettings!.service,
   );
-  const resolveCurrentZCodeEndpointOrigin = async () =>
-    resolveRuntimeZCodeEndpointOrigin(process.env, {
-      overrideOrigin: (await settingService.get()).zcodeEndpointOrigin,
-    });
   const credentialService = createCredentialService();
   const broadcastService = createBroadcastService(options?.parentPort ?? null);
   const gitCheckpointService = createGitCheckpointService();
@@ -1248,14 +1218,12 @@ export function createLocalServices(options: {
     });
   const apiClient = createNodeApiClient({
     fetchImpl: hostApiNetworkTransport.fetch,
-    resolveZCodeEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
   });
   const systemService = createSystemService();
   // 去官方化后 onboarding 只属于本地工作区，不再绑定账号身份。
   const onboardingRecordService = createOnboardingRecordService({
     loadUserId: async () => null,
   });
-  const accountRequestAuthService = createDisabledAccountRequestAuthService();
   const providerConfigLog = createServiceLogger("provider-config");
   const providerConfigRuntime = createProviderConfigRuntime({
     zcodeBuiltinFilePath: options.zcodeBuiltinProviderConfigFilePath,
@@ -1720,12 +1688,9 @@ export function createLocalServices(options: {
       }
     },
   };
-  // 账号套餐下线后，Agent 不再装配闲时任务或动态工作流工具面。
-  const offPeakToolWiring = {};
   const zcodeAgentService = createZCodeAgentService({
     ...(modelSelectionReadinessSource ? { modelSelectionReadinessSource } : {}),
     authorizeLocalMediaPreviewPath: options?.authorizeLocalMediaPreviewPath,
-    ...offPeakToolWiring,
     commandResolver: options?.zcodeAgentCommandResolver,
     presentationSurface: resolveZCodeAgentPresentationSurface({
       runtimeSurface: options?.agentRuntimeContext?.runtimeSurface,
@@ -1837,9 +1802,6 @@ export function createLocalServices(options: {
           noProxy: agentNetwork.noProxy,
           caCertPath: settings.httpProxyCaCertPath,
         }),
-        // 把 host 解析出的权威 origin（含 settings 覆盖）下发给 agent，否则 agent 侧只按
-        // env 推导，test env + 自定义端点时两侧信任判定的输入分叉、官方 MCP 整体 fail closed。
-        ...buildAgentEndpointOriginEnv(await resolveCurrentZCodeEndpointOrigin()),
         // broker 凭据（socket/token）注入 agent spawn env，让内置 zcode-cua plugin 的
         // computer-use MCP server 经 __zcode-plugin-host 恢复 token 后连上 broker。
         // 上面 cuaProductHelperEnv 已完成代际校验与 unavailable 兜底，取代 staging 侧
@@ -1980,8 +1942,6 @@ export function createLocalServices(options: {
       IUsageStatsService,
       createUsageStatsService({
         apiClient,
-        accountRequestAuthService,
-        credentialService,
         // 套餐 API Key 是普通本地 Provider 凭据，不应因为账号/OAuth 被下线而失去额度查询。
         // 解析只接受显式的 Coding Plan API Key 和 Z.ai/BigModel 官方 API origin，
         // 不把任意自定义供应商的 Key 发送到套餐接口。
@@ -2024,7 +1984,6 @@ export function createLocalServices(options: {
     )
     // Off-Peak/闲时任务保留 service descriptor 供旧客户端完成协商，但本地运行时不再
     // 初始化任务仓库、官方票据客户端、轮询同步或调度唤醒。
-    .register(IOffPeakTaskService, createDisabledOffPeakTaskService())
     .register(ISkillsService, skillsService)
     .register(ISkillSyncService, createSkillSyncService())
     .register(IMcpSyncService, mcpSyncService)
@@ -2052,8 +2011,6 @@ export function createLocalServices(options: {
   // 调用栈结束后才创建的高权限 Helper；若返回后立即 dispose，terminal fence 会先于 acquire 生效。
   // Helper 懒启动：不预热——Helper 由 SDK 首次 CUA 调用拉起（spawn env 注入
   // 稳定 socket），或用户显式授权流（restartHelper）拉起。启动即零 Helper 常驻。
-
-  accountRequestAuthServices.set(services, accountRequestAuthService);
 
   providerRuntimes.set(services, providerRuntime);
   providerProvisioningSources.set(services, providerProvisioningSource);
@@ -2106,7 +2063,6 @@ export function disposeServiceResources(services: ServiceCollection): void {
     services.getOptional(IZCodeAgentService),
     services.getOptional(IZCodeSessionService),
     services.getOptional(IFileWatcherService),
-    services.getOptional(IOffPeakTaskService),
   ].filter((service) => service !== undefined);
 
   for (const service of disposableServices) {
@@ -2139,7 +2095,6 @@ export async function disposeServiceResourcesAndWait(services: ServiceCollection
     services.getOptional(IZCodeAgentService),
     services.getOptional(IZCodeSessionService),
     services.getOptional(IFileWatcherService),
-    services.getOptional(IOffPeakTaskService),
   ].filter((service) => service !== undefined);
 
   for (const service of disposableServices) {

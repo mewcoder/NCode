@@ -9,12 +9,7 @@ declare const __ZCODE_ENDPOINT_ENV__: Record<string, string | undefined> | undef
 export function pickProductEndpointEnv(
   env: Record<string, string | undefined>,
 ): Record<string, string> {
-  const keys = [
-    "ZCODE_BASE_URL",
-    "ZCODE_ENDPOINT_ORIGIN",
-    "BIGMODEL_API_BASE_URL",
-    "ZAI_BUSINESS_BASE_URL",
-  ];
+  const keys = ["ZCODE_BASE_URL", "BIGMODEL_API_BASE_URL", "ZAI_BUSINESS_BASE_URL"];
   return Object.fromEntries(
     keys.flatMap((key) => (env[key]?.trim() ? [[key, env[key]!.trim()]] : [])),
   );
@@ -29,17 +24,12 @@ export function readProductEndpointEnv(): Record<string, string | undefined> {
 export interface ZCodeEndpointUrls {
   origin: string;
   apiBaseUrl: string;
-  zcodePlanOpenAiBaseUrl: string;
-  zcodePlanAnthropicBaseUrl: string;
-  zcodePlanBillingCurrentUrl: string;
-  zcodePlanBillingBalanceUrl: string;
 }
 
 export interface RuntimeZCodeEndpointEnv {
   [key: string]: string | undefined;
   ZCODE_ENV?: string;
   ZCODE_BASE_URL?: string;
-  ZCODE_ENDPOINT_ORIGIN?: string;
 }
 
 export interface RuntimeBigModelApiEnv {
@@ -52,17 +42,6 @@ export interface RuntimeZaiEndpointEnv {
   [key: string]: string | undefined;
   ZCODE_ENV?: string;
   ZAI_BUSINESS_BASE_URL?: string;
-}
-
-export interface RuntimeProductEndpointEnv
-  extends RuntimeZCodeEndpointEnv, RuntimeBigModelApiEnv, RuntimeZaiEndpointEnv {}
-
-export interface RuntimeProductEndpointConfig {
-  zcodeEnv: ZCodeEnv;
-  zcodeEndpointOrigin: string;
-  zcodeEndpointUrls: ZCodeEndpointUrls;
-  zaiBusinessBaseUrl: string;
-  bigModelApiOrigin: string;
 }
 
 function readRuntimeEnvValue(
@@ -86,32 +65,6 @@ export function normalizeZCodeEndpointOrigin(value: string): string {
   return parsed.origin;
 }
 
-function isLoopbackHostname(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-}
-
-export function isTrustedCodingPlanWebviewOrigin(
-  value: string | null | undefined,
-  options?: {
-    e2eStoreBridgeEnabled?: boolean;
-  },
-): boolean {
-  if (!value) return false;
-  try {
-    const origin = normalizeZCodeEndpointOrigin(value);
-    if (
-      origin === DEFAULT_ZCODE_ENDPOINT_ORIGIN ||
-      origin === resolveRuntimeZCodeEndpointOrigin()
-    ) {
-      return true;
-    }
-    const parsed = new URL(origin);
-    return options?.e2eStoreBridgeEnabled === true && isLoopbackHostname(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
 export function resolveZCodeEndpointOrigin(options?: {
   env?: ZCodeEnv;
   envBaseOrigin?: string | null;
@@ -133,25 +86,9 @@ export function resolveRuntimeZCodeEndpointOrigin(
   options?: { overrideOrigin?: string | null },
 ): string {
   return resolveZCodeEndpointOrigin({
-    envBaseOrigin:
-      readRuntimeEnvValue(env, "ZCODE_BASE_URL") ??
-      readRuntimeEnvValue(env, "ZCODE_ENDPOINT_ORIGIN"),
+    envBaseOrigin: readRuntimeEnvValue(env, "ZCODE_BASE_URL"),
     overrideOrigin: options?.overrideOrigin,
   });
-}
-
-export function buildRuntimeZCodeEndpointUrls(
-  env: RuntimeZCodeEndpointEnv = readProductEndpointEnv(),
-): ZCodeEndpointUrls {
-  return buildZCodeEndpointUrls(resolveRuntimeZCodeEndpointOrigin(env));
-}
-
-export function buildRuntimeZCodeApiUrl(
-  env: RuntimeZCodeEndpointEnv = readProductEndpointEnv(),
-  path: string,
-): string {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${resolveRuntimeZCodeEndpointOrigin(env)}${normalizedPath}`;
 }
 
 export function resolveBigModelApiOrigin(
@@ -199,54 +136,10 @@ export function buildRuntimeZaiBusinessUrl(
   return `${resolveZaiBusinessBaseUrl(env)}${normalizedPath}`;
 }
 
-export function resolveRuntimeProductEndpointConfig(
-  env: RuntimeProductEndpointEnv = readProductEndpointEnv(),
-): RuntimeProductEndpointConfig {
-  const zcodeEnv = resolveRuntimeZCodeEnv(env);
-  const zcodeEndpointOrigin = resolveRuntimeZCodeEndpointOrigin(env);
-
-  return {
-    zcodeEnv,
-    zcodeEndpointOrigin,
-    zcodeEndpointUrls: buildZCodeEndpointUrls(zcodeEndpointOrigin),
-    zaiBusinessBaseUrl: resolveZaiBusinessBaseUrl(env),
-    bigModelApiOrigin: resolveBigModelApiOrigin(env),
-  };
-}
-
 export function buildZCodeEndpointUrls(origin: string): ZCodeEndpointUrls {
   const normalizedOrigin = normalizeZCodeEndpointOrigin(origin);
   return {
     origin: normalizedOrigin,
     apiBaseUrl: `${normalizedOrigin}/api/v1`,
-    zcodePlanOpenAiBaseUrl: `${normalizedOrigin}/api/v1/zcode-plan`,
-    zcodePlanAnthropicBaseUrl: `${normalizedOrigin}/api/v1/zcode-plan/anthropic`,
-    zcodePlanBillingCurrentUrl: `${normalizedOrigin}/api/v1/zcode-plan/billing/current`,
-    zcodePlanBillingBalanceUrl: `${normalizedOrigin}/api/v1/zcode-plan/billing/balance`,
   };
-}
-
-export function rewriteZCodeEndpointUrl(input: string | URL, endpointOrigin: string): string | URL {
-  const originalUrl = typeof input === "string" ? input : input.toString();
-  let parsed: URL;
-  try {
-    parsed = new URL(originalUrl);
-  } catch {
-    return input;
-  }
-  const sourceOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN;
-  if (parsed.origin !== sourceOrigin) {
-    return input;
-  }
-
-  const targetOrigin = normalizeZCodeEndpointOrigin(endpointOrigin);
-  if (targetOrigin === sourceOrigin) {
-    return input;
-  }
-
-  const target = new URL(targetOrigin);
-  target.pathname = parsed.pathname;
-  target.search = parsed.search;
-  target.hash = parsed.hash;
-  return target.toString();
 }

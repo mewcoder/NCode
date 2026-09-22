@@ -362,6 +362,4 @@ export interface AppSettings {
   skippedElectronUpdateVersions?: Partial<Record<ElectronReleaseChannel, string>>;
   /** 首次启动设置同步提示是否已消费；只表示弹窗不再出现，不代表导入成功。 */
   settingsSyncFirstRunPromptHandled?: boolean;
-  /** 设置页里的临时 endpoint override；正式/测试默认 base url 由 ZCODE_BASE_URL env 管理。 */
-  zcodeEndpointOrigin?: string;
 }

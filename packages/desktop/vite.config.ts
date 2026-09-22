@@ -4,7 +4,6 @@ import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { resolveZCodeEndpointOrigin, pickProductEndpointEnv } from "@zcode/shared/zcodeEndpoint";
 import { pdfJsCMapsPlugin } from "../ui/vite/pdfJsCMapsPlugin.js";
 import { getBuildMetadata } from "./scripts/build-metadata.mjs";
 import { resolveDesktopProductFlavor } from "./scripts/desktop-product-identity.mjs";
@@ -155,10 +154,6 @@ export default defineConfig(({ mode }) => {
     env.ZCODE_E2E_COVERAGE === "1" || process.env.ZCODE_E2E_COVERAGE === "1";
   const e2eStoreBridgeEnabled =
     env.VITE_ZCODE_E2E_STORE_BRIDGE === "1" || process.env.VITE_ZCODE_E2E_STORE_BRIDGE === "1";
-  const zcodeEndpointOrigin = resolveZCodeEndpointOrigin({
-    env: zcodeEnv,
-    envBaseOrigin: env.ZCODE_BASE_URL ?? env.ZCODE_ENDPOINT_ORIGIN,
-  });
   const codingPlanWebviewOrigin =
     env.VITE_CODING_PLAN_WEBVIEW_ORIGIN ?? process.env.VITE_CODING_PLAN_WEBVIEW_ORIGIN ?? "";
   const plugins = [
@@ -188,16 +183,12 @@ export default defineConfig(({ mode }) => {
     },
     server: { port: 5174, strictPort: true },
     define: {
-      __ZCODE_ENDPOINT_ENV__: JSON.stringify(pickProductEndpointEnv(env)),
       __ZCODE_VERSION__: JSON.stringify(buildMetadata.appVersion),
       __ZCODE_COMMIT__: JSON.stringify(buildMetadata.buildCommitId),
       __ZCODE_BUILD_TIME__: JSON.stringify(buildMetadata.buildTime),
       __ZCODE_ENV__: JSON.stringify(zcodeEnv),
       __ZCODE_PRODUCT_FLAVOR__: JSON.stringify(zcodeProductFlavor),
       __ZCODE_LOCAL_DEVELOPMENT_RUNTIME__: JSON.stringify(mode !== "production"),
-      "import.meta.env.VITE_ZCODE_BASE_URL": JSON.stringify(zcodeEndpointOrigin),
-      // 兼容旧 renderer 读取名；新代码统一读 VITE_ZCODE_BASE_URL。
-      "import.meta.env.VITE_ZCODE_ENDPOINT_ORIGIN": JSON.stringify(zcodeEndpointOrigin),
       "import.meta.env.VITE_CODING_PLAN_WEBVIEW_ORIGIN": JSON.stringify(codingPlanWebviewOrigin),
       "import.meta.env.VITE_REWARDS_WEBVIEW_ORIGIN": JSON.stringify(
         env.VITE_REWARDS_WEBVIEW_ORIGIN ?? process.env.VITE_REWARDS_WEBVIEW_ORIGIN ?? "",

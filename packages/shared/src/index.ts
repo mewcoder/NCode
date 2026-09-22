@@ -91,7 +91,6 @@ export * from "./zcode-session-task-status.js";
 export * from "./zcode-tool-projection-memory.js";
 export * from "./zcode-slash-command-help.js";
 export * from "./zcodeEndpoint.js";
-export * from "./zcode-source-headers.js";
 export * from "./zcode-agent-policy.js";
 export * from "./zcode-media-policy.js";
 export * from "./media-preview.js";
@@ -244,7 +243,6 @@ export * from "./workspaceSessionRestore.js";
 export * from "./skill-scan-policy.js";
 export * from "./browser-use/index.js";
 
-export * from "./coding-plan-reset.js";
 export {
   parseSubagentMarkdownSelection,
   formatSubagentMarkdownModel,

@@ -7,8 +7,6 @@ interface ImportMetaEnv {
   readonly DEV: boolean;
   readonly PROD: boolean;
   readonly VITE_DEV_ORIGIN?: string;
-  readonly VITE_ZCODE_BASE_URL?: string;
-  readonly VITE_ZCODE_ENDPOINT_ORIGIN?: string;
 }
 
 interface ImportMeta {

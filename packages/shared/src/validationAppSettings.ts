@@ -1,10 +1,8 @@
 /* oxlint-disable eslint(max-lines) -- AppSettings schema 聚合历史迁移、默认值和 patch 校验，拆分会削弱设置迁移的单一入口。 */
 import { z } from "zod";
-import type { AppSettings } from "./protocol.js";
 import { REMOTE_ASSET_INSTALL_MODES } from "./remoteAssetInstallMode.js";
 import { isKnownRemoteResourcePackageId } from "./remoteResourcePackages.js";
 import { wslUserSchema } from "./wslUserValidation.js";
-import { normalizeZCodeEndpointOrigin } from "./zcodeEndpoint.js";
 import {
   DEFAULT_EMBEDDED_BROWSER_VIEWPORT_PREFERENCE,
   embeddedBrowserViewportPreferenceSchema,
@@ -119,38 +117,6 @@ const appWorkspaceSessionEntrySchema = z.discriminatedUnion("kind", [
     lastConnectionError: z.string().optional(),
   }),
 ]);
-
-const zcodeEndpointOriginSchema = z.preprocess((value) => {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  try {
-    return normalizeZCodeEndpointOrigin(trimmed);
-  } catch {
-    return undefined;
-  }
-}, z.string().optional());
-
-function sanitizeZCodeEndpointOrigin(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-  const raw = value as Record<string, unknown>;
-  if (!("zcodeEndpointOrigin" in raw)) {
-    return value;
-  }
-  const parsed = zcodeEndpointOriginSchema.safeParse(raw.zcodeEndpointOrigin);
-  if (parsed.success && typeof parsed.data === "string") {
-    return { ...raw, zcodeEndpointOrigin: parsed.data };
-  }
-  const { zcodeEndpointOrigin: _zcodeEndpointOrigin, ...next } = raw;
-  // 非生产 endpoint override 是开发辅助字段，坏值只丢弃该字段，不能拖垮整个 settings 读取。
-  return next;
-}
 
 function sanitizeDesktopWindowSize(value: unknown): unknown {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -470,7 +436,6 @@ const appSettingsObjectSchema = z.object({
   autoDownloadAndInstallUpdates: z.boolean().default(false),
   skippedElectronUpdateVersions: skippedElectronUpdateVersionsSchema,
   settingsSyncFirstRunPromptHandled: z.boolean().optional(),
-  zcodeEndpointOrigin: zcodeEndpointOriginSchema.optional(),
 });
 
 export const appSettingsSchema = z.preprocess(
@@ -479,9 +444,7 @@ export const appSettingsSchema = z.preprocess(
       sanitizeDesktopWindowSize(
         migrateMessageStreamShowReasoningDefault(
           migrateCloseToTrayOnWindowsDefault(
-            migrateLegacyLocalePreference(
-              sanitizeZCodeEndpointOrigin(migrateLegacyWorkspaceSession(value)),
-            ),
+            migrateLegacyLocalePreference(migrateLegacyWorkspaceSession(value)),
           ),
         ),
       ),
@@ -556,5 +519,4 @@ export const appSettingsPatchSchema = z.object({
     .partialRecord(electronReleaseChannelSchema, nonEmptyStringSchema)
     .optional(),
   settingsSyncFirstRunPromptHandled: z.boolean().optional(),
-  zcodeEndpointOrigin: zcodeEndpointOriginSchema.optional(),
 });

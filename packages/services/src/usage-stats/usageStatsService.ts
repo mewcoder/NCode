@@ -4,20 +4,12 @@ import type {
   AppUsageSnapshot,
   CodingPlanUsageRequest,
   CodingPlanUsageSnapshot,
-  CodingPlanResetOpportunityRequest,
-  CodingPlanResetOpportunityResult,
-  CodingPlanResetScopeRequest,
-  CodingPlanResetStatusSnapshot,
-  CodingPlanResetUseRequest,
-  CodingPlanResetUseResult,
   UsageEntitlementRequest,
   UsageEntitlementSnapshot,
   UsageStatsRequest,
   UsageStatsSnapshot,
 } from "@zcode/shared";
 import { isCodingPlanModelProviderId } from "@zcode/shared";
-import type { ICredentialService } from "../credential/credential.js";
-import type { IAccountRequestAuthService } from "../model-provider/accountRequestAuthService.js";
 import type { IZCodeAgentService } from "../zcode-agent/zcodeAgent.js";
 import type { IUsageStatsService } from "./usageStats.js";
 import {
@@ -28,14 +20,9 @@ import {
 
 interface UsageStatsServiceDependencies {
   apiClient: ApiClient;
-  accountRequestAuthService: Pick<
-    IAccountRequestAuthService,
-    "resolveAccessCurrent" | "resolveCurrent" | "assertCurrent"
-  >;
   resolveApiAuthorization?: (
     request: UsageApiAuthorizationRequest,
   ) => Promise<UsageApiAuthorization | null>;
-  credentialService?: Pick<ICredentialService, "load">;
   env?: NodeJS.ProcessEnv;
   /** App Usage 经 ZCode Protocol 读取 agent 数据库真实统计。 */
   zcodeAgentService: Pick<IZCodeAgentService, "getAppUsageStats">;
@@ -50,9 +37,7 @@ export function createUsageStatsService(
 ): IUsageStatsService {
   const quotaProvider = new BigModelUsageQuotaProvider({
     apiClient: dependencies.apiClient,
-    accountRequestAuthService: dependencies.accountRequestAuthService,
     resolveApiAuthorization: dependencies.resolveApiAuthorization,
-    credentialService: dependencies.credentialService,
     env: dependencies.env,
   });
 
@@ -74,36 +59,6 @@ export function createUsageStatsService(
         throw new Error("no_bigmodel_api_key");
       }
       return quotaProvider.getCodingPlanUsageSnapshot(request);
-    },
-    async getCodingPlanResetStatus(
-      request: CodingPlanResetScopeRequest,
-    ): Promise<CodingPlanResetStatusSnapshot> {
-      if (!isCodingPlanProviderId(request.preferredProviderId)) {
-        throw new Error("no_bigmodel_api_key");
-      }
-      return quotaProvider.getCodingPlanResetStatus(request);
-    },
-    async requestCodingPlanResetOpportunity(
-      request: CodingPlanResetOpportunityRequest,
-    ): Promise<CodingPlanResetOpportunityResult> {
-      if (!isCodingPlanProviderId(request.preferredProviderId)) {
-        throw new Error("no_bigmodel_api_key");
-      }
-      return quotaProvider.requestCodingPlanResetOpportunity(request);
-    },
-    async useCodingPlanReset(
-      request: CodingPlanResetUseRequest,
-    ): Promise<CodingPlanResetUseResult> {
-      if (!isCodingPlanProviderId(request.preferredProviderId)) {
-        throw new Error("no_bigmodel_api_key");
-      }
-      return quotaProvider.useCodingPlanReset(request);
-    },
-    async markCodingPlanResetHistoryRead(request: CodingPlanResetScopeRequest): Promise<void> {
-      if (!isCodingPlanProviderId(request.preferredProviderId)) {
-        throw new Error("no_bigmodel_api_key");
-      }
-      await quotaProvider.markCodingPlanResetHistoryRead(request);
     },
     async getSnapshot(request: UsageStatsRequest): Promise<UsageStatsSnapshot> {
       // App Usage 已迁移到 getAppUsageSnapshot（agent 数据库）。getSnapshot 仅服务 Coding Plan monitor 链路。

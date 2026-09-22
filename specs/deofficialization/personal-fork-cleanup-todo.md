@@ -44,8 +44,8 @@ Desktop Context Prompt 灰度；Renderer Action Trace 已从个人版移除。
 
 - [x] 移除指向 ZCode 官方站点的“产品文档”入口。
 - [ ] 将 changelog 入口改为仓库/GitHub Release，不再打开 `zcode.z.ai`。
-- [ ] 删除开发菜单中的官方 production/test endpoint 选择；如需调试，只保留显式自定义 endpoint。
-- [ ] 重新评估 `DEFAULT_ZCODE_ENDPOINT_ORIGIN`：通用 Provider 不应需要产品后端默认值。
+- [x] 删除开发菜单中的官方 production/test/custom endpoint 选择；供应商调试地址由 Provider `api.baseUrl` 管理。
+- [x] 重新评估 `DEFAULT_ZCODE_ENDPOINT_ORIGIN`：通用 Provider 不再使用产品后端默认值；仅 CLI 官方登录保留默认登录 endpoint helper。
 - [ ] 清理 `electron-builder.config.js` 中仍显示的官方 homepage。
 
 主要证据：
@@ -87,12 +87,12 @@ SSH/WSL/Docker 远程工作区在生产环境仍从 `cdn-zcode.z.ai/zcode/electr
 
 ### 3B. Coding Plan reset 与 Start Plan 兼容路径
 
-- [ ] 删除 `bigmodelUsageQuotaProvider` 中只服务账号型 Start Plan 的余额查询、额度构造和授权分支，
+- [x] 删除 `bigmodelUsageQuotaProvider` 中只服务账号型 Start Plan 的余额查询、额度构造和授权分支，
       移除无调用方的 `zaiStartPlanBilling.ts`；普通 Coding Plan API Key 额度查询保持可用。
-- [ ] 删除依赖账号/OAuth 的 Coding Plan reset 服务、UI hook、轮询状态和 `/api/v1/coding-plan/reset/*`
+- [x] 删除依赖账号/OAuth 的 Coding Plan reset 服务、UI hook、轮询状态和 `/api/v1/coding-plan/reset/*`
       官方 endpoint；不要影响本地 App Usage 聚合和 API Key 额度查询。
-- [ ] 上述路径清理后再评估 `DEFAULT_ZCODE_ENDPOINT_ORIGIN`、source headers 和 endpoint 命令兼容代码，
-      避免在没有本地用途时保留 `https://zcode.z.ai` 默认回退。
+- [x] 清理无本地用途的 source headers、endpoint 命令兼容代码和产品端 billing URL；保留 CLI 官方登录
+      所需的默认 endpoint helper，以及供应商自己的 API base URL。
 
 ### 4. 支付与套餐死资源
 
@@ -116,24 +116,24 @@ SSH/WSL/Docker 远程工作区在生产环境仍从 `cdn-zcode.z.ai/zcode/electr
 Off-Peak 是官方账号的闲时任务：任务由官方服务在低峰时段调度并回传结果。它依赖官方账号、
 额度和服务端队列，与本地 `Automations/Cron` 定时任务不是同一能力。
 
-- [ ] 删除所有 `access.type = zhipu-account` 的 provider 规则。
-- [ ] 删除 Start Plan/Off-Peak 专用模型规则和 endpoint 匹配规则。
+- [x] 运行时不再装配 `access.type = zhipu-account` 的 Provider Overlay、账号 resolver 或账号鉴权服务。
+- [x] 删除 Start Plan/Off-Peak 的运行时模型规则和 endpoint 匹配路径；历史 schema 与数据库字段保留只读边界。
 - [ ] 保留 Z.ai/BigModel 的普通 API Key 与 Coding Plan API Key 模板，除非个人明确不用 GLM。
-- [ ] 删除账号 credential key、连接选择和 availability 代码；历史数据只读迁移另行评估。
-- [ ] 删除 Off-Peak 新建/列表/调度协议入口；保留数据库迁移所需的最小历史读取能力。
+- [x] 删除账号 credential key 的运行时解析、连接选择和 availability 发布代码；历史数据只读迁移另行评估。
+- [x] 删除 Off-Peak 新建/列表/调度运行时入口；保留数据库迁移与 shared 协议的最小历史读取能力。
 
 验收：新配置无法产生账号型 Provider 或 Off-Peak 任务；旧数据不会被重新激活；普通 API Key
 Provider 仍可用。
 
 ### 6. Disabled Coding Plan Service 兼容壳
 
-`ICodingPlanSubscriptionService` 仍暴露支付、企业套餐、Off-Peak、强制更新等大量方法，实际实现
-全部拒绝或返回本地默认值。
+当前源码已不存在 `ICodingPlanSubscriptionService`、其 ServiceChannel、Desktop/Web 代理或 disabled
+factory；动态工作流和模型 context budget 也不再依赖套餐 service。
 
-- [ ] 将动态工作流可用性改为独立本地配置，不再借用套餐 service。
-- [ ] 将模型 context budget 默认值放回实际 owner。
-- [ ] 删除 `ICodingPlanSubscriptionService`、ServiceChannel、Desktop/Web 代理和 disabled factory。
-- [ ] 删除共享支付/订单 schema；仅保留仍被 API Key 额度查询使用的类型。
+- [x] 将动态工作流可用性改为独立本地配置，不再借用套餐 service。
+- [x] 将模型 context budget 默认值放回实际 owner。
+- [x] 删除 `ICodingPlanSubscriptionService`、ServiceChannel、Desktop/Web 代理和 disabled factory。
+- [x] 删除共享支付/订单 schema；仅保留仍被 API Key 额度查询使用的类型。
 
 验收：ServiceCollection 和远程 Host 不再注册套餐 service；动态工作流与模型选择不回归。
 

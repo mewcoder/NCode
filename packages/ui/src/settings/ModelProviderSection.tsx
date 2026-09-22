@@ -98,11 +98,7 @@ export function ModelProviderSection({
   const [creatingProvider, setCreatingProvider] = useState(false);
 
   const visibleProviders = useMemo(
-    () =>
-      sortModelProvidersForDisplay(
-        modelProviders.filter((provider) => provider.config.access?.type !== "zhipu-account"),
-        displayOrder,
-      ),
+    () => sortModelProvidersForDisplay(modelProviders, displayOrder),
     [displayOrder, modelProviders],
   );
   const navigationGroups = useMemo<ModelProviderNavGroup[]>(

@@ -9,13 +9,6 @@ export {
   type ProviderSettingsProviderView,
   type ProviderSettingsView,
 } from "./model-provider/providerFacadeServices.js";
-export {
-  createAccountRequestAuthService,
-  type IAccountRequestAuthService,
-  type AccountRequestAuthInput,
-  type AccountRequestAuthMaterial,
-  type AccountRequestAuthResolver,
-} from "./model-provider/accountRequestAuthService.js";
 export { IProviderProvisioningTargetService } from "./model-provider/providerProvisioning.js";
 export {
   collectServiceMemoryDiagnostics,
@@ -196,10 +189,6 @@ export { IUsageStatsService } from "./usage-stats/usageStats.js";
 export type { IStorageService } from "./storage/contract.js";
 
 export { isValidCronExpr } from "./session/automationCronValidation.js";
-// 闲时任务管理服务（与 automation 服务面独立）；接口/描述符 browser-safe。
-export { IOffPeakTaskService } from "./session/offPeakTask.js";
-export type { OffPeakUpdateTaskParams } from "./session/offPeakTask.js";
-
 // Skills service — ISkillsService is both a type (interface) and value (descriptor)
 export { ISkillsService } from "./skills/skills.js";
 export { ISkillSyncService } from "./skill-sync/skillSync.js";

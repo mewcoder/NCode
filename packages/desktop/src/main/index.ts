@@ -119,7 +119,6 @@ import {
   loadHostProcessEnvFromLocalFiles,
   resolveBundledGlmBinaryPath,
   resolveRemoteAssetDirs,
-  resolveZCodeEndpointEnvBaseOrigin,
   runtimeApplicationName,
   runtimeHomePath,
   runtimeSessionDataPath,
@@ -1077,8 +1076,6 @@ async function executeDesktopCommandForApp(
       rebuildMenu();
     },
     settingService: mainSettingService,
-    onZCodeEndpointChanged: handleZCodeEndpointChanged,
-    zcodeEndpointEnvBaseOrigin: resolveZCodeEndpointEnvBaseOrigin(hostProcessLocalEnv),
     onRelaunchApp: async () => {
       await prepareAppQuit("desktop-command-relaunch");
       app.relaunch();
@@ -1087,10 +1084,6 @@ async function executeDesktopCommandForApp(
     credentialsDir: getCredentialsDir(),
     currentApplicationLocale,
   });
-}
-
-async function handleZCodeEndpointChanged() {
-  rebuildMenu();
 }
 
 /** 快捷键设置页录制态（renderer 经 SetShortcutRecordingActive 同步）；true 时菜单摘除可配置 accelerator。 */

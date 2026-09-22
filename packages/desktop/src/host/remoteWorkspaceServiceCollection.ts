@@ -36,7 +36,6 @@ import {
   createNodeApiClient,
   createHostApiNetworkTransport,
   registerHostApiNetworkTransportForDispose,
-  createDisabledAccountRequestAuthService,
   createSettingsSyncService,
   createUsageStatsService,
   createServiceLogger,
@@ -82,7 +81,6 @@ export function createRemoteWorkspaceServiceCollection(params: {
     fetchImpl: hostApiNetworkTransport.fetch,
   });
   const localBroadcastService = createBroadcastService(params.parentPort);
-  const localAccountRequestAuthService = createDisabledAccountRequestAuthService();
   const reportingRemoteZCodeTaskService = params.createReportingRemoteZCodeTaskService(
     params.connectionServices.zcodeTaskService,
   );
@@ -222,8 +220,6 @@ export function createRemoteWorkspaceServiceCollection(params: {
       IUsageStatsService,
       createUsageStatsService({
         apiClient: localApiClient,
-        accountRequestAuthService: localAccountRequestAuthService,
-        credentialService: localCredentialService,
         zcodeAgentService: params.connectionServices.zcodeAgentService,
       }),
     )

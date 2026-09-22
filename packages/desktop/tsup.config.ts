@@ -32,7 +32,6 @@ function loadEnvFiles(): Record<string, string> {
   // 真实环境变量优先级最高
   if (process.env.ZCODE_ENV) vars.ZCODE_ENV = process.env.ZCODE_ENV;
   if (process.env.ZCODE_BASE_URL) vars.ZCODE_BASE_URL = process.env.ZCODE_BASE_URL;
-  if (process.env.VITE_ZCODE_BASE_URL) vars.VITE_ZCODE_BASE_URL = process.env.VITE_ZCODE_BASE_URL;
   if (process.env.ZAI_BUSINESS_BASE_URL) {
     vars.ZAI_BUSINESS_BASE_URL = process.env.ZAI_BUSINESS_BASE_URL;
   }
