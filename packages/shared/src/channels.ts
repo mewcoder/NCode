@@ -99,9 +99,6 @@ export const ServiceChannels = {
   ProviderProvisioningTarget: "provider-provisioning-target",
   /** 本地 usage 统计服务 */
   UsageStats: "usage-stats",
-  /** 兼容旧运行时注册；UI 不再提供账号套餐/购买入口。 */
-  CodingPlanSubscription: "coding-plan-subscription",
-  ClientConfig: "client-config",
   /** ZCode 客户端场景配置服务 */
   ClientScenes: "client-scenes",
   /** Skills 管理服务 */
@@ -113,7 +110,6 @@ export const ServiceChannels = {
   /** SSH 远程 plugin 同步服务 */
   PluginSync: "plugin-sync",
   /** 插件管理服务 */
-  Plugins: "plugins",
   /** 设置页插件管理服务（UI 平台能力面收敛，不再直触 zcodeAgentService） */
   PluginManagement: "plugin-management",
   /** Subagents 管理服务 */
@@ -281,8 +277,6 @@ export const PlatformChannels = {
   RendererReady: "zcode:renderer-ready",
   /** Renderer → Main：读取 Renderer 用户操作 Trace 灰度配置。 */
   GetRendererActionTraceConfig: "zcode:get-renderer-action-trace-config",
-  /** Main → Renderer：Renderer 用户操作 Trace 灰度配置变化。 */
-  RendererActionTraceConfigChanged: "zcode:renderer-action-trace-config-changed",
   /** Renderer → Main：发送已结束的 ui_action batch。 */
   ReportRendererActionTraceBatch: "zcode:report-renderer-action-trace-batch",
   /** Renderer → Main：主窗口 renderer 每 60 秒的 heap 读数，单向 send，不需要回执。 */
@@ -789,10 +783,6 @@ export interface PlatformChannelMap {
   [PlatformChannels.GetRendererActionTraceConfig]: {
     request: void;
     response: RendererActionTraceConfigV1;
-  };
-  [PlatformChannels.RendererActionTraceConfigChanged]: {
-    request: RendererActionTraceConfigV1;
-    response: void;
   };
   [PlatformChannels.ReportRendererActionTraceBatch]: {
     request: RendererActionTraceBatchV1;

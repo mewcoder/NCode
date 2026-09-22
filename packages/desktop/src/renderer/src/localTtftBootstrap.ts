@@ -47,7 +47,6 @@ export function initializeDesktopLocalTtft(platform: IPlatformService): () => vo
     .getRendererActionTraceConfig()
     .then(apply)
     .catch(() => {});
-  const off = platform.onRendererActionTraceConfigChanged?.(apply);
   const background = () => observer.background();
   const foreground = () => {
     if (document.visibilityState === "visible") observer.foreground();
@@ -66,7 +65,6 @@ export function initializeDesktopLocalTtft(platform: IPlatformService): () => vo
     flush();
     records = [];
     clearInterval(timer);
-    off?.();
     setLocalTtftObserver(undefined);
     window.removeEventListener("blur", background);
     window.removeEventListener("focus", foreground);

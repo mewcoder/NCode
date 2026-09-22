@@ -1,5 +1,4 @@
 import type {
-  PluginStoreModeOrder,
   ZCodeAvailablePluginSummary,
   ZCodeInstalledPluginSummary,
   ZCodePluginInfo,
@@ -322,7 +321,6 @@ export function selectFeaturedItems(
 export function groupItemsByCategory(
   items: StorePluginItem[],
   locale: string,
-  order?: PluginStoreModeOrder,
 ): StoreCategoryGroup[] {
   const groups = new Map<string, StorePluginItem[]>();
   const sorted = sortPluginStoreEntries(
@@ -333,7 +331,6 @@ export function groupItemsByCategory(
       displayName: resolveItemDisplayName(item, locale),
     }),
     locale,
-    order,
   );
   for (const item of sorted) {
     const category = resolveStoreCategory(item.listing?.category) ?? FALLBACK_CATEGORY;

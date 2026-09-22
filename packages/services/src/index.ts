@@ -195,11 +195,6 @@ export { IUsageStatsService } from "./usage-stats/usageStats.js";
 // Storage（资源管理器「存储」tab）：数据类型在 @zcode/shared；这里只导出服务接口与卷分组纯函数
 export type { IStorageService } from "./storage/contract.js";
 
-// CodingPlanSubscription service — ICodingPlanSubscriptionService is both a type (interface) and value (descriptor)
-export {
-  ICodingPlanSubscriptionService,
-  type OffPeakClientConfig,
-} from "./coding-plan-subscription/codingPlanSubscription.js";
 export {
   IClientScenesService,
   type ClientSceneConfig,
@@ -233,8 +228,6 @@ export {
   type CuaPipSessionService,
 } from "./cua-permission-broker/cuaPipSession.js";
 
-// Plugins service — IPluginsService is both a type (interface) and value (descriptor)
-export { IPluginsService } from "./plugins/plugins.js";
 // 设置页插件管理薄服务（UI 平台能力面不再直触 zcodeAgentService）
 export { IPluginManagementService } from "./plugins/pluginManagement.js";
 
@@ -253,4 +246,3 @@ export type {
   PromptAttachmentTransferPhase,
   PromptAttachmentTransferProgress,
 } from "./prompt-attachment-transfer/promptAttachmentTransfer.js";
-export { IClientConfigService } from "./client-config/clientConfig.js";

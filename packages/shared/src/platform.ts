@@ -640,10 +640,6 @@ export interface IPlatformService {
 
   /** 读取 Desktop Renderer 用户操作 Trace 的当前灰度配置；Web 不实现。 */
   getRendererActionTraceConfig?(): Promise<RendererActionTraceConfigV1>;
-  /** 订阅 Main 推送的 Renderer 用户操作 Trace 配置；Web 不实现。 */
-  onRendererActionTraceConfigChanged?(
-    callback: (config: RendererActionTraceConfigV1) => void,
-  ): () => void;
   /** Renderer → Main：发送已结束的 ui_action batch；严格旁路、fire-and-forget。 */
   reportRendererActionTraceBatch?(batch: RendererActionTraceBatchV1): void;
   reportLocalTtftBatch?(batch: import("./localTtft.js").LocalTtftBatch): void;

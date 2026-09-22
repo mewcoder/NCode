@@ -1,5 +1,4 @@
 import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID } from "./plugin-marketplaces.js";
-import type { PluginStoreModeOrder } from "./pluginStoreOrder.js";
 
 export const FALLBACK_PLUGIN_STORE_CATEGORY = "other";
 export const PLUGIN_STORE_CATEGORY_ORDER: readonly string[] = [
@@ -35,17 +34,12 @@ interface PluginStoreSortEntry {
   displayName: string;
 }
 
-/** 纯展示排序：配置优先，剩余分类按产品默认顺序，类内文档插件优先，再按本地化名称稳定兜底。 */
+/** 纯本地展示排序：分类按产品默认顺序，类内文档插件优先，再按本地化名称稳定兜底。 */
 export function sortPluginStoreEntries<T>(
   items: readonly T[],
   project: (item: T) => PluginStoreSortEntry,
   locale: string,
-  order?: PluginStoreModeOrder,
 ): T[] {
-  const categoryRanks = ranks(order?.categoryOrder);
-  const pluginRanks = new Map(
-    Object.entries(order?.pluginOrder ?? {}).map(([category, ids]) => [category, ranks(ids)]),
-  );
   return items
     .map((item, index) => {
       const entry = project(item);
@@ -58,20 +52,12 @@ export function sortPluginStoreEntries<T>(
     })
     .sort(
       (left, right) =>
-        compareRanks(categoryRanks, left.category, right.category) ||
         compareCategories(left.category, right.category) ||
-        compareRanks(pluginRanks.get(left.category), left.id, right.id) ||
         compareDocumentPluginPriority(left.id, right.id) ||
         left.displayName.localeCompare(right.displayName, locale) ||
         left.index - right.index,
     )
     .map(({ item }) => item);
-}
-
-function ranks(order: readonly string[] = []): Map<string, number> {
-  const result = new Map<string, number>();
-  for (const key of order) if (!result.has(key)) result.set(key, result.size);
-  return result;
 }
 function compareRanks(order: Map<string, number> | undefined, left: string, right: string): number {
   if (!order) return 0;

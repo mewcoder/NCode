@@ -1,10 +1,4 @@
-// ============================================================
-// Dynamic Workflow 灰度：服务端 feature key 的取值域与客户端快照
-// ============================================================
-// 服务端 `/api/v1/client/configs` 下发 `data.configs.dynamicWorkflow.mode`。
-
-// 这里只放三端（Host services、Desktop main、UI）共用的取值域、归一化与快照形状；
-// 读取远端、覆盖与下发都在各自的 owner 里，不在 shared 层发请求。
+// Dynamic Workflow 的本地取值域与客户端快照。
 
 export const DYNAMIC_WORKFLOW_MODES = ["disabled", "onDemand", "alwaysOn"] as const;
 export type DynamicWorkflowMode = (typeof DYNAMIC_WORKFLOW_MODES)[number];
@@ -19,7 +13,7 @@ export type DynamicWorkflowMode = (typeof DYNAMIC_WORKFLOW_MODES)[number];
  */
 export const ZCODE_DYNAMIC_WORKFLOW_MODE_ENV = "ZCODE_DYNAMIC_WORKFLOW_MODE";
 
-/** 服务端缺省、格式非法或请求失败时的取值：fail-closed，与闲时任务灰度一致。 */
+/** 本地未配置或格式非法时 fail-closed。 */
 export const DEFAULT_DYNAMIC_WORKFLOW_MODE: DynamicWorkflowMode = "disabled";
 
 export function normalizeDynamicWorkflowMode(value: unknown): DynamicWorkflowMode | undefined {
@@ -38,8 +32,8 @@ export function isDynamicWorkflowModeEnabled(mode: DynamicWorkflowMode): boolean
   return mode !== "disabled";
 }
 
-/** 快照的来源：观测用，UI 与日志据此区分「服务端关」与「本地覆盖」。 */
-export type DynamicWorkflowClientConfigSource = "remote" | "override" | "default";
+/** 快照的来源：观测用，UI 与日志据此区分本地覆盖与默认值。 */
+export type DynamicWorkflowClientConfigSource = "override" | "default";
 
 export interface DynamicWorkflowClientConfig {
   readonly mode: DynamicWorkflowMode;
@@ -53,24 +47,4 @@ export function createDynamicWorkflowClientConfig(
   source: DynamicWorkflowClientConfigSource,
 ): DynamicWorkflowClientConfig {
   return { mode, enabled: isDynamicWorkflowModeEnabled(mode), source };
-}
-
-/**
- * 纯函数：把远端 envelope 的 `configs.dynamicWorkflow` 与本地覆盖环境变量折叠成一个快照。
- * 优先级：覆盖 > 远端合法值 > 缺省。远端成功但**未下发**该 key 也视为 disabled——
- * 服务端撤掉 key 等于关闭，不能沿用旧快照（与 desktopContextPromptRollout 同一裁决）。
- */
-export function resolveDynamicWorkflowClientConfig(input: {
-  remote: unknown;
-  env?: Record<string, string | undefined>;
-}): DynamicWorkflowClientConfig {
-  const override = normalizeDynamicWorkflowMode(input.env?.[ZCODE_DYNAMIC_WORKFLOW_MODE_ENV]);
-  if (override) return createDynamicWorkflowClientConfig(override, "override");
-  const remoteMode = normalizeDynamicWorkflowMode(
-    typeof input.remote === "object" && input.remote !== null
-      ? (input.remote as { mode?: unknown }).mode
-      : undefined,
-  );
-  if (remoteMode) return createDynamicWorkflowClientConfig(remoteMode, "remote");
-  return createDynamicWorkflowClientConfig(DEFAULT_DYNAMIC_WORKFLOW_MODE, "default");
 }

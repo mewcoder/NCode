@@ -1,13 +1,5 @@
 /** 中文翻译 */
 const zhCN: Record<string, string> = {
-  "startPlan.recommendation.subagentDescription":
-    "你的体验套餐中，{model} 仍有可用额度，是否将此子智能体的模型切换到体验套餐？",
-  "startPlan.recommendation.preferenceSaveFailed": "未能保存“不再提示”，本次仍按你的选择继续。",
-  "startPlan.recommendation.title": "体验套餐有可用额度",
-  "startPlan.recommendation.description": "你的体验套餐中，{model} 仍有可用额度，是否切换使用？",
-  "startPlan.recommendation.switch": "切换套餐",
-  "startPlan.recommendation.decline": "不了",
-  "startPlan.recommendation.dismiss": "不再提示",
   "occupationOnboarding.stepMode": "UI 模式",
   "occupationOnboarding.modeTitle": "选择适合你的 UI 模式",
   "occupationOnboarding.modeDescription": "你希望 ZCode 如何呈现工作过程？",
@@ -208,7 +200,6 @@ const zhCN: Record<string, string> = {
   "quickPick.section.configure": "配置",
   "quickPick.section.panel": "面板",
   "quickPick.section.config": "配置",
-  "quickPick.section.app": "应用",
   "quickPick.command.newTask": "新任务",
   "quickPick.command.openWorkspace": "打开工作区",
   "quickPick.command.openFile": "搜索文件",
@@ -232,7 +223,6 @@ const zhCN: Record<string, string> = {
   "quickPick.command.toggleSidePane": "切换面板",
   "quickPick.command.toggleBrowserPanel": "显示/隐藏浏览器面板",
   "quickPick.command.toggleDiffPanel": "切换到差异面板",
-  "quickPick.command.productDocs": "产品文档",
   "commandCenter.placeholder": "搜索操作、任务或文件",
   "commandCenter.open": "搜索",
   "commandCenter.noResults": "暂无相关结果",
@@ -840,7 +830,6 @@ const zhCN: Record<string, string> = {
   "appHeader.copyLogPath": "复制日志路径",
   "appHeader.copySessionId": "复制会话 ID",
   "workspaceHeader.help.menu": "帮助",
-  "workspaceHeader.help.docs": "产品文档",
   "titleBar.menu.file": "文件",
   "titleBar.menu.view": "视图",
   "titleBar.menu.help": "帮助",

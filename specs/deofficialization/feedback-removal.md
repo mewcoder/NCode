@@ -19,6 +19,8 @@ Host 不再向官方 ZCode 服务提交工单、设备快照或日志附件，�
 - 帮助配置读取链路整体删除：`community_urls`、`feedback_url`、`feedback_api_base`、
   `feedback_use_external_form` 及官方响应信封字段 `data.configs.feedbackUrl` 不再解析；
   内置配置不再保存官方社群地址，也不再请求 `/api/v1/client/configs`。
+- 删除 `packages/shared/src/remoteAppConfig.ts` 及其 barrel 导出；不保留零调用方的反馈、社群 URL
+  解析 helper 作为兼容 API。
 - `redactFeedbackText` 与其脱敏规则表只服务工单载荷，随之删除；日志导出与诊断链路不再引用它。
 - 数据目录不再创建或登记 `feedback/`（工单镜像、附件、日志归档）；已有磁盘目录不主动删除。
 - 错误横幅的"复制报错"是本地剪贴板能力，保留；其文案从 `feedback.submit.template.section.*`
@@ -70,10 +72,12 @@ assistant 消息点赞/点踩（保留路径）
 6. `pnpm typecheck` 与 `pnpm lint` 不引入相对基线的新增错误。
 7. 两份 locale 不再包含 `feedback.*` 键或用户社群/产品需求入口文案，且源码中没有引用任何
    本次删除的 i18n 键。
+8. `packages/shared` 不再导出反馈或社群远端配置解析函数，`pnpm dep:refs` 不存在对应调用方。
 
 ## 迁移边界
 
 本次删除工单反馈与官方社群入口的 UI、服务实现、RPC channel、协议消息、平台命令、帮助配置读取、
 默认社群地址、数据目录登记和文案。不保留官方端点的兼容层，也不提供本地替代后端；后续若接入
 自建 issue 收集或自建社区入口，需要按新的 spec 重新设计状态所有者与协议，而不是恢复这批代码。
-会话消息 like/dislike、社区插件分类与通用日志导出不在迁移范围内。
+会话消息 like/dislike、社区插件分类与通用日志导出不在迁移范围内。无调用方的旧远端配置解析文件
+属于本次删除范围，不作为公共契约保留。

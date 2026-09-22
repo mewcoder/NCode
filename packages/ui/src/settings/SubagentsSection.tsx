@@ -1,6 +1,4 @@
 /* eslint-disable max-lines -- 子智能体管理页集中维护作用域列表、表单和启用状态，避免状态分散 */
-import { useStartPlanRecommendation } from "@/hooks/useStartPlanRecommendation.js";
-import { hasExplicitModelChanged } from "@/lib/startPlanRecommendation.js";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Bot, Check, Plus, Trash2 } from "lucide-react";
 import { completeNewModelSelection } from "@zcode/provider";
@@ -604,7 +602,6 @@ function SubagentModelOverrideControl({
     config: { model?: string; thoughtLevel?: string },
   ) => Promise<void>;
 }) {
-  const recommendStartPlan = useStartPlanRecommendation(modelSelectionView, "subagent");
   const { intl } = useZCodeIntl();
   const [pending, setPending] = useState(false);
   const [config, setConfig] = useState<{
@@ -669,14 +666,13 @@ function SubagentModelOverrideControl({
         let selectedConfig = nextConfig;
         if (nextConfig.model && nextConfig.model !== config.model) {
           const selection = toSubagentModelSelection(nextConfig.model, nextConfig.thoughtLevel);
-          const chosen = selection ? await recommendStartPlan(selection) : null;
-          if (!chosen) {
+          if (!selection) {
             setConfig(previousConfig);
             return;
           }
           selectedConfig = {
-            model: toSubagentModelValue(chosen),
-            thoughtLevel: chosen.options?.reasoningLevel,
+            model: toSubagentModelValue(selection),
+            thoughtLevel: selection.options?.reasoningLevel,
           };
         }
         await onModelOverrideChange(agent, selectedConfig);
@@ -687,7 +683,7 @@ function SubagentModelOverrideControl({
         setPending(false);
       }
     },
-    [agent, config, onModelOverrideChange, pending, recommendStartPlan],
+    [agent, config, onModelOverrideChange, pending],
   );
   const handleValueChange = useCallback(
     (nextValue: string) => {
@@ -812,7 +808,6 @@ function SubagentForm({
   workspaceTabs: WorkspaceTabState[];
   onScopeKeyChange: (scopeKey: string) => void;
 }) {
-  const recommendStartPlan = useStartPlanRecommendation(modelSelectionView, "subagent");
   const { intl } = useZCodeIntl();
   const initialFormStateKey = createSubagentFormInitialStateKey(initial);
   const initialFormState = useMemo(
@@ -1002,11 +997,6 @@ function SubagentForm({
       return;
     }
     let selection = toSubagentModelSelection(persistedModel, thoughtLevel);
-    if (hasExplicitModelChanged(initial?.modelSelection, selection)) {
-      const chosen = await recommendStartPlan(selection);
-      if (!chosen) return;
-      selection = chosen;
-    }
     await onSave({
       name: name.trim(),
       description: description.trim(),

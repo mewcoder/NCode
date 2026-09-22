@@ -18,7 +18,6 @@ const LEGACY_REMOTE_WORKSPACE_RPC_CHANNELS = [
   "skillSyncService",
   "mcpSyncService",
   "pluginSyncService",
-  "pluginsService",
   "pluginManagementService",
   "commandsService",
   "hooksService",

@@ -51,9 +51,6 @@ export function createDesktopPlatform(options: {
     getRendererActionTraceConfig: window.zcode.getRendererActionTraceConfig
       ? () => window.zcode.getRendererActionTraceConfig!()
       : undefined,
-    onRendererActionTraceConfigChanged: window.zcode.onRendererActionTraceConfigChanged
-      ? (callback) => window.zcode.onRendererActionTraceConfigChanged!(callback)
-      : undefined,
     reportLocalTtftBatch: (batch) => window.zcode.reportLocalTtftBatch(batch),
     reportRendererActionTraceBatch: window.zcode.reportRendererActionTraceBatch
       ? (batch) => window.zcode.reportRendererActionTraceBatch!(batch)

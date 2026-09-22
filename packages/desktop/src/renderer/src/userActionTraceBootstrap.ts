@@ -38,7 +38,6 @@ export function initializeDesktopUserActionTrace(options: {
     .catch(() => {
       telemetry.updateConfig(DISABLED_RENDERER_ACTION_TRACE_CONFIG);
     });
-  const disposeConfigListener = options.platform.onRendererActionTraceConfigChanged?.(applyConfig);
   const handlePageHide = () => {
     void telemetry.shutdown();
   };
@@ -46,7 +45,6 @@ export function initializeDesktopUserActionTrace(options: {
 
   return () => {
     window.removeEventListener("pagehide", handlePageHide);
-    disposeConfigListener?.();
     setUserActionTelemetry(null);
     void telemetry.shutdown();
   };

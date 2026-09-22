@@ -3,20 +3,13 @@ import {
   TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER,
   TID_WORKSPACE_HELP_MENU_TRIGGER,
 } from "@zcode/shared";
-import {
-  ActivityIcon,
-  BookOpenIcon,
-  CircleHelpIcon,
-  InfoIcon,
-  RefreshCwIcon,
-} from "lucide-react";
+import { ActivityIcon, CircleHelpIcon, InfoIcon, RefreshCwIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge.js";
 import { Button } from "@/components/ui/button.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import { cn } from "@/components/lib/utils.js";
@@ -24,7 +17,6 @@ import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { useDesktopUpdateMenu } from "@/hooks/useDesktopUpdateMenu.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { createHelpMenuActionHandlers } from "@/lib/helpMenuActions.js";
 
 export function WorkspaceHelpMenuButton({
   className,
@@ -41,10 +33,6 @@ export function WorkspaceHelpMenuButton({
   const platform = usePlatform();
   const updateMenu = useDesktopUpdateMenu(isDesktop);
   const helpMenuLabel = intl.formatMessage({ id: "workspaceHeader.help.menu" });
-  const helpMenuActions = createHelpMenuActionHandlers({
-    platform,
-    intl,
-  });
   const handleOpenResourceManager = () => {
     void platform.executeDesktopCommand(DesktopCommandIds.OpenResourceManager);
   };
@@ -52,6 +40,8 @@ export function WorkspaceHelpMenuButton({
   const handleShowAbout = () => {
     void platform.executeDesktopCommand(DesktopCommandIds.ShowAbout);
   };
+
+  if (!isDesktop) return null;
 
   return (
     <DropdownMenu>
@@ -78,15 +68,10 @@ export function WorkspaceHelpMenuButton({
         align="end"
         className="min-w-0 w-max [&_[data-slot=dropdown-menu-item]]:pr-6"
       >
-        <DropdownMenuItem onSelect={helpMenuActions.openProductDocs}>
-          <BookOpenIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.docs" })}
-        </DropdownMenuItem>
         {/* Windows/Linux 没有原生菜单栏，自绘标题栏箭头菜单也已下线，
             资源管理器只能从这里进；Web 端没有该窗口，不渲染。 */}
         {isDesktop ? (
           <>
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               data-testid={TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER}
               onSelect={handleOpenResourceManager}

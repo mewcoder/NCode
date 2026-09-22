@@ -442,7 +442,7 @@ function resolveWindowsAppInstallDirForDataBaseDirGuard(
  *   - 打包 preview：固定写入 `alwaysOn`，忽略 shell，preview 用户始终拥有该功能；
  *   - 打包 production：不写入，且继承值必须被删除，否则本机环境变量就能自行打开灰度。
  * Main 是唯一决策者：对这个键只有「写」和「删」两种动作，绝不原样透传，
- * Host 端的 resolveDynamicWorkflowClientConfig 才能无条件相信读到的值。
+ * Host 端只消费 Main 清洗后的本地动态工作流开关。
  */
 function resolveDynamicWorkflowModeHostEnv(options: {
   inheritedValue: string | undefined;

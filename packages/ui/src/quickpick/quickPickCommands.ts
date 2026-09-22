@@ -1,5 +1,4 @@
 export type QuickPickCommandIcon =
-  | "book"
   | "browser"
   | "diff"
   | "folder"
@@ -18,8 +17,7 @@ export type QuickPickCommandSectionId =
   | "chat"
   | "navigation"
   | "panels"
-  | "configure"
-  | "app";
+  | "configure";
 
 export const QUICK_PICK_SECTION_ORDER: QuickPickCommandSectionId[] = [
   "suggested",
@@ -27,7 +25,6 @@ export const QUICK_PICK_SECTION_ORDER: QuickPickCommandSectionId[] = [
   "navigation",
   "panels",
   "configure",
-  "app",
 ];
 
 export interface QuickPickCommand {
@@ -48,7 +45,6 @@ interface QuickPickCommandHandlers {
   openSkillsSettings: () => void;
   openMcpSettings: () => void;
   switchTheme: () => void;
-  openProductDocs: () => void | Promise<void>;
   toggleSidebar: () => void;
   toggleTerminal: () => void;
   togglePreview: () => void;
@@ -216,15 +212,6 @@ export function createQuickPickCommands({
       run: handlers.openMcpSettings,
     },
   ];
-
-  commands.push({
-    id: "product-docs",
-    sectionId: "app",
-    titleId: "quickPick.command.productDocs",
-    icon: "book",
-    keywords: ["docs", "documentation", "product docs", "文档", "产品文档"],
-    run: handlers.openProductDocs,
-  });
 
   return commands.filter(
     (command) =>

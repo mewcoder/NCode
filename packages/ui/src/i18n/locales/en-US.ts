@@ -1,15 +1,5 @@
 /** English translations */
 const enUS: Record<string, string> = {
-  "startPlan.recommendation.subagentDescription":
-    "Your Start Plan has quota available for {model}. Switch this subagent’s model to the Start Plan?",
-  "startPlan.recommendation.preferenceSaveFailed":
-    "Could not save “Don’t ask again”. Continuing with your choice for this operation.",
-  "startPlan.recommendation.title": "Start Plan quota available",
-  "startPlan.recommendation.description":
-    "Your Start Plan still has quota for {model}. Would you like to use it?",
-  "startPlan.recommendation.switch": "Switch plan",
-  "startPlan.recommendation.decline": "Not now",
-  "startPlan.recommendation.dismiss": "Don’t show again",
   "occupationOnboarding.stepMode": "UI mode",
   "occupationOnboarding.modeTitle": "Choose your UI mode",
   "occupationOnboarding.modeDescription": "How would you like ZCode to show its work?",
@@ -222,7 +212,6 @@ const enUS: Record<string, string> = {
   "quickPick.section.configure": "Configure",
   "quickPick.section.panel": "Panels",
   "quickPick.section.config": "Configuration",
-  "quickPick.section.app": "Application",
   "quickPick.command.newTask": "New task",
   "quickPick.command.openWorkspace": "Open workspace",
   "quickPick.command.openFile": "Search files",
@@ -246,7 +235,6 @@ const enUS: Record<string, string> = {
   "quickPick.command.toggleSidePane": "Toggle panel",
   "quickPick.command.toggleBrowserPanel": "Show/hide browser panel",
   "quickPick.command.toggleDiffPanel": "Switch to diff panel",
-  "quickPick.command.productDocs": "Product docs",
   "commandCenter.placeholder": "Search actions, tasks, or files",
   "commandCenter.open": "Search",
   "commandCenter.noResults": "No related results",
@@ -892,7 +880,6 @@ const enUS: Record<string, string> = {
   "appHeader.workspaceSessionActionLoading": "Applying session changes...",
   "appHeader.copyLogPath": "Copy log path",
   "workspaceHeader.help.menu": "Help",
-  "workspaceHeader.help.docs": "Product docs",
   "titleBar.menu.file": "File",
   "titleBar.menu.view": "View",
   "titleBar.menu.help": "Help",

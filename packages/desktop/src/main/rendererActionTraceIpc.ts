@@ -1,16 +1,12 @@
-import { BrowserWindow, ipcMain } from "electron";
-import { PlatformChannels, type RendererActionTraceConfigV1 } from "@zcode/shared";
+import { ipcMain } from "electron";
+import { PlatformChannels } from "@zcode/shared";
 import type { RendererActionTraceBroker } from "./rendererActionTraceBroker.js";
-import type { RendererActionTraceRollout } from "./rendererActionTraceRollout.js";
-
-const RENDERER_ACTION_TRACE_REFRESH_INTERVAL_MS = 60_000;
+import { resolveLocalRendererActionTraceConfig } from "./localFeatureFlags.js";
 
 export function registerRendererActionTraceIpc(options: {
-  rollout: RendererActionTraceRollout;
   broker: RendererActionTraceBroker;
   env?: Record<string, string | undefined>;
   logger: {
-    debug(...args: unknown[]): void;
     warn(...args: unknown[]): void;
   };
 }): () => void {
@@ -57,22 +53,8 @@ export function registerRendererActionTraceIpc(options: {
     rendererInstances.set(senderId, binding);
     return binding;
   };
-  let lastConfig = resolveRuntimeConfig(options.rollout.getSnapshot(), options.env ?? process.env);
-
-  const refresh = async (): Promise<RendererActionTraceConfigV1> => {
-    const next = resolveRuntimeConfig(await options.rollout.refresh(), options.env ?? process.env);
-    if (JSON.stringify(next) !== JSON.stringify(lastConfig)) {
-      lastConfig = next;
-      for (const win of BrowserWindow.getAllWindows()) {
-        if (!win.isDestroyed()) {
-          win.webContents.send(PlatformChannels.RendererActionTraceConfigChanged, next);
-        }
-      }
-    }
-    return next;
-  };
-
-  ipcMain.handle(PlatformChannels.GetRendererActionTraceConfig, refresh);
+  const config = resolveLocalRendererActionTraceConfig(options.env ?? process.env);
+  ipcMain.handle(PlatformChannels.GetRendererActionTraceConfig, () => config);
   ipcMain.on(PlatformChannels.ReportRendererActionTraceBatch, (event, batch: unknown) => {
     if (typeof batch !== "object" || batch === null) return;
     const rendererInstanceId = (batch as { rendererInstanceId?: unknown }).rendererInstanceId;
@@ -96,38 +78,10 @@ export function registerRendererActionTraceIpc(options: {
     options.broker.enqueue(batch);
   });
 
-  const refreshTimer = setInterval(() => {
-    void refresh().catch((error) => {
-      options.logger.debug("[renderer-action-trace] refresh failed", { error });
-    });
-  }, RENDERER_ACTION_TRACE_REFRESH_INTERVAL_MS);
-  refreshTimer.unref();
-
   return () => {
-    clearInterval(refreshTimer);
     ipcMain.removeHandler(PlatformChannels.GetRendererActionTraceConfig);
     ipcMain.removeAllListeners(PlatformChannels.ReportRendererActionTraceBatch);
     for (const binding of rendererInstances.values()) binding.dispose();
     rendererInstances.clear();
   };
-}
-
-function resolveRuntimeConfig(
-  config: RendererActionTraceConfigV1,
-  env: Record<string, string | undefined>,
-): RendererActionTraceConfigV1 {
-  if (isTruthy(env.ZCODE_LOCAL_TTFT_ENABLED)) config = { ...config, localTtftEnabled: true };
-  if (!isTruthy(env.ZCODE_RENDERER_ACTION_TRACE_ENABLED)) return config;
-  return {
-    ...config,
-    enabled: true,
-    sampleRatio: 1,
-    enabledGroups: ["core", "settings"],
-    configVersion: "local-explicit",
-  } as RendererActionTraceConfigV1;
-}
-
-function isTruthy(value: string | undefined): boolean {
-  const normalized = value?.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }

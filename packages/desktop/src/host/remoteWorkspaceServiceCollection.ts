@@ -16,14 +16,11 @@ import {
   IModelSelectionService,
   IProviderSettingsService,
   IUsageStatsService,
-  ICodingPlanSubscriptionService,
-  IClientConfigService,
   IClientScenesService,
   ISkillsService,
   ISkillSyncService,
   IMcpSyncService,
   IPluginSyncService,
-  IPluginsService,
   IPluginManagementService,
   ISubagentsService,
   ICommandsService,
@@ -43,7 +40,6 @@ import {
   createDisabledAccountRequestAuthService,
   createSettingsSyncService,
   createUsageStatsService,
-  createDisabledCodingPlanSubscriptionService,
   createClientScenesService,
   createServiceLogger,
   createSubagentsService,
@@ -62,7 +58,6 @@ import {
 const runtimePreferencesLogger = createServiceLogger("remote-runtime-preferences");
 
 export function createRemoteWorkspaceServiceCollection(params: {
-  clientConfigService: IClientConfigService;
   connectionServices: IServiceAccessor;
   sourceServices?: ServiceCollection;
   parentPort: Parameters<typeof createBroadcastService>[0];
@@ -90,7 +85,6 @@ export function createRemoteWorkspaceServiceCollection(params: {
   });
   const localBroadcastService = createBroadcastService(params.parentPort);
   const localAccountRequestAuthService = createDisabledAccountRequestAuthService();
-  const localCodingPlanSubscriptionService = createDisabledCodingPlanSubscriptionService();
   const reportingRemoteZCodeTaskService = params.createReportingRemoteZCodeTaskService(
     params.connectionServices.zcodeTaskService,
   );
@@ -235,8 +229,6 @@ export function createRemoteWorkspaceServiceCollection(params: {
         zcodeAgentService: params.connectionServices.zcodeAgentService,
       }),
     )
-    .register(ICodingPlanSubscriptionService, localCodingPlanSubscriptionService)
-    .register(IClientConfigService, params.clientConfigService)
     .register(IClientScenesService, createClientScenesService({ apiClient: localApiClient }))
     // 远端 workspace 的项目级 skills/plugins/commands 位于 SSH/Docker 文件系统。
     // 这里必须透出远端服务，避免本机服务拿远端 workspacePath 去本机目录扫描。
@@ -244,7 +236,6 @@ export function createRemoteWorkspaceServiceCollection(params: {
     .register(ISkillSyncService, params.connectionServices.skillSyncService)
     .register(IMcpSyncService, params.connectionServices.mcpSyncService)
     .register(IPluginSyncService, params.connectionServices.pluginSyncService)
-    .register(IPluginsService, params.connectionServices.pluginsService)
     // 远端设置页插件管理也必须打到远端 agent（插件目录在远端文件系统）。
     .register(IPluginManagementService, params.connectionServices.pluginManagementService)
     .register(ICommandsService, params.connectionServices.commandsService)

@@ -117,28 +117,7 @@ export type {
 export { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 export { ensureDeviceMid } from "./device/deviceMid.js";
 export type { EnsureDeviceMidOptions } from "./device/deviceMid.js";
-export type { AccountRequestAuthResolver } from "./model-provider/accountProviderRequestAuthService.js";
-export { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
-export type {
-  AccountProviderCredentialStore,
-  AccountProviderCredentialStoreOptions,
-} from "./model-provider/accountProviderCredentialStore.js";
 export { importLegacyPersonalProviderConfig } from "./model-provider/legacyPersonalProviderConfigImporter.js";
-export {
-  createAccountProviderConfigSource,
-  createAccountProviderConnectionResolver,
-  createCodingPlanFamilyAvailabilityResolver,
-  resolveCurrentAccountAccess,
-} from "./model-provider/accountProviderConnectionResolver.js";
-export { bindAccountProviderInvalidation } from "./model-provider/accountProviderInvalidation.js";
-export type {
-  AccountProviderConfigSourceOptions,
-  AccountProviderConnectionResolverOptions,
-  AccountProviderConnectionSettings,
-  AccountProviderFamilyAvailabilityInput,
-  AccountProviderFamilyAvailabilityResolver,
-  CodingPlanFamilyAvailabilityResolverOptions,
-} from "./model-provider/accountProviderConnectionResolver.js";
 export {
   createProviderConfigRuntime,
   ProviderConfigRuntime,
@@ -176,9 +155,6 @@ export {
   createDisabledAccountRequestAuthService,
 } from "./model-provider/accountRequestAuthService.js";
 export type { IAccountRequestAuthService } from "./model-provider/accountRequestAuthService.js";
-export { createAccountProviderRequestAuthService } from "./model-provider/accountProviderRequestAuthService.js";
-export { resolveAccountTeamPlanRuntimeApiKey } from "./model-provider/accountProviderTeamPlanRequestKey.js";
-export { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
 export { createUsageStatsService } from "./usage-stats/usageStatsService.js";
 // Storage：service 与 adapters 工厂；desktop host 负责组装（Worker runner 在 desktop 包内）
 export { createStorageService } from "./storage/app/storageService.js";
@@ -196,17 +172,11 @@ export {
 } from "./storage/adapters/rootsResolver.js";
 export { createFsVolumeProbe } from "./storage/adapters/volumeProbe.js";
 export { runStorageScan } from "./storage/adapters/inProcessScanRunner.js";
-export {
-  createCodingPlanSubscriptionService,
-  createDisabledCodingPlanSubscriptionService,
-} from "./coding-plan-subscription/codingPlanSubscriptionService.js";
-export { createClientConfigService } from "./client-config/clientConfigService.js";
 export { createClientScenesService } from "./client-scenes/clientScenesService.js";
 export { createSkillsService } from "./skills/skillsService.js";
 export { createSkillSyncService } from "./skill-sync/skillSyncService.js";
 export { createMcpSyncService } from "./mcp-sync/mcpSyncService.js";
 export { createPluginSyncService } from "./plugin-sync/pluginSyncService.js";
-export { createPluginsService } from "./plugins/pluginsService.js";
 export { createPluginManagementService } from "./plugins/pluginManagementService.js";
 export { createSubagentsService } from "./subagents/subagentsService.js";
 export { createCommandsService } from "./commands/commandsService.js";
@@ -236,25 +206,9 @@ export {
   computeRetryAt,
 } from "./session/automationRepo.js";
 export { AutomationService, InvalidCronExprError } from "./session/automationService.js";
-// 闲时任务与 automation 同库不同表；类型/常量全独立。
-export { OffPeakTaskRepo, OFF_PEAK_CLAIM_STALE_MS } from "./session/offPeakTaskRepo.js";
 // host 域终态回填 files_changed 复用现有 task diff 汇总。
 export { buildTaskChangeSummary } from "./session/taskChangeSummary.js";
-export { OffPeakTaskService } from "./session/offPeakTaskService.js";
 export { IOffPeakTaskService } from "./session/offPeakTask.js";
-export { createOffPeakServerClient, OffPeakServerError } from "./session/offPeakServerClient.js";
-export { isOffPeakMockEnabled, startOffPeakMockGateway } from "./session/offPeakMockGateway.js";
-export {
-  buildOffPeakRequestAuth,
-  createOffPeakOriginResolver,
-  resolveOffPeakCredentials,
-  resolveOffPeakCodingPlanSupport,
-  resolveOffPeakMockUpstream,
-  OffPeakCodingPlanUnavailableError,
-  OffPeakCredentialsUnavailableError,
-  OffPeakModelUnavailableError,
-  OffPeakPermanentDispatchError,
-} from "./session/offPeakRuntimeModel.js";
 export { createServiceLogger } from "./logger/serviceLogger.js";
 export {
   computeAutomationNextRunAt,
@@ -281,13 +235,11 @@ import type { CuaOperationStateReporter } from "./zcode-agent/cuaOperationTurnTr
 import { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
 import { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
 import { IUsageStatsService } from "./usage-stats/usageStats.js";
-import { ICodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscription.js";
 import { IClientScenesService } from "./client-scenes/clientScenes.js";
 import { ISkillsService } from "./skills/skills.js";
 import { ISkillSyncService } from "./skill-sync/skillSync.js";
 import { IMcpSyncService } from "./mcp-sync/mcpSync.js";
 import { IPluginSyncService } from "./plugin-sync/pluginSync.js";
-import { IPluginsService } from "./plugins/plugins.js";
 import { IPluginManagementService } from "./plugins/pluginManagement.js";
 import { ISubagentsService } from "./subagents/subagents.js";
 import { ICommandsService } from "./commands/commands.js";
@@ -319,9 +271,7 @@ import { TaskIndexRepo } from "./session/taskIndexRepo.js";
 import type { SessionMessageSendRequested } from "#src/session/sessionMailbox.js";
 import { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 import { readLegacyZCodeConfigProviders } from "./model-provider/legacyZCodeConfigProviderReader.js";
-import { createAccountProviderConfigSource } from "./model-provider/accountProviderConnectionResolver.js";
 import { createProviderConfigRuntime } from "./model-provider/providerConfigRuntime.js";
-import { fetchZCodeBuiltinRemoteRelease } from "./model-provider/zcodeBuiltinRemoteConfig.js";
 import {
   createProviderRuntimeFromConfigRuntime,
   type ProviderRuntime,
@@ -339,21 +289,16 @@ import {
 } from "./model-provider/providerProvisioningSource.js";
 import { createProviderProvisioningTarget } from "./model-provider/providerProvisioningTarget.js";
 import { IProviderProvisioningTargetService } from "./model-provider/providerProvisioning.js";
-import { resolveClientConfigPlatform } from "./runtime-tools/clientPlatform.js";
 import {
   createDisabledAccountRequestAuthService,
   type IAccountRequestAuthService,
 } from "./model-provider/accountRequestAuthService.js";
 import { createUsageStatsService } from "./usage-stats/usageStatsService.js";
-import { createDisabledCodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscriptionService.js";
-import { createClientConfigService } from "./client-config/clientConfigService.js";
-import { IClientConfigService } from "./client-config/clientConfig.js";
 import { createClientScenesService } from "./client-scenes/clientScenesService.js";
 import { createSkillsService } from "./skills/skillsService.js";
 import { createSkillSyncService } from "./skill-sync/skillSyncService.js";
 import { createMcpSyncService } from "./mcp-sync/mcpSyncService.js";
 import { createPluginSyncService } from "./plugin-sync/pluginSyncService.js";
-import { createPluginsService } from "./plugins/pluginsService.js";
 import { createPluginManagementService } from "./plugins/pluginManagementService.js";
 import { createSubagentsService } from "./subagents/subagentsService.js";
 import { createCommandsService } from "./commands/commandsService.js";
@@ -438,7 +383,6 @@ import {
   type ZCodeAutomationRun,
   getCapturedZCodeAgentTelemetryEnv,
   ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
-  ZCODE_VERSION,
 } from "@zcode/shared";
 
 interface ServiceWithDisposeAll {
@@ -1316,31 +1260,8 @@ export function createLocalServices(options: {
   });
   const accountRequestAuthService = createDisabledAccountRequestAuthService();
   const providerConfigLog = createServiceLogger("provider-config");
-  const clientConfigPlatform = resolveClientConfigPlatform();
   const providerConfigRuntime = createProviderConfigRuntime({
     zcodeBuiltinFilePath: options.zcodeBuiltinProviderConfigFilePath,
-    zcodeBuiltinEnvironment: {
-      environmentConfigRoot: resolveAppConfigDir(),
-      platform: clientConfigPlatform,
-      appVersion: ZCODE_VERSION,
-      resolveEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
-      onRefreshResult: (event) => {
-        if (event.result === "updated")
-          providerConfigLog.info(undefined, "ZCode Built-in CDN 配置已更新", event);
-        else providerConfigLog.debug(undefined, "ZCode Built-in 刷新检查", event);
-      },
-      fetchRelease: (endpointOrigin, signal) =>
-        fetchZCodeBuiltinRemoteRelease({
-          apiClient,
-          endpointOrigin,
-          signal,
-          appVersion: ZCODE_VERSION,
-          platform: clientConfigPlatform,
-        }),
-    },
-    onZCodeBuiltinRefreshError: (error) => {
-      providerConfigLog.warn(undefined, "ZCode Built-in Config 远端刷新失败", { error });
-    },
     onPersonalConfigRecovery: (event) => {
       providerConfigLog.warn(
         undefined,
@@ -1359,19 +1280,6 @@ export function createLocalServices(options: {
     // 已发布 config.json 保存的是 ZCode 用户配置；清理第三方 ACP 不能移除这条升级路径。
     // Repository 仅在新 Personal 配置不存在时导入，并保留旧文件以便回滚。
     readLegacyProviders: () => readLegacyZCodeConfigProviders(),
-  });
-  // 兼容旧 ServiceCollection 的 account source 形状，但不再读取 OAuth、账号身份或套餐权益。
-  // Resolver 会进一步过滤 zhipu-account；该 source 只返回 fail-closed 事实，避免旧配置重新激活。
-  const accountProviderConfigSource = createAccountProviderConfigSource({
-    configSource: providerConfigRuntime.configService,
-    readSettings: async () => ({
-      providerFamilyDomain: null,
-      selections: {},
-      unresolvedFamilies: ["zai", "bigmodel"] as const,
-    }),
-    loadCodingPlanApiKey: async () => null,
-    loadAccountIdentity: async () => null,
-    resolveFamilyAvailability: async () => ({}),
   });
   const modelSelectionConfiguredDefaultSource = new NodeModelSelectionConfigRepository({
     personalRepository: providerConfigRuntime.personalRepository,
@@ -1396,7 +1304,6 @@ export function createLocalServices(options: {
     | undefined;
   const providerRuntime = createProviderRuntimeFromConfigRuntime({
     configRuntime: providerConfigRuntime,
-    accountSource: accountProviderConfigSource,
     modelSelectionConfiguredDefaultSource,
     disposeModelSelectionConfiguredDefaultSource: () =>
       modelSelectionConfiguredDefaultSource.dispose(),
@@ -1408,9 +1315,6 @@ export function createLocalServices(options: {
         return providerConnectivityAgentService.testModelConnectivity(input);
       },
     }),
-    disposeAccountSource: () => {
-      accountProviderConfigSource.dispose();
-    },
   });
   // mcpSync/hooks 里引用 zcodeAgentService 的闭包是惰性调用，声明顺序不影响初始化。
   const skillsService = createSkillsService({ isDesktopRuntime: true });
@@ -1819,7 +1723,6 @@ export function createLocalServices(options: {
       }
     },
   };
-  const codingPlanSubscriptionService = createDisabledCodingPlanSubscriptionService();
   // 账号套餐下线后，Agent 不再装配闲时任务或动态工作流工具面。
   const offPeakToolWiring = {};
   const zcodeAgentService = createZCodeAgentService({
@@ -2122,18 +2025,6 @@ export function createLocalServices(options: {
         zcodeAgentService,
       }),
     )
-    .register(ICodingPlanSubscriptionService, codingPlanSubscriptionService)
-    .register(
-      IClientConfigService,
-      createClientConfigService({
-        apiClient,
-        resolveRequestContext: async () => ({
-          endpointOrigin: await resolveCurrentZCodeEndpointOrigin(),
-          appVersion: ZCODE_VERSION,
-          platform: `${process.platform}-${process.arch}`,
-        }),
-      }),
-    )
     .register(IClientScenesService, createClientScenesService({ apiClient }))
     // Off-Peak/闲时任务保留 service descriptor 供旧客户端完成协商，但本地运行时不再
     // 初始化任务仓库、官方票据客户端、轮询同步或调度唤醒。
@@ -2144,7 +2035,6 @@ export function createLocalServices(options: {
     // 合并 MCP/Plugin Management 服务装配时误删了 plugin-sync 注册，
     // RemoteServiceAccess 仍会请求该频道，导致本地候选枚举超时、远端同步无法开始。
     .register(IPluginSyncService, pluginSyncService)
-    .register(IPluginsService, createPluginsService({ isDesktopRuntime: true }))
     // 设置页插件管理薄服务——plugins/* 旧协议词的 host 侧唯一消费点。
     .register(IPluginManagementService, createPluginManagementService({ zcodeAgentService }))
     .register(ISubagentsService, subagentsService)
@@ -2181,7 +2071,6 @@ export function createLocalServices(options: {
       createProviderProvisioningTarget({
         providerRuntime,
         personalRepository: providerConfigRuntime.personalRepository,
-        accountProviderSource: accountProviderConfigSource,
         credentialService,
         settingService,
         personalConfigFilePath: join(resolveAppConfigDir(), PERSONAL_PROVIDER_CONFIG_FILE_NAME),

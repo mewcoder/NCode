@@ -11,6 +11,8 @@
   `TelemetryCore`、Renderer IPC bridge、运行时端点配置和退出 flush。
 - 删除 Desktop 的 `@arms/rum-electron` 初始化、浏览器采集、ARMS 自定义事件、稳定性、资源、
   网络、MCP、远程连接和数据目录上报模块及其 IPC/E2E 观测桥。
+- 删除仅为 ARMS/rrweb 运行时服务的直接依赖、打包闭包校验、补丁和第三方许可 override；锁文件与
+  第三方 notices 必须通过仓库脚本重新生成。
 - 删除 UI 中只用于上述远程出口的 ARMS/应用埋点调用；不改变聊天发送、模型请求、API Key、
   自定义 Provider、远程开发连接、任务实时协议和本地使用统计聚合。
 - `apps/zcode-cli` 不删除 CLI telemetry 实现、运行时事实和本地诊断协议；但 OTLP 远程上报改为
@@ -63,6 +65,8 @@
    OTLP exporter，显式 opt-in 后仍可使用原有 telemetry 能力。
 5. `pnpm typecheck`、`pnpm lint`、`pnpm architecture:check --changed` 和 `git diff --check` 通过；
    如存在本次之前的格式检查失败，必须单独说明。
+6. 生产依赖图与第三方声明中不再包含 `@arms/rum-*`、rrweb 或仅为其 peer dependency 保留的
+   `@babel/runtime` 直接依赖。
 
 ## 迁移边界
 
