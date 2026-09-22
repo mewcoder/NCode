@@ -7,18 +7,12 @@ import {
 } from "@zcode/provider";
 import {
   isBuiltinModelProviderId,
-  resolveRuntimeZCodeEndpointOrigin,
-  ZCODE_VERSION,
 } from "@zcode/shared";
-import { dirname, join } from "node:path";
 import {
   NodeModelSelectionConfigRepository,
   NodeProviderRegistryRuntime,
   resolveNodeProviderRuntimePaths,
-  downloadZCodeBuiltinRelease,
-  resolveZCodeBuiltinClientPlatform,
   ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV,
-  type ZCodeBuiltinRefreshEvent,
 } from "@zcode/provider-node";
 import {
   createSharedZCodeCredentialStore,
@@ -36,9 +30,6 @@ export interface ProcessProviderRegistryRuntimeOptions {
     readonly credentialStore?: SharedZCodeCredentialStore;
     readonly legacyCliUserConfigFilePath?: string;
     readonly onAccountInitializationError?: (error: unknown) => void;
-    readonly request?: typeof fetch;
-    readonly onBuiltinRefreshError?: (error: unknown) => void;
-    readonly onBuiltinRefreshResult?: (event: ZCodeBuiltinRefreshEvent) => void;
   };
 }
 
@@ -61,29 +52,7 @@ export async function startProcessProviderRegistryRuntime(
     : undefined;
   const runtime = new NodeProviderRegistryRuntime({
     ...paths,
-    ...(bundledFile
-      ? {
-          zcodeBuiltinFilePath: bundledFile,
-          zcodeBuiltinActiveFilePath: paths.zcodeBuiltinFilePath,
-          zcodeBuiltinRemote: {
-            controlFilePath: join(
-              dirname(paths.zcodeBuiltinFilePath),
-              "zcode-builtin-refresh.json",
-            ),
-            resolveEndpointKey: () => resolveRuntimeZCodeEndpointOrigin(env),
-            fetchRelease: (endpointOrigin, signal) =>
-              downloadZCodeBuiltinRelease({
-                endpointOrigin,
-                signal,
-                appVersion: ZCODE_VERSION,
-                platform: resolveZCodeBuiltinClientPlatform(),
-                request: options.standalone?.request ?? globalThis.fetch,
-              }),
-            onRefreshResult: options.standalone?.onBuiltinRefreshResult,
-          },
-        }
-      : {}),
-    onZCodeBuiltinRefreshError: options.standalone?.onBuiltinRefreshError,
+    ...(bundledFile ? { zcodeBuiltinFilePath: bundledFile } : {}),
     accountSource,
     ...(credentialStore
       ? {
@@ -122,16 +91,6 @@ export async function startProcessProviderRegistryRuntime(
         }
       : {}),
   });
-  const disposeRecovery = standaloneAccount
-    ? runtime.onDidCheckZCodeBuiltin(async () => {
-        const [config, account] = await Promise.all([
-          runtime.configService.read(),
-          standaloneAccount!.read(),
-        ]);
-        if (config.zcodeBuiltinRevision !== account.basedOnZCodeBuiltinRevision)
-          await standaloneAccount!.refresh("builtin-account-recovery");
-      })
-    : undefined;
   // 复用 AccountService 的串行、过期结果丢弃机制，凭据变化与 Built-in 变化不能各自发布。
   const disposeCredentialSubscription = credentialStore?.onDidChange?.(async () => {
     await standaloneAccount!.refresh("standalone-credentials-changed");
@@ -158,7 +117,6 @@ export async function startProcessProviderRegistryRuntime(
         },
         dispose() {
           disposeCredentialSubscription?.();
-          disposeRecovery?.();
           standaloneAccount?.dispose();
           modelSelectionConfigRepository.dispose();
           runtime.dispose();
@@ -183,7 +141,6 @@ export async function startProcessProviderRegistryRuntime(
     }
   } catch (error) {
     disposeCredentialSubscription?.();
-    disposeRecovery?.();
     standaloneAccount?.dispose();
     runtime.dispose();
     throw error;
