@@ -3,8 +3,8 @@
  *
  * 生成策略：
  * - 桌面端：使用 main 进程提供的 deviceMid（基于 userData 路径的 SHA-256，稳定且唯一）
- * - 手机端（Web 远程控制）：使用物理属性指纹（browserPlatform + screen.width/height + colorDepth），
- *   抗浏览器/网络/语言/时区变化，换手机才会变
+ * - 浏览器端：使用物理属性指纹（browserPlatform + screen.width/height + colorDepth），
+ *   在同一浏览器设备上保持稳定
  */
 import { createUuid } from "@zcode/shared";
 
@@ -26,10 +26,10 @@ export function setStreamClientId(deviceId: string): void {
 }
 
 /**
- * 生成手机端物理属性指纹。
- * 用于手机端在 platform.getDeviceId() 返回之前自行生成稳定的设备 ID。
+ * 生成浏览器端物理属性指纹。
+ * 用于 Web 端在 platform.getDeviceId() 返回之前生成稳定的设备 ID。
  */
-export function generateMobileDeviceFingerprint(): string {
+export function generateBrowserDeviceFingerprint(): string {
   const nav = globalThis.navigator as Navigator & { platform?: string };
   const platform = nav?.platform ?? "";
   const screenWidth = globalThis.screen?.width;

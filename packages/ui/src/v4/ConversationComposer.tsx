@@ -389,7 +389,6 @@ interface ConversationComposerProps {
    * 竖切多 pane 时由宿主传入 SessionPane.focused，仅焦点 pane 聚焦、后台 pane 不抢焦点。
    */
   autoFocusEnabled?: boolean;
-  /** 当前 composer 是否运行在手机 Web 远控壳中。 */
   workspacePath: string;
   workspaceIdentity?: string;
   remoteSessionId?: string;

@@ -1244,10 +1244,10 @@ function createReportingRemoteZCodeTaskService<T extends object>(
     });
 
     // 写路径（send/stop/交互回执）已收敛 v4 命令面；本镜像属**读路径**——
-    // taskRealtimePort → 手机 relay → 手机端
+    // taskRealtimePort → Web replayable relay → Web 客户端
     // zcodeSessionStore 的整条消费链词表都是 ZCodeStreamEvent。两个方案的评估结论：
-    // a) relay 直接转发 v4 帧、手机端消费 v4 store（正解）：需要重做 relay stream-op
-    //    协议 + 手机端 store；
+    // a) relay 直接转发 v4 帧、Web 客户端消费 v4 store（正解）：需要重做 relay stream-op
+    //    协议 + Web store；
     // b) 帧→ZCodeStreamEvent 薄映射：等价复刻 adapter mapSessionEvent，
     //    否决。
     // 结论：本镜像保持 legacy 源不动。

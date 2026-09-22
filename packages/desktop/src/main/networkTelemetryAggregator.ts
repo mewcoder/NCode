@@ -88,7 +88,6 @@ const STATIC_HTTP_PATH_SEGMENTS = new Set([
   "manifest",
   "messages",
   "mcp",
-  "mobile-view-state",
   "models",
   "oauth",
   "off-peak",
@@ -102,7 +101,6 @@ const STATIC_HTTP_PATH_SEGMENTS = new Set([
   "pricing",
   "projects",
   "releases",
-  "remote-control",
   "report",
   "reset",
   "responses",
@@ -124,7 +122,6 @@ const STATIC_HTTP_PATH_SEGMENTS = new Set([
   "v3",
   "v4",
   "windows",
-  "workspace-bridge",
   "zcode-plan",
 ]);
 

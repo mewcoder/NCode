@@ -41,7 +41,6 @@ interface DesktopTopOverlayProps {
   onCreateTask: () => void;
   onGoBack: () => void;
   onGoForward: () => void;
-  hideTaskNavigationButtons?: boolean;
   newTaskDisabledReason?: string;
 }
 
@@ -71,7 +70,6 @@ export function DesktopTopOverlay({
   onCreateTask,
   onGoBack,
   onGoForward,
-  hideTaskNavigationButtons = false,
   newTaskDisabledReason,
 }: DesktopTopOverlayProps) {
   const { intl } = useZCodeIntl();
@@ -160,30 +158,25 @@ export function DesktopTopOverlay({
             </DesktopTopOverlayActionButton>
           )}
 
-          {/* 远程控制移动端左上角空间有限，任务前进/后退在这里会与主操作拥挤重叠。*/}
-          {hideTaskNavigationButtons ? null : (
-            <>
-              <DesktopTopOverlayActionButton
-                title={taskBackTitle}
-                shortcut={goBackShortcutLabel}
-                ariaLabel={taskBackTitle}
-                testId="desktop-top-nav-back"
-                disabled={!canTaskNavBack}
-                onClick={onGoBack}
-              >
-                <ArrowLeftIcon className="size-4" />
-              </DesktopTopOverlayActionButton>
-              <DesktopTopOverlayActionButton
-                title={taskForwardTitle}
-                shortcut={goForwardShortcutLabel}
-                ariaLabel={taskForwardTitle}
-                disabled={!canTaskNavForward}
-                onClick={onGoForward}
-              >
-                <ArrowRightIcon className="size-4" />
-              </DesktopTopOverlayActionButton>
-            </>
-          )}
+          <DesktopTopOverlayActionButton
+            title={taskBackTitle}
+            shortcut={goBackShortcutLabel}
+            ariaLabel={taskBackTitle}
+            testId="desktop-top-nav-back"
+            disabled={!canTaskNavBack}
+            onClick={onGoBack}
+          >
+            <ArrowLeftIcon className="size-4" />
+          </DesktopTopOverlayActionButton>
+          <DesktopTopOverlayActionButton
+            title={taskForwardTitle}
+            shortcut={goForwardShortcutLabel}
+            ariaLabel={taskForwardTitle}
+            disabled={!canTaskNavForward}
+            onClick={onGoForward}
+          >
+            <ArrowRightIcon className="size-4" />
+          </DesktopTopOverlayActionButton>
 
           <div
             aria-hidden={!isNewTaskButtonVisible}

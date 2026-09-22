@@ -533,7 +533,7 @@ export interface IPlatformService {
 
   /**
    * 从浏览器 File 对象解析宿主本地路径；只有 Desktop preload 能安全实现。
-   * Web/手机端返回 null，避免 UI 层依赖 Electron 的非标准 File.path。
+   * Web 端返回 null，避免 UI 层依赖 Electron 的非标准 File.path。
    */
   getPathForFile?(file: unknown): string | null;
 
@@ -542,7 +542,7 @@ export interface IPlatformService {
 
   /**
    * 在宿主 ~/.zcode 临时目录创建文本附件文件。
-   * 手机远控必须通过 shared-host/platform proxy 写到桌面宿主，避免大文本进入 prompt payload。
+   * 只有 Desktop 宿主可以创建；Web 端没有宿主时不实现，避免大文本进入 prompt payload。
    */
   createTempTextAttachment?(
     payload: CreateTempTextAttachmentRequest,
@@ -557,7 +557,7 @@ export interface IPlatformService {
   /** 检查目录是否已在其他窗口打开；如果是则激活该窗口并切到对应 tab */
   activateOrSetWorkspace(path: string): Promise<{ activated: boolean }>;
 
-  /** 建立远程连接（Desktop: 在当前窗口创建远程 session；Web: HTTP API） */
+  /** 建立远程连接（仅 Desktop：在当前窗口创建 SSH/WSL/Docker remote session；Web 不支持） */
   connectRemote(
     options: RemoteTarget,
     requestId?: string,
@@ -591,7 +591,7 @@ export interface IPlatformService {
   /** 列出当前机器 SSH config 中可用于快速填表的 alias */
   listSSHConfigAliases(): Promise<SSHConfigAliasOption[]>;
 
-  /** 读取宿主环境中的原生 MCP 用户目录配置；手机远控通过已连接桌面 host 转发。 */
+  /** 读取宿主环境中的原生 MCP 用户目录配置；Web 端没有宿主时不实现。 */
   loadMcpFromUserDirectory?(
     payload?: LoadCliMcpFromUserDirectoryRequest,
   ): Promise<LoadCliMcpFromUserDirectoryResult>;
@@ -601,7 +601,7 @@ export interface IPlatformService {
     payload: SaveCliMcpToUserDirectoryRequest,
   ): Promise<{ success: boolean; error?: string }>;
 
-  /** 迁移旧版 Common MCP 配置；仅宿主环境可执行，手机远控通过 desktop attachment 转发。 */
+  /** 迁移旧版 Common MCP 配置；仅 Desktop 宿主环境可执行。 */
   migrateLegacyCommonMcp?(
     payload?: MigrateLegacyCommonMcpRequest,
   ): Promise<MigrateLegacyCommonMcpResult>;
@@ -647,9 +647,9 @@ export interface IPlatformService {
   /** 通过宿主环境上报 ARMS 自定义事件；Web 端当前为空实现 */
   reportArmsCustomEvent(payload: ArmsCustomEventPayload): Promise<void>;
 
-  /** 读取 Desktop Renderer 用户操作 Trace 的当前灰度配置；Web/手机不实现。 */
+  /** 读取 Desktop Renderer 用户操作 Trace 的当前灰度配置；Web 不实现。 */
   getRendererActionTraceConfig?(): Promise<RendererActionTraceConfigV1>;
-  /** 订阅 Main 推送的 Renderer 用户操作 Trace 配置；Web/手机不实现。 */
+  /** 订阅 Main 推送的 Renderer 用户操作 Trace 配置；Web 不实现。 */
   onRendererActionTraceConfigChanged?(
     callback: (config: RendererActionTraceConfigV1) => void,
   ): () => void;
@@ -659,7 +659,7 @@ export interface IPlatformService {
 
   /**
    * Renderer → Main：主窗口 renderer 每 60 秒的 heap 读数，进 `renderer_main` 角色事件。单向 send、fire-and-forget；
-   * Web 端与手机远控没有桥，不实现即 no-op。
+   * Web 端没有 Main bridge，不实现即 no-op。
    */
   reportRendererHeapSample?(sample: RendererHeapSample): void;
 
@@ -917,8 +917,8 @@ export interface IPlatformService {
   /** 获取当前设备的稳定标识符
    *
    * - 桌面端：基于 userData 路径的 SHA-256，始终稳定且唯一
-   * - 手机端（Web 远程控制）：物理属性指纹（browserPlatform | screen.width | screen.height | colorDepth），
-   *   抗浏览器/网络/语言/时区变化，换手机才会变
+   * - 浏览器端：物理属性指纹（browserPlatform | screen.width | screen.height | colorDepth），
+   *   抗浏览器/网络/语言/时区变化，换设备才会变
    */
   getDeviceId(): string;
 }

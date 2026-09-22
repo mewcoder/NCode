@@ -23,7 +23,6 @@ export function TaskActionMenuContent({
   disableTaskTargetActions = false,
   disablePinTaskAction = false,
   disabledReason,
-  hideMobileUnsupportedActions = false,
   Item,
   Separator,
   onTogglePinTask,
@@ -55,14 +54,13 @@ export function TaskActionMenuContent({
   disableTaskTargetActions?: boolean;
   disablePinTaskAction?: boolean;
   disabledReason?: string;
-  hideMobileUnsupportedActions?: boolean;
   Item: React.ComponentType<TaskActionMenuItemProps>;
   Separator: React.ComponentType<TaskActionMenuSeparatorProps>;
   onTogglePinTask: () => void;
   onStartRenameTask: () => void;
   onArchiveTask: () => void;
   onMarkTaskAsUnread: () => void;
-  /** 「在分屏打开」（仅桌面 shell 传入；手机远控不显示该入口）。 */
+  /** 「在分屏打开」（仅桌面 shell 传入）。 */
   onOpenInSplitPane?: () => void;
   /** 当前 session 或 pane 数达上限且目标无已有归属时禁用（保留布局与层级）。 */
   openInSplitPaneDisabled?: boolean;
@@ -131,19 +129,17 @@ export function TaskActionMenuContent({
         </Item>
       ) : null}
       <Separator />
-      {!hideMobileUnsupportedActions ? (
-        <Item
-          disabled={disableTaskActions}
-          title={disableTaskActions ? disabledReason : undefined}
-          onSelect={() => {
-            if (!disableTaskActions) {
-              onOpenTaskPathInFileManager();
-            }
-          }}
-        >
-          {fileManagerLabel}
-        </Item>
-      ) : null}
+      <Item
+        disabled={disableTaskActions}
+        title={disableTaskActions ? disabledReason : undefined}
+        onSelect={() => {
+          if (!disableTaskActions) {
+            onOpenTaskPathInFileManager();
+          }
+        }}
+      >
+        {fileManagerLabel}
+      </Item>
       <Item
         disabled={disableTaskActions}
         title={disableTaskActions ? disabledReason : undefined}

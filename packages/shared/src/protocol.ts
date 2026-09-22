@@ -282,15 +282,15 @@ export interface AppSettings {
   keepAwakeWhileRunning?: boolean;
   /** Windows 关闭到托盘默认值是否已执行过一次性迁移；只用于设置迁移，不参与业务判断。 */
   closeToTrayOnWindowsMigrationInitialized?: boolean;
-  /** 桌面端全局页面缩放档位；用于重启后恢复界面缩放，Web/手机端忽略。 */
+  /** 桌面端全局页面缩放档位；用于重启后恢复界面缩放，Web 端忽略。 */
   desktopZoomLevel?: number;
-  /** 桌面主窗口最近一次非最大化宽高及最大化状态；Web/手机端忽略。 */
+  /** 桌面主窗口最近一次非最大化宽高及最大化状态；Web 端忽略。 */
   desktopWindowSize?: {
     width: number;
     height: number;
     maximized: boolean;
   };
-  /** 桌面端 Chromium 硬件加速开关；只在下次启动 main 进程早期生效，Web/手机端忽略。 */
+  /** 桌面端 Chromium 硬件加速开关；只在下次启动 main 进程早期生效，Web 端忽略。 */
   desktopChromiumHardwareAccelerationEnabled?: boolean;
   /** 是否在消息流中展示模型思考过程 */
   messageStreamShowReasoning?: boolean;

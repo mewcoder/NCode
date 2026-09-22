@@ -1225,7 +1225,6 @@ const zhCN: Record<string, string> = {
   "taskList.userInputTag": "等待确认",
   "taskList.stopCountdown": "停止计时",
   "taskList.attentionCount": "{label} · {count}",
-  "taskList.mobileActive": "手机正在操作此任务",
   "taskList.changeStats": "+{added} -{removed}",
   "taskGroup.newGroup": "新建分组",
   "taskGroup.cronGroupName": "定时任务",

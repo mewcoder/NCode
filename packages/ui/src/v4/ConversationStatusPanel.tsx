@@ -125,7 +125,6 @@ interface ConversationStatusPanelProps {
   endedSubagentCount?: number;
   rootSessionId?: string;
   parentSessionId?: string;
-  /** 当前 pane 是否由手机 Web 远控壳承载。 */
   /** 当前是否为粗指针手机视口。 */
   isMobileViewport?: boolean;
   layoutMode?: "none" | "auto" | "inline";

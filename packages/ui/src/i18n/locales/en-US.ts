@@ -1281,7 +1281,6 @@ const enUS: Record<string, string> = {
   "taskList.userInputTag": "Awaiting approval",
   "taskList.stopCountdown": "Stop timer",
   "taskList.attentionCount": "{label} · {count}",
-  "taskList.mobileActive": "Phone is using this task",
   "taskList.changeStats": "+{added} -{removed}",
   "taskGroup.newGroup": "New group",
   "taskGroup.newTask": "New task",

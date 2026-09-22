@@ -98,7 +98,6 @@ export function WorkspaceHeaderTitleSection({
   isMacFullscreen: _isMacFullscreen,
   isWindowsDesktop: _isWindowsDesktop,
   selectedEditor: _selectedEditor,
-  simplifyForNarrowRemote = false,
   compact = false,
 }: WorkspaceHeaderTitleSectionProps) {
   const { intl } = useZCodeIntl();
@@ -347,7 +346,6 @@ export function WorkspaceHeaderTitleSection({
         // 标题区必须按内容占宽，不能 flex-1 铺满整条 header。
         // 父级 header 是 drag 区域；如果 no-drag 的标题区铺满剩余空间，mac/Windows 标题栏空白处会无法拖动窗口。
         "flex min-w-0 items-center gap-2 overflow-hidden [app-region:no-drag]",
-        simplifyForNarrowRemote && "max-md:gap-1",
       )}
     >
       <TaskRenameDialog
@@ -433,7 +431,6 @@ export function WorkspaceHeaderTitleSection({
         data-testid={TID_WORKSPACE_TITLE}
         className={cn(
           "flex min-w-12 max-w-100 shrink items-center gap-2 truncate font-semibold text-foreground @max-[560px]/workspace-header:max-w-[30vw] @max-[420px]/workspace-header:max-w-[22vw]",
-          simplifyForNarrowRemote && "max-md:max-w-[42vw]",
           compact ? "text-[0.92rem]" : "text-ui-base",
         )}
         title={activeTaskTitle}
@@ -493,7 +490,6 @@ export function WorkspaceHeaderTitleSection({
                 disableTaskActions={Boolean(readOnlyReason)}
                 disabledReason={readOnlyReason}
                 disablePinTaskAction={taskMenuMembershipLoading}
-                hideMobileUnsupportedActions={simplifyForNarrowRemote}
                 Item={DropdownMenuItem}
                 Separator={DropdownMenuSeparator}
                 onTogglePinTask={() => {

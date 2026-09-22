@@ -546,10 +546,10 @@ async function selectRemoteWorkspaceProjectFromDialog({
 
   // 新建连接不带 context，main/host 的 logical session
   // descriptor 停留在连接根目录 "/"，identity 也是 Host 用解析后 target 自建的；而 tab、远程历史与
-  // 手机可见 workspace 列表用的都是这里算出的 canonicalPath/workspaceIdentity。
-  // 手机桥接（attachRemoteWorkspaceSessionHost）要求二者三元全等，所以选目录后必须先把 canonical
+  // 远程 workspace 列表用的都是这里算出的 canonicalPath/workspaceIdentity。
+  // Host attachment 要求二者三元全等，所以选目录后必须先把 canonical
   // context 绑定回 main，再提交 connected 状态与 tab。df2db1df7a 把 provider 同步移到 main/host 时
-  // 顺带删掉了这次 bind，导致新建连接后选的目录在手机端必然被 REMOTE_WORKSPACE_IDENTITY_MISMATCH 拒绝。
+  // 顺带删掉了这次 bind，导致新建连接后选的目录必然被 REMOTE_WORKSPACE_IDENTITY_MISMATCH 拒绝。
   // bind 失败时 fail-closed：回收 session 并把错误抛回连接弹窗，不留下 descriptor 与 tab 不一致的 session。
   try {
     await bindRemoteWorkspaceSessionContext({

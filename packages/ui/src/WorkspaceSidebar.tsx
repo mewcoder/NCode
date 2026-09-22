@@ -748,7 +748,7 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
   }, [onOpenAutomations]);
   const activeTaskId = useZCodeSessionStore(
     (state) =>
-      // Web 远程控制从全局 task 入口进入远端 workspace 时，会先按
+      // 跨 workspace Web 入口进入远端 workspace 时，会先按
       // workspaceIdentity 写入 activeTaskId；如果侧栏仍然只读 path-only 桶，
       // 当前任务高亮会丢失，也会把后续选择误判成未激活。
       selectWorkspaceZCodeState(state, workspacePath, workspaceIdentity).activeTaskId,

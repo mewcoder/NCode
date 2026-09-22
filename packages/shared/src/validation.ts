@@ -1,8 +1,5 @@
 import { databaseStartupControlSchema, databaseStartupStateSchema } from "./database-startup.js";
-import {
-  sessionCreateTelemetrySchema,
-  automationSessionCreateTelemetrySchema,
-} from "./sessionCreateTelemetry.js";
+import { automationSessionCreateTelemetrySchema } from "./sessionCreateTelemetry.js";
 /* eslint-disable max-lines -- 运行时 schema 当前集中在共享包入口，外部 relay payload 校验加入后先保持单一导出面。 */
 import { z } from "zod";
 import { zcodeProcessDiagnosticSchema } from "./process-diagnostic.js";

@@ -100,7 +100,7 @@ export {
 } from "./lib/userActionTraceCatalog.js";
 export { setReactErrorArmsReporter } from "./lib/reactErrorArmsTelemetry.js";
 export { recordArmsCustomEventForE2E } from "./lib/armsCustomEventObservability.js";
-export { generateMobileDeviceFingerprint, setStreamClientId } from "./lib/streamClientId.js";
+export { generateBrowserDeviceFingerprint, setStreamClientId } from "./lib/streamClientId.js";
 export { GlobalDatabaseStartupLoading } from "./root/GlobalDatabaseStartupLoading.js";
 
 export { LocalTtftObserver, setLocalTtftObserver } from "@/v4/telemetry/localTtftObserver.js";

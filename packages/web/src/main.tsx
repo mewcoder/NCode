@@ -4,7 +4,7 @@ import {
   AppErrorBoundary,
   Root,
   ZCodeIntlProvider,
-  generateMobileDeviceFingerprint,
+  generateBrowserDeviceFingerprint,
   playTaskNotificationSound,
   setStreamClientId,
   type Theme,
@@ -50,7 +50,7 @@ const root = createRoot(document.getElementById("root")!);
 
 // 初始化 Web 端流式 clientId，确保所有 hook 在首次渲染前就使用稳定 ID
 {
-  setStreamClientId(generateMobileDeviceFingerprint());
+  setStreamClientId(generateBrowserDeviceFingerprint());
 }
 
 interface WebBootstrapResult {
@@ -77,9 +77,7 @@ function createWebPlatform(): IPlatformService {
     onRemoteSessionClosed: () => () => {},
     // Web 端无多窗口管理
     activateOrSetWorkspace: () => Promise.resolve({ activated: false }),
-    // TODO(web-remote-workspace): 普通 Web 模式先只保证 server 本地工作区可用。
-    // 远程 WebSocket 只暴露部分 service，与 Root/RemoteServiceAccess 需要的完整
-    // accessor 不匹配，直接打开 ?remote=<id> 会在项目向导或首屏卡住。
+    // 普通 Web 模式只保证 server 本地工作区可用；远程 workspace 由 Desktop 处理。
     connectRemote(options: RemoteTarget) {
       return Promise.resolve({
         success: false,
@@ -208,14 +206,10 @@ function resolveDefaultWsOrigin(): string {
 
 async function resolveWebBootstrap(): Promise<WebBootstrapResult> {
   const params = new URLSearchParams(window.location.search);
-  const remoteId = params.get("remote");
-  const wsUrl = remoteId
-    ? `${resolveDefaultWsOrigin()}/ws/remote/${remoteId}`
-    : `${resolveDefaultWsOrigin()}/ws`;
-
-  if (remoteId) {
-    return { wsUrl };
+  if (params.has("remote")) {
+    throw new Error("APP remote control is no longer supported");
   }
+  const wsUrl = `${resolveDefaultWsOrigin()}/ws`;
 
   try {
     const response = await fetch("/api/server-info", {

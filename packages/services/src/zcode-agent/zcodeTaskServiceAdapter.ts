@@ -361,12 +361,12 @@ export function createZCodeTaskServiceAdapter(
     const key = taskKey(params);
     const activeRunId = activePromptInputIds.get(key);
     if (!activeRunId) {
-      // 手机端 owner command 到达 host 时，task 可能已经终态收口。
+      // Web replayable owner command 到达 host 时，task 可能已经终态收口。
       // 没有 active run 时不能再把旧 command 写入 host 队列，否则会在桌面 shared host 上误发旧输入。
       throw createTaskOwnerCommandError("No active task owner.", "NO_ACTIVE_TASK_OWNER");
     }
     if (activeRunId !== ownerRunId) {
-      // ownerRunId 是远控请求的 stale 防护边界。
+      // ownerRunId 是 owner command 的 stale 防护边界。
       // 旧 run 的 enqueue/promote 不能修改当前 task command queue。
       throw createTaskOwnerCommandError("Stale task owner command.", "STALE_TASK_OWNER_COMMAND");
     }
@@ -1147,7 +1147,7 @@ export function createZCodeTaskServiceAdapter(
       workspacePath: params.workspacePath,
       workspaceIdentity: params.workspaceIdentity,
       sessionId: params.taskId,
-      // replayable 手机端恢复仍经 task adapter，但 stale model guard 在
+      // replayable Web 恢复仍经 task adapter，但 stale model guard 在
       // session resume 内执行；这里带上当前 UI 模型，避免只保护 desktop continuous 主链路。
       model: params.model ? parseModelPickerValue(params.model) : undefined,
       ...(thoughtLevel ? { thoughtLevel } : {}),
@@ -1790,7 +1790,7 @@ export function createZCodeTaskServiceAdapter(
           if (requestedSelection) {
             if (!sameModelSelection(snapshot.settings.model.current, requestedSelection)) {
               // replayable 首发复用 draft session 时，draft 可能仍停在预热时的旧模型。
-              // 复用前必须同步 UI 当前模型，否则手机远控首发会显示新模型但真实请求仍用旧模型。
+              // 复用前必须同步 UI 当前模型，否则 Web replayable 首发会显示新模型但真实请求仍用旧模型。
               snapshot = await options.zcodeAgentService.setModel({
                 ...target,
                 sessionId: draftSessionId,
@@ -1803,7 +1803,7 @@ export function createZCodeTaskServiceAdapter(
             snapshot.settings.thoughtLevel.current !== requestedSelection.options.reasoningLevel
           ) {
             // replayable 首发复用 draft session 时也必须以 UI 当前 thought_level 为准。
-            // 否则手机远控可能复用旧 draft session，导致首发请求沿用过期推理强度。
+            // 否则 Web replayable 可能复用旧 draft session，导致首发请求沿用过期推理强度。
             snapshot = await options.zcodeAgentService.setThoughtLevel({
               ...target,
               sessionId: draftSessionId,
@@ -1814,9 +1814,9 @@ export function createZCodeTaskServiceAdapter(
           if (!isSessionMissingError(error)) {
             throw error;
           }
-          // 手机端草稿 session 和桌面一样只存在 agent runtime 内存里。
+          // Web replayable 草稿 session 和桌面一样只存在 agent runtime 内存里。
           // 远端重连/agent 重启后旧 draftSessionId 可能失效；首发消费点降级新建，避免用户卡死。
-          logger.warn(undefined, "手机 replayable draft session 已失效，降级创建新 task", {
+          logger.warn(undefined, "Web replayable draft session 已失效，降级创建新 task", {
             draftSessionId,
             workspaceIdentity: target.workspaceIdentity ?? null,
             workspacePath: target.workspacePath,
@@ -1848,7 +1848,7 @@ export function createZCodeTaskServiceAdapter(
               }
             : {}),
           // replayable task facade 创建 session 时同样会启动 runtime；
-          // 之前这里丢掉 mcpServers，导致手机远控路径和 desktop-continuous 的 MCP 行为不一致。
+          // 之前这里丢掉 mcpServers，导致 Web replayable 路径和 desktop-continuous 的 MCP 行为不一致。
           mcpServers,
         });
       }
@@ -1870,8 +1870,8 @@ export function createZCodeTaskServiceAdapter(
         workspaceIdentity: meta.workspaceIdentity,
       });
       emitWorkspaceConfig(target, snapshot.settings);
-      // 手机端通过 shared-host 创建 task 时，桌面 renderer 没有本地乐观插入。
-      // create 事件必须保留 task_created 语义，否则 UI 会按普通 meta 事件只重排已存在项，远控首页就拿不到新任务。
+      // Web replayable 通过 shared-host 创建 task 时，桌面 renderer 没有本地乐观插入。
+      // create 事件必须保留 task_created 语义，否则 UI 会按普通 meta 事件只重排已存在项，Web 首页就拿不到新任务。
       emitWorkspaceTaskListChanged(target, meta, "task_created");
       // task 创建结果需要携带 agent 协议快照里的命令列表；否则 replayable 首屏会覆盖为空。
       return {
@@ -2224,7 +2224,7 @@ export function createZCodeTaskServiceAdapter(
       assertV4CommandAckOk("resolveInteraction", ack, `elicitation ${params.requestId}`);
       if (params.clientMode === "web-remote-replayable") {
         // 语义保真（原 agentService.respondUserInput 的 web-remote-replayable 分支）：
-        // 手机远控应答后，桌面/其它 observer 需要显式响应事件清理同一 requestId 的弹窗；
+        // Web replayable 应答后，桌面/其它 observer 需要显式响应事件清理同一 requestId 的弹窗；
         // v4 命令路径不再经过旧 respondUserInput，这里由 adapter 本地补投同一事件。
         emitTaskEvent(
           target,
@@ -3442,7 +3442,7 @@ function backgroundTaskNotificationToolUpdateFromInput(params: {
     status,
     content: parsed.notification.result ?? parsed.notification.summary,
     // replayable 动态事件也必须把 notification error 放到标准 tool error，
-    // 否则手机远控与桌面 continuous 的失败详情会产生分叉。
+    // 否则 Web replayable 与桌面 continuous 的失败详情会产生分叉。
     ...(status === "failed" && parsed.notification.error
       ? { error: parsed.notification.error }
       : {}),
