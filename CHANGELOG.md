@@ -27,9 +27,12 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
   文档入口，以及已退役的账号套餐、支付、闲时任务和旧插件管理兼容代码。
 - `c36c11b`：安装包和桌面外链统一使用 NCode/GitHub Releases；测试菜单不再提供官方 endpoint 选择，
   Renderer Action Trace 的本地采样限制与配置校验保持一致。
+- `28c58a7`：关闭依赖未随安装包发布跨平台运行资源的 SSH、WSL、Docker 远程 workspace 入口，
+  不恢复旧远程会话；本地 workspace、Web 本地 Server 和 API Key 使用不受影响。
 
 ### 已知限制
 
 - `a24310e`：当前只发布 macOS arm64 和 Windows x64 安装包；macOS 安装包暂未签名或公证，
   生产环境只检查稳定版 Release。
-- `792f3ad`：官方插件市场和远程 workspace 资源 CDN 暂时保留，后续按 NCode 的分发方案独立迁移。
+- `28c58a7`：远程 workspace 暂停提供；如果未来恢复，必须先建立 NCode 自有资源发布和校验流程，
+  不回退到官方 CDN。
