@@ -48,6 +48,20 @@ export const PRESET_PROVIDER_SPEC_BY_ID = new Map<BuiltinModelProviderId, Preset
   PRESET_PROVIDER_SPECS.map((item) => [item.id, item]),
 );
 
+// 这些 Provider 仍需保留给旧配置和运行时兼容层，但不再进入本地产品 UI。
+const DEOFFICIALIZED_PROVIDER_IDS: ReadonlySet<string> = new Set([
+  BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
+  BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan,
+  BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
+  BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
+  BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
+  BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
+]);
+
+export function isDeofficializedProviderId(providerId: string): boolean {
+  return DEOFFICIALIZED_PROVIDER_IDS.has(providerId);
+}
+
 export type CodingPlanProviderId =
   | typeof BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan
   | typeof BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan

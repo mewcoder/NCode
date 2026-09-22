@@ -1,34 +1,12 @@
 import { AppUsagePanel } from "@/settings/usage-stats/AppUsagePanel.js";
-import {
-  CodingPlanUsagePanel,
-  type CodingPlanUsageSource,
-} from "@/settings/usage-stats/CodingPlanUsagePanel.js";
+import { CodingPlanApiKeyUsagePanel } from "@/settings/usage-stats/CodingPlanApiKeyUsagePanel.js";
 
-export type UsageStatsSectionTab = "app" | "codingPlan" | `codingPlan:${string}`;
-
-export function UsageStatsSection({
-  activeTab,
-  providerSourcesLoading,
-  workspaceIdentity,
-  workspacePath,
-  selectedCodingPlanSource,
-}: {
-  activeTab: UsageStatsSectionTab;
-  providerSourcesLoading: boolean;
-  workspaceIdentity?: string;
-  workspacePath?: string;
-  selectedCodingPlanSource?: CodingPlanUsageSource | null;
-}) {
-  if (activeTab === "app") {
-    return <AppUsagePanel />;
-  }
-
+/** 展示本地会话统计，并在配置了 Coding Plan API Key 时读取可选额度快照。 */
+export function UsageStatsSection() {
   return (
-    <CodingPlanUsagePanel
-      loadingSources={providerSourcesLoading}
-      workspaceIdentity={workspaceIdentity}
-      workspacePath={workspacePath}
-      selectedSource={selectedCodingPlanSource}
-    />
+    <div className="space-y-8">
+      <AppUsagePanel />
+      <CodingPlanApiKeyUsagePanel />
+    </div>
   );
 }

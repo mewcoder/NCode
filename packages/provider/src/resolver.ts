@@ -181,13 +181,15 @@ export interface ProviderConfigResolution {
 
 export class ProviderConfigResolver {
   resolve(input: ProviderConfigResolverInput): ProviderConfigResolution {
-    const accountProviders = new ProviderConfigMap(
-      input.accountProviders
-        .entries()
-        .filter(([providerId]) => input.zcodeBuiltinProviders.has(providerId))
-        .map(([providerId, config]) => [providerId, config.withoutGroup()] as const),
+    // 账号 Provider 只保留在兼容 schema 中，不再进入运行时解析。
+    // 旧配置可以继续留在磁盘上，但不能通过 built-in、个人覆盖或 account source
+    // 任一入口重新出现在 Registry；普通 API Key / Coding Plan API Key 不受影响。
+    const apiKeyBuiltinProviders = new ProviderConfigMap(
+      input.zcodeBuiltinProviders
+        .rules()
+        .filter((rule) => rule.config.access?.type !== "zhipu-account"),
     );
-    const concreteBuiltinProviders = input.zcodeBuiltinProviders.overlay(accountProviders);
+    const concreteBuiltinProviders = apiKeyBuiltinProviders;
     const providerTemplates = input.zcodeBuiltinProviderTemplates;
     const effectiveBuiltinProviders = concreteBuiltinProviders.mapConfigs((concrete, _id, rule) => {
       const template = rule.templateId
@@ -195,7 +197,11 @@ export class ProviderConfigResolver {
         : undefined;
       return template ? template.overlay(concrete) : concrete;
     });
-    const personalProviders = input.personalProviders.mapConfigs((config, providerId) =>
+    const personalProviders = new ProviderConfigMap(
+      input.personalProviders
+        .rules()
+        .filter((rule) => rule.config.access?.type !== "zhipu-account"),
+    ).mapConfigs((config, providerId) =>
       effectiveBuiltinProviders.has(providerId) ? config.withoutGroup() : config,
     );
     const templatePersonalProviders = personalProviders.mapConfigs((personal, providerId, rule) => {
@@ -214,11 +220,17 @@ export class ProviderConfigResolver {
     const resolvedProviders: ResolvedProvider[] = [];
     const registryProviders: Provider[] = [];
 
-    for (const providerId of resolveProviderOrder(input, effectiveProviders)) {
+    for (const providerId of resolveProviderOrder(
+      {
+        ...input,
+        zcodeBuiltinProviders: apiKeyBuiltinProviders,
+        personalProviders,
+      },
+      effectiveProviders,
+    )) {
       const rule = effectiveProviders.getRule(providerId)!;
       const { config, providerName } = rule;
-      // 账号不再支持总禁用；旧覆盖值不能让无开关的账号永久失效，其他资格仍正常校验。
-      const enabled = config.access?.type === "zhipu-account" || (rule.enabled ?? true);
+      const enabled = rule.enabled ?? true;
       const providerPath = ["providers", providerId];
       const registryProviderResult = createRegistryProviderConfig(config, providerPath);
       const providerIssues: ConfigValidationIssue[] = registryProviderResult.ok

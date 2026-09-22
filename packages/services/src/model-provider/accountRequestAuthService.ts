@@ -34,6 +34,22 @@ export function createAccountRequestAuthService(
   };
 }
 
+/**
+ * 账号 Provider 已被移出运行时；保留一个 fail-closed 适配器，避免旧 RPC/测试 double
+ * 因服务接口形状变化而重新接回 OAuth 或套餐凭据。
+ */
+export function createDisabledAccountRequestAuthService(): IAccountRequestAuthService {
+  return {
+    resolveAccessCurrent: async () => null,
+    resolveCurrent: async (input) => {
+      throw new Error(`账号 Provider 已禁用: ${input.providerId}`);
+    },
+    assertCurrent: async (input) => {
+      throw new Error(`账号 Provider 已禁用: ${input.providerId}`);
+    },
+  };
+}
+
 export type {
   AccountRequestAuthInput,
   AccountAccessIdentityInput,

@@ -1,22 +1,16 @@
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button.js";
-import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { useOptionalCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 
+/**
+ * 购买/升级弹窗链路已下线（CodingPlanUpgradeDialogProvider 已删除）。
+ * 历史上这里通过 Provider 的套餐库存查询做 loading/error 守卫；现库存守卫不再可用，
+ * 恒返回就绪态以保持既有调用点编译与运行行为不变。
+ */
 export function useCodingPlanEntryGate() {
-  const dialog = useOptionalCodingPlanUpgradeDialog();
-  const { intl } = useZCodeIntl();
-  const status = dialog?.inventory?.status ?? "ready";
-  const label =
-    status === "ready"
-      ? undefined
-      : intl.formatMessage({
-          id: status === "loading" ? "purchase.entry.loading" : "purchase.entry.retry",
-        });
-  return { status, label, retry: dialog?.inventory?.retry };
+  return { status: "ready" as const, label: undefined, retry: undefined };
 }
 
-/** 各入口共享同一查询状态；失败时按钮只重试，不继续执行购买动作。 */
+/** 兼容历史签名；升级链路下线后守卫恒为就绪，bypassGate 不再有意义。 */
 export function CodingPlanEntryButton({
   children,
   disabled,
@@ -24,26 +18,10 @@ export function CodingPlanEntryButton({
   bypassGate = false,
   ...props
 }: ComponentProps<typeof Button> & { bypassGate?: boolean }) {
-  const gate = useCodingPlanEntryGate();
-  const status = bypassGate ? "ready" : gate.status;
+  void bypassGate;
   return (
-    <Button
-      {...props}
-      disabled={disabled || status === "loading"}
-      aria-label={status === "ready" ? props["aria-label"] : gate.label}
-      aria-busy={status === "loading"}
-      title={status === "ready" ? props.title : gate.label}
-      onClick={(event) => {
-        if (status === "error") {
-          event.preventDefault();
-          event.stopPropagation();
-          gate.retry?.();
-          return;
-        }
-        if (status === "ready") onClick?.(event);
-      }}
-    >
-      {status === "ready" ? children : gate.label}
+    <Button {...props} disabled={disabled} onClick={onClick}>
+      {children}
     </Button>
   );
 }
