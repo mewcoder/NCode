@@ -7,6 +7,7 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
 
 ### 品牌与发布
 
+- `316ca7c`：移除 Linux 安装包中残留的官方维护者邮箱，改用 NCode/GitHub 维护者信息。
 - `7fbb741`：桌面应用、Web 页面、通用 UI 和安装包视觉更新为 NCode 名称与 N 形产品标志。
 - `a24310e`：桌面更新迁移到 NCode GitHub Releases，并提供 macOS arm64、Windows x64
   自动发布流程；保留检查更新、下载进度、取消下载和安装更新能力。
