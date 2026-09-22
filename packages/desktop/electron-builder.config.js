@@ -689,6 +689,7 @@ export default {
   },
   win: {
     target: ["nsis"],
+    icon: "build/icon.ico",
     artifactName: buildDesktopArtifactName("win"),
   },
   linux: {

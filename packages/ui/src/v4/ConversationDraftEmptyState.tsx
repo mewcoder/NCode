@@ -177,7 +177,7 @@ export function ConversationDraftEmptyState({ className }: { className?: string 
       <div
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-1/2 top-1/2 aspect-[5/4] w-[min(72vw,25rem)] -mt-10",
+          "pointer-events-none absolute left-1/2 top-1/2 aspect-[4/5] w-[min(72vw,25rem)] -mt-10",
           "-translate-x-1/2 -translate-y-1/2 text-foreground-subtlest",
         )}
       >
@@ -223,14 +223,14 @@ function ZCodeEmptyStateLogo({ className }: { className?: string }) {
           "[mask-image:linear-gradient(to_bottom,black_0%,transparent_70%,transparent_100%)]",
           "[mask-repeat:no-repeat] [mask-size:100%_100%]",
         )}
-        width="400"
-        height="320"
-        viewBox="0 0 400 320"
+        width="320"
+        height="400"
+        viewBox="0 0 320 400"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
-          d="M398.97 0.5L147.576 319.5H1.03027L37.5996 273.081L120.167 169.603L120.171 169.598L215.342 47.5605L215.343 47.5615L252.424 0.5H398.97ZM264.544 273.271H372.527L336.082 319.498H189.886L202.642 303.307C217.584 284.34 240.398 273.271 264.544 273.271ZM209.164 0.5L202.786 8.58887C183.782 32.6885 154.782 46.752 124.091 46.752H25.9805L62.4268 0.5H209.164Z"
+          d="M319.5 398.97L0.5 147.576V1.03027L46.919 37.5996L150.397 120.167L150.402 120.171L272.4395 215.342L272.4385 215.343L319.5 252.424V398.97ZM46.729 264.544V372.527L0.502 336.082V189.886L16.693 202.642C35.66 217.584 46.729 240.398 46.729 264.544ZM319.5 209.164L311.411 202.786C287.3115 183.782 273.248 154.782 273.248 124.091V25.9805L319.5 62.4268V209.164Z"
           stroke="currentColor"
         />
       </svg>
