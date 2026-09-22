@@ -55,10 +55,8 @@ import {
   PlatformChannels,
   ZCODE_ENV,
   ZCODE_PRODUCT_FLAVOR,
-  DEFAULT_ZCODE_ENDPOINT_ORIGIN,
   DEFAULT_LOCALE,
   ZCODE_VERSION,
-  resolveZCodeEndpointOrigin,
   type UpdateStatePayload,
   HostMessageTypes,
 } from "@zcode/shared";
@@ -588,13 +586,6 @@ const UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT = 224;
 const UPDATE_STATUS_WINDOW_READY_HEIGHT = UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT - 54;
 const UPDATE_STATUS_WINDOW_TRAFFIC_LIGHT_POSITION = { x: 10, y: 10 } as const;
 const mainSettingService = createSettingService();
-async function resolveCurrentZCodeEndpointOrigin() {
-  return resolveZCodeEndpointOrigin({
-    env: ZCODE_ENV,
-    envBaseOrigin: resolveZCodeEndpointEnvBaseOrigin(hostProcessLocalEnv),
-    overrideOrigin: (await mainSettingService.get()).zcodeEndpointOrigin,
-  });
-}
 function resolveDesktopContextPromptEnabledForHost(): boolean {
   return resolveLocalDesktopContextPromptEnabled({ ...hostProcessLocalEnv, ...process.env });
 }
@@ -1125,17 +1116,6 @@ async function executeDesktopCommandForApp(
   });
 }
 
-async function resolveZCodeEndpointSelection(): Promise<"production" | "test" | "custom"> {
-  if (ZCODE_ENV === "production") {
-    return "production";
-  }
-  const origin = await resolveCurrentZCodeEndpointOrigin();
-  if (origin === DEFAULT_ZCODE_ENDPOINT_ORIGIN) {
-    return "production";
-  }
-  return "custom";
-}
-
 async function handleZCodeEndpointChanged() {
   rebuildMenu();
 }
@@ -1175,21 +1155,18 @@ function resetShortcutRecordingForWebContents(webContentsId: number) {
 }
 
 function rebuildMenu() {
-  void Promise.all([resolveZCodeEndpointSelection(), mainSettingService.get()]).then(
-    ([zcodeEndpointSelection, settings]) => {
-      rebuildApplicationMenu({
-        currentApplicationLocale,
-        zcodeEndpointSelection,
-        executeDesktopCommand: executeDesktopCommandForApp,
-        currentZoomLevel: resolveFocusedDesktopZoomLevel(),
-        // 菜单 accelerator 跟随用户快捷键设置（shortcutBindings 用户覆盖）
-        shortcutBindings: settings.shortcutBindings,
-        // 快捷键录制态：摘掉可配置 accelerator，防止录制 menu 通道命令时按键直接触发原命令
-        // （macOS 系统菜单先于 renderer 吃掉按键，renderer 侧 preventDefault 拦不住）。
-        disableShortcutAccelerators: shortcutRecordingActive,
-      });
-    },
-  );
+  void mainSettingService.get().then((settings) => {
+    rebuildApplicationMenu({
+      currentApplicationLocale,
+      executeDesktopCommand: executeDesktopCommandForApp,
+      currentZoomLevel: resolveFocusedDesktopZoomLevel(),
+      // 菜单 accelerator 跟随用户快捷键设置（shortcutBindings 用户覆盖）
+      shortcutBindings: settings.shortcutBindings,
+      // 快捷键录制态：摘掉可配置 accelerator，防止录制 menu 通道命令时按键直接触发原命令
+      // （macOS 系统菜单先于 renderer 吃掉按键，renderer 侧 preventDefault 拦不住）。
+      disableShortcutAccelerators: shortcutRecordingActive,
+    });
+  });
   updateWindowsDesktopTrayMenu();
 }
 

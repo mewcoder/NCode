@@ -1,5 +1,7 @@
 import type { BrowserWindow, NativeImage } from "electron";
-import { DEFAULT_ZCODE_ENDPOINT_ORIGIN, buildZCodeEndpointUrls, type Locale } from "@zcode/shared";
+import type { Locale } from "@zcode/shared";
+
+const NCODE_RELEASES_URL = "https://github.com/mewcoder/NCode/releases";
 
 interface ArchitectureMismatch {
   /** 当前运行的二进制架构，例如 x64。 */
@@ -42,15 +44,6 @@ function detectArchitectureMismatch(
   }
 
   return { binaryArch, nativeArch: "arm64" };
-}
-
-function resolveArchitectureDownloadUrl(
-  locale: Locale,
-  endpointOrigin = DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-): string {
-  // 与 changelog 等外链保持一致，按应用语言分流到官网下载页。
-  const origin = buildZCodeEndpointUrls(endpointOrigin).origin;
-  return locale === "zh-CN" ? `${origin}/cn` : `${origin}/en`;
 }
 
 interface ArchitectureMismatchDialogText {
@@ -137,8 +130,7 @@ export async function maybeWarnArchitectureMismatch(options: {
       : await dialog.showMessageBox(dialogOptions);
 
   if (response === 0) {
-    const url = resolveArchitectureDownloadUrl(options.locale);
-    options.logger.info(`[architecture] 用户选择前往下载：${url}`);
-    await shell.openExternal(url);
+    options.logger.info(`[architecture] 用户选择前往下载：${NCODE_RELEASES_URL}`);
+    await shell.openExternal(NCODE_RELEASES_URL);
   }
 }
