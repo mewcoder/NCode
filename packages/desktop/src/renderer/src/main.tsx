@@ -41,6 +41,10 @@ type DesktopRendererImportMetaEnv = {
   VITE_ZCODE_E2E_STORE_BRIDGE?: string;
 };
 
+// 远程 workspace 依赖未随安装包发布的跨平台运行资源；个人版先关闭入口，
+// 避免安装后才因缺少远程资源或官方 CDN 而失败。
+const allowRemoteWorkspace = false;
+
 startPerformanceTimelineCleanup();
 
 // T4:renderer bundle 开始执行。同时从 loadURL query 解析 main 注入的 T0-T3。
@@ -330,6 +334,7 @@ function initializeBusinessRoot(port: MessagePort): void {
             initialWorkspacePurpose === "conversation" ? "conversation" : "project"
           }
           unavailableWorkspacePath={unavailableWorkspacePath}
+          allowRemoteWorkspace={allowRemoteWorkspace}
         />
       </ZCodeIntlProvider>
     </AppErrorBoundary>,

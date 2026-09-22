@@ -64,10 +64,9 @@ Desktop Context Prompt 和 Renderer Action Trace 灰度。个人版应由本地�
 SSH/WSL/Docker 远程工作区在生产环境仍从 `cdn-zcode.z.ai/zcode/electron/releases/...`
 下载远端运行资源。
 
-- [ ] 先在 P2 决定是否保留远程工作区。
-- [ ] 若保留：改为 NCode GitHub Release、自建静态源或随包资源，并保留 hash/版本校验。
-- [ ] 若删除：连同远程资源下载、缓存、部署、重连和 UI 入口一起删除。
-- [ ] 不允许仅改 URL 后留下没有发布流程的假入口。
+- [x] 个人版桌面安装包暂时关闭 SSH/WSL/Docker 远程 workspace 入口。
+- [ ] 后续如恢复远程 workspace，必须先把经过 hash 校验的资源随 NCode Release 或安装包发布。
+- [ ] 未完成资源发布前，不重新打开远程 workspace UI，也不把 CDN URL 换个名字继续使用。
 
 主要证据：
 
@@ -76,8 +75,8 @@ SSH/WSL/Docker 远程工作区在生产环境仍从 `cdn-zcode.z.ai/zcode/electr
 - `packages/server/src/remote/remoteAssetCdn.ts`
 - `packages/server/src/remote/deploy.ts`
 
-验收：远程能力要么使用可复现的 NCode 资源，要么在 UI、服务和构建中完全不存在；不能回退到
-官方 CDN。
+验收：当前安装包不展示或恢复远程 workspace；未来恢复前必须具备可复现的 NCode 资源来源，
+不能回退到官方 CDN。
 
 ## P1：确定可清理的残留
 
@@ -188,7 +187,7 @@ Provider 仍可用。
 
 ### 12. SSH / WSL / Docker 远程工作区
 
-- [ ] 决策：是否在远程机器、WSL 或容器中开发。
+- [x] 当前个人版不启用远程机器、WSL 或容器 workspace；Desktop UI 不展示入口，也不恢复旧远程会话。
 - [ ] 若从不使用：删除连接向导、target 解析、资源部署、Host attachment、重连与缓存。
 - [ ] 保留 `workspaceIdentity?.trim() || workspacePath`，直到所有远程持久数据和协议迁移完成。
 

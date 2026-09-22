@@ -10,7 +10,7 @@
 - 通用 HTTP Server 不再注册 `/api/connect-remote` 和 `/ws/remote/:id`，不再为浏览器临时保存远程连接。
 - 清理只属于 APP 远控的构建环境声明、加载提示、手机设备指纹命名、任务激活标记和窄屏远控专用参数。
 - 协议握手和会话创建埋点不再声明只属于 APP 远控的 mobile client kind。
-- 普通本地 Web 模式（`/ws`）、Desktop 的 SSH/WSL/Docker 远程工作区、Host attachment、任务实时协议和 `apps/zcode-cli` 均不在本次删除范围内。
+- 普通本地 Web 模式（`/ws`）、Host attachment、任务实时协议和 `apps/zcode-cli` 均不在本次删除范围内；Desktop 的 SSH/WSL/Docker 远程工作区由去官方化裁剪项单独关闭。
 - 不删除已有远程工作区数据，不改写共享远程工作区协议，不新增官方账号或远控兼容层。
 
 ## 行为规则与不变量
@@ -18,7 +18,7 @@
 - 无论是否携带历史 `remote` 查询参数，Web 客户端都不能进入 APP 远控桥接；普通 Web 启动只连接本地 Server 的 `/ws`。
 - Server 不再创建或持有浏览器远控临时连接；旧 `/api/connect-remote`、`/ws/remote/:id` 请求不再命中本项目的远控处理器。
 - Web 的浏览器身份仍可用于本地 Web 会话和本地统计，但不再以“手机远程控制”命名或作为 APP 配对能力。
-- Desktop 的 SSH/WSL/Docker 连接继续由 `IPlatformService.connectRemote` 和现有 Host attachment 负责。
+- Desktop 保留远程协议兼容代码，但个人版 UI 不再调用 `IPlatformService.connectRemote`，也不恢复历史远程 workspace。
 
 ## 事件顺序
 
