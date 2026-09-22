@@ -5,7 +5,7 @@
  * Web 复用同一组件，但继续保留 20px 紧凑标题；桌面草稿首页才按标题自身宽度适配。
  */
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
-import darkEmptyStateLogoUrl from "@/assets/Z.svg";
+import darkEmptyStateLogoUrl from "@/assets/N.svg";
 import { cn } from "@/components/lib/utils.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
@@ -229,8 +229,9 @@ function ZCodeEmptyStateLogo({ className }: { className?: string }) {
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
+        {/* 保留原 Logo 的多段折线与内侧回折，只把左上段压到右侧顶部的同一基线。 */}
         <path
-          d="M319.5 398.97L0.5 147.576V1.03027L46.919 37.5996L150.397 120.167L150.402 120.171L272.4395 215.342L272.4385 215.343L319.5 252.424V398.97ZM46.729 264.544V372.527L0.502 336.082V189.886L16.693 202.642C35.66 217.584 46.729 240.398 46.729 264.544ZM319.5 209.164L311.411 202.786C287.3115 183.782 273.248 154.782 273.248 124.091V25.9805L319.5 62.4268V209.164Z"
+          d="M319.5 398.97L0.5 172.9085V25.9805L319.5 252.042V398.97ZM46.729 264.544V372.527L0.502 336.082V189.886L16.693 202.642C35.66 217.584 46.729 240.398 46.729 264.544ZM319.5 209.164L311.411 202.786C287.3115 183.782 273.248 154.782 273.248 124.091V25.9805L319.5 62.4268V209.164Z"
           stroke="currentColor"
         />
       </svg>

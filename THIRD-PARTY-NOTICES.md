@@ -736,10 +736,6 @@ Original copyright, license and NOTICE text is retained below. Identical text is
 
 - @xterm/xterm@5.5.0 — MIT
 
-- @xyflow/react@12.10.2 — MIT
-
-- @xyflow/system@0.0.76 — MIT
-
 - accepts@2.0.0 — MIT
 
 - acorn-jsx@5.3.2 — MIT
@@ -857,8 +853,6 @@ Original copyright, license and NOTICE text is retained below. Identical text is
 - chevrotain@12.0.0 — Apache-2.0
 
 - class-variance-authority@0.7.1 — Apache-2.0
-
-- classcat@5.0.5 — MIT
 
 - cli-cursor@5.0.0 — MIT
 
@@ -2215,8 +2209,6 @@ Original copyright, license and NOTICE text is retained below. Identical text is
 - zod@4.6.5 — MIT
 
 - zrender@6.1.0 — BSD-3-Clause
-
-- zustand@4.5.7 — MIT
 
 - zustand@5.0.12 — MIT
 
@@ -6806,52 +6798,6 @@ Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
 
 ````
 
-### Notice 023119ac20fb1c8c9930abe0bcd196989a1960388529a96fc43cebf96f07c9ff
-
-- @xyflow/react@12.10.2: LICENSE
-
-- @xyflow/system@0.0.76: LICENSE
-
-
-
-````text
-MIT License
-
-Copyright (c) 2019-2025 webkid GmbH
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-````
-
-### Notice e3af1abd27a708d72b7737fb8d0095622b48cb2540c1c705c8fa838b107371bd
-
-- @xyflow/react@12.10.2: README.md (license section)
-
-
-
-````text
-## License
-
-React Flow is [MIT licensed](../../LICENSE).
-
-````
-
 ### Notice 71f83c4c0621102a56d9853812777b85751bce7e9726f686f5b056c1f8a4b0e6
 
 - accepts@2.0.0: LICENSE
@@ -9632,40 +9578,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
-````
-
-### Notice f101c761d255d0dddc77dd8a9327733b03d381798ec54a1bb718367207b48a8e
-
-- classcat@5.0.5: LICENSE.md
-
-
-
-````text
-Copyright © Jorge Bucaran <<https://jorgebucaran.com>>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-````
-
-### Notice 1357154d40ea5bf0e89ccfd2bd99f0ac8def6dc5b07794b1ea2386b3e662a617
-
-- classcat@5.0.5: README.md (license section)
-
-- react-redux@9.3.0: README.md (license section)
-
-- redux@5.0.1: README.md (license section)
-
-
-
-````text
-## License
-
-[MIT](LICENSE.md)
 
 ````
 
@@ -30391,6 +30303,21 @@ SOFTWARE.
 
 ````
 
+### Notice 1357154d40ea5bf0e89ccfd2bd99f0ac8def6dc5b07794b1ea2386b3e662a617
+
+- react-redux@9.3.0: README.md (license section)
+
+- redux@5.0.1: README.md (license section)
+
+
+
+````text
+## License
+
+[MIT](LICENSE.md)
+
+````
+
 ### Notice 8ee8354d5f5f12f11ba596bba67b060d43d3cd677075171404ab5a73703450e8
 
 - react-remove-scroll-bar@2.3.8: README.md (license section)
@@ -37116,8 +37043,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ````
 
 ### Notice c1e6e266563517467b1bf874817d23e426f3149252bd7d42758cd697514b8417
-
-- zustand@4.5.7: LICENSE
 
 - zustand@5.0.12: LICENSE
 

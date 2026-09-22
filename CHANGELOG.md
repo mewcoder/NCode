@@ -7,6 +7,7 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
 
 ### 品牌与发布
 
+- `575be5d`：草稿空状态切换为 NCode 的 N 形产品标志，并补充对应视觉资源。
 - `316ca7c`：移除 Linux 安装包中残留的官方维护者邮箱，改用 NCode/GitHub 维护者信息。
 - `7fbb741`：桌面应用、Web 页面、通用 UI 和安装包视觉更新为 NCode 名称与 N 形产品标志。
 - `a24310e`：桌面更新迁移到 NCode GitHub Releases，并提供 macOS arm64、Windows x64
@@ -35,6 +36,8 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
   UI、协议、CLI 事实链路与 Desktop OpenTelemetry 依赖。
 - `742e769`：修复 CLI Provider Registry 与本地 `provider-node` 运行时接口不一致，Agent bundle
   构建改为只使用随包 Built-in 与本地 Personal Provider 配置，不恢复远程下载。
+- `9fa9a1c`：清理未使用的 Desktop 启动与资源监测链路、Team Plan/API 辅助模块及 AI Elements
+  React Flow 组件，同步更新构建依赖和第三方许可清单。
 
 ### 已知限制
 

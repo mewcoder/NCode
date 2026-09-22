@@ -158,7 +158,8 @@ factory；动态工作流和模型 context budget 也不再依赖套餐 service�
 
 ### 9. 其他已确认无引用文件
 
-- [ ] 删除 `packages/ui/src/v4/ConversationBottomDockTransition.tsx`。
+- [x] 完成第一批已确认无引用孤岛清理：Desktop app launch gate、旧 process resource 来源、ZCode data size Worker 链、Services API 孤立入口、Team Plan API key 模块、V4ChatPane、coding-plan reset confetti，以及未使用的 AI Elements React Flow 组件；同步移除构建入口、依赖和第三方清单。
+- [x] 对本批删除目标使用 `git grep --cached` 做全仓引用确认，并用 `pnpm architecture:check --changed` 校验边界。
 - [ ] 逐项复核 `pnpm knip` 报告中的未使用文件；动态加载、构建脚本和生成入口不得直接按报告删除。
 - [ ] 对待删除的 TypeScript export 使用 `pnpm dep:refs <file>:<symbol>` 做全仓确认。
 
