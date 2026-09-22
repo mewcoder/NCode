@@ -488,16 +488,6 @@ contextBridge.exposeInMainWorld("zcode", {
     }
     return () => openWorkspacePathCallbacks.delete(callback);
   },
-  onOpenFeedbackDialog: (callback: () => void): (() => void) => {
-    const handler = () => callback();
-    ipcRenderer.on(PlatformChannels.OpenFeedbackDialog, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.OpenFeedbackDialog, handler);
-  },
-  onOpenTicketsPanel: (callback: () => void): (() => void) => {
-    const handler = () => callback();
-    ipcRenderer.on(PlatformChannels.OpenTicketsPanel, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.OpenTicketsPanel, handler);
-  },
   /** 注册窗口全屏状态变化回调，返回 disposer */
   onWindowFullscreenChanged: (callback: (isFullscreen: boolean) => void): (() => void) => {
     const handler = (_event: unknown, isFullscreen: boolean) => callback(isFullscreen);
@@ -557,9 +547,6 @@ contextBridge.exposeInMainWorld("zcode", {
   },
   /** 打开受信任的外部 URL */
   openExternal: (url: string) => ipcRenderer.send(PlatformChannels.OpenExternal, url),
-  /** 查询当前语言下是否存在可用的用户社群入口 */
-  canOpenCommunity: (locale: Locale): Promise<boolean> =>
-    ipcRenderer.invoke(PlatformChannels.CanOpenCommunity, locale),
   /** 在系统文件管理器中打开指定路径 */
   openInFileManager: (path: string) => ipcRenderer.invoke(PlatformChannels.OpenInFileManager, path),
   /** 使用系统默认应用打开本地文件 */
@@ -634,8 +621,6 @@ contextBridge.exposeInMainWorld("zcode", {
     path?: string;
     error?: string;
   }> => ipcRenderer.invoke(PlatformChannels.ExportLogs),
-  /** 截取当前窗口，用于错误反馈携带现场画面 */
-  captureWindowScreenshot: () => ipcRenderer.invoke(PlatformChannels.CaptureWindowScreenshot),
   // CDP-on-guest pivot：`<webview>` guest dom-ready 后上报 webContentsId 给 main attach。
   browserViewAttachGuest: (payload: {
     key: string;

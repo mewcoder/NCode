@@ -3755,8 +3755,6 @@ export function SessionPane({
         {errored ? (
           <SessionSubscriptionErrorPanel
             error={state.lastError ?? intl.formatMessage({ id: "chat.error.connectionLost" })}
-            sessionId={sessionId}
-            workspacePath={workspacePath}
             onReconnect={handleRetrySubscribe}
           />
         ) : (

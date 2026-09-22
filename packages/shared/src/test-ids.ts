@@ -695,6 +695,3 @@ export function testId(base: string, suffix: string): string {
 }
 
 export const TID_START_PLAN_RECOMMENDATION_DIALOG = "start-plan-recommendation-dialog";
-
-/** 用户反馈的诊断日志授权开关 */
-export const TID_FEEDBACK_LOGS_OPT_IN = "feedback-logs-opt-in";

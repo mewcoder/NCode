@@ -1,9 +1,7 @@
 export type QuickPickCommandIcon =
   | "book"
   | "browser"
-  | "community"
   | "diff"
-  | "feedback"
   | "folder"
   | "message"
   | "mcp"
@@ -50,8 +48,6 @@ interface QuickPickCommandHandlers {
   openSkillsSettings: () => void;
   openMcpSettings: () => void;
   switchTheme: () => void;
-  openFeedback: () => void | Promise<void>;
-  openCommunity: () => void | Promise<void>;
   openProductDocs: () => void | Promise<void>;
   toggleSidebar: () => void;
   toggleTerminal: () => void;
@@ -63,7 +59,6 @@ interface QuickPickCommandHandlers {
 
 interface CreateQuickPickCommandsOptions {
   allowOpenWorkspace: boolean;
-  canOpenCommunity: boolean;
   isSidebarVisible: boolean;
   supportsEmbeddedBrowser?: boolean;
   supportsTerminal?: boolean;
@@ -80,7 +75,6 @@ interface CreateQuickPickCommandsOptions {
 
 export function createQuickPickCommands({
   allowOpenWorkspace,
-  canOpenCommunity,
   isSidebarVisible,
   supportsEmbeddedBrowser = true,
   supportsTerminal = true,
@@ -222,36 +216,6 @@ export function createQuickPickCommands({
       run: handlers.openMcpSettings,
     },
   ];
-
-  commands.push({
-    id: "feedback",
-    sectionId: "app",
-    titleId: "quickPick.command.feedback",
-    icon: "feedback",
-    keywords: [
-      "feedback",
-      "issue",
-      "support",
-      "tickets",
-      "问题上报",
-      "问题反馈",
-      "反馈",
-      "我的反馈",
-      "工单",
-    ],
-    run: handlers.openFeedback,
-  });
-
-  if (canOpenCommunity) {
-    commands.push({
-      id: "community",
-      sectionId: "app",
-      titleId: "quickPick.command.community",
-      icon: "community",
-      keywords: ["community", "users", "chat", "用户社群", "社群"],
-      run: handlers.openCommunity,
-    });
-  }
 
   commands.push({
     id: "product-docs",

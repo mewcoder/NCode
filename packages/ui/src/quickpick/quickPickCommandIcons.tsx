@@ -4,7 +4,6 @@ import {
   FolderOpenIcon,
   GlobeIcon,
   MessageCirclePlus,
-  MessageSquareIcon,
   MoonIcon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -12,7 +11,6 @@ import {
   SettingsIcon,
   SquareTerminalIcon,
   SunIcon,
-  UsersIcon,
   WandSparkles,
 } from "lucide-react";
 import type { QuickPickCommandIcon } from "@/quickpick/quickPickCommands.js";
@@ -20,9 +18,7 @@ import type { QuickPickCommandIcon } from "@/quickpick/quickPickCommands.js";
 export const QUICK_PICK_ICON_BY_KIND = {
   book: BookOpenIcon,
   browser: GlobeIcon,
-  community: UsersIcon,
   diff: FileDiffIcon,
-  feedback: MessageSquareIcon,
   folder: FolderOpenIcon,
   message: MessageCirclePlus,
   mcp: ServerIcon,

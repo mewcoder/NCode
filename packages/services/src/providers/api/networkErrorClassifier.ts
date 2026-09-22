@@ -39,7 +39,7 @@ export function isRetryableConnectionEstablishmentError(error: unknown): boolean
   if ([...codes].some((code) => RETRYABLE_CONNECTION_ESTABLISHMENT_CODES.has(code))) {
     return true;
   }
-  // ETIMEDOUT 也可能发生在 POST 请求体已经发出后，不能只凭错误码重试创建工单。
+  // ETIMEDOUT 也可能发生在 POST 请求体已经发出后，不能只凭错误码重试该请求。
   // Node 的建连超时会明确包含 connection attempts/connect ETIMEDOUT，只有该证据存在时才安全重试。
   if (
     codes.has("ETIMEDOUT") &&

@@ -128,9 +128,8 @@ const REQUIRED_ASAR_RUNTIME_MODULES = [
   // 这与 yauzl 漏 pend 是同一类隐患——校验要求的模块必须有人负责补齐。node-forge 无子依赖，
   // 已在产物里时 afterPack 扫描会跳过它，不改变现有打包结果。
   "node-forge",
-  // 2.7.0 起 services 新增反馈日志压缩链路并引入 yazl；2.6.0 没有这条启动期依赖，
-  // pnpm hoisted 布局下 yazl 可能进了 app.asar，但子依赖 buffer-crc32 没有稳定随包进入产物；
-  // 这里显式以 yazl 作为闭包根注入，让递归依赖收集把 ZIP 打包链路所需依赖一起补齐。
+  // Desktop 的导出日志 ZIP 链路依赖 yazl；pnpm hoisted 布局下它的子依赖
+  // buffer-crc32 没有稳定随包进入产物，这里显式以 yazl 作为闭包根注入。
   "yazl",
   // yauzl 成为 desktop/services 的直接生产依赖后，pnpm list --prod 会把顶层 yauzl 节点
   // 去重成没有子依赖的空节点；electron-builder 的 pnpm collector 以先登记的空节点为准，
@@ -579,7 +578,7 @@ export default {
         ]
       : []),
     {
-      // 正式包不能依赖仓库目录读取社区、反馈等内置兜底配置。
+      // 正式包不能依赖仓库目录读取内置默认配置。
       // 显式放入 resources/config，与主进程的 process.resourcesPath 解析保持一致。
       from: resolve(workspaceRoot, "config/default.json"),
       to: "config/default.json",

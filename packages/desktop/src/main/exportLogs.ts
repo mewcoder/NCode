@@ -19,11 +19,9 @@ import { pipeline } from "node:stream/promises";
 import { ZipFile } from "yazl";
 
 import {
-  createFeedbackDiagnosticArchive,
   getAppConfigDir,
   getExportLogDir as getDefaultExportLogDir,
   getExportLogStageDir as getDefaultExportLogStageDir,
-  getFeedbackLogArchiveDir as getDefaultFeedbackLogArchiveDir,
 } from "@zcode/services/node";
 import { createAboutSnapshot, formatAboutDetail, readBuildMetadata } from "./about.js";
 import { logger } from "./logger.js";
@@ -94,13 +92,6 @@ interface ExportLogsDependencies {
 
 interface WriteLogArchiveZipOptions {
   stageRootDir?: string;
-}
-
-interface CreateFeedbackLogArchiveFromExportLogsOptions {
-  now?: () => Date;
-  outputRootDir?: string;
-  stageRootDir?: string;
-  onProgress?: (event: { processedBytes: number; totalBytes: number }) => void;
 }
 
 function formatTimestamp(now: Date = new Date()): string {
@@ -727,7 +718,7 @@ function isExcludedRelativePath(relativePath: string): boolean {
     return true;
   }
   // debug 目录通常是模型/运行时高频轨迹，不是用户要交付的日志包材料。
-  // 过去显式收集 ~/.zcode/cli/debug 会把这类上下文带进手动导出和反馈完整日志，这里按目录段统一跳过。
+  // 过去显式收集 ~/.zcode/cli/debug 会把这类上下文带进手动导出日志，这里按目录段统一跳过。
   if (isExcludedDirectoryArchivePath(normalizedRelativePath)) {
     return true;
   }
@@ -735,7 +726,7 @@ function isExcludedRelativePath(relativePath: string): boolean {
     return true;
   }
   // ~/.zcode/v2/dev 保存 stdio-traffic 等高频协议流，真实机器上会累计到 GB 级。
-  // 远超反馈附件的大小上限，不应随诊断包带出。
+  // 远超日志归档的合理大小，不应随导出包带出。
   if (isHighVolumeRuntimeArchivePath(normalizedRelativePath)) {
     return true;
   }
@@ -983,7 +974,7 @@ async function createLogArchiveArtifacts(
     files,
   );
 
-  // Computer Use Helper 的结构化诊断必须进日志包：否则反馈包里
+  // Computer Use Helper 的结构化诊断必须进日志包：否则导出包里
   // grep "background keyboard begin rejected" 命中 0，
   // 因为 Helper 由 LaunchServices 启动、stderr 被系统丢弃，它把诊断 tee 到
   // ~/.zcode/computer-use/run/<socket>.exit.log，既不在 app data 也不在 ~/.zcode/cli 下。
@@ -1132,26 +1123,6 @@ async function writeLogArchiveDirectory(
   logSkippedLogArchiveFiles(skippedFiles);
 
   await writeFile(join(outputPath, "about.txt"), artifacts.aboutContent, "utf-8");
-}
-
-export async function createFeedbackLogArchiveFromExportLogs(
-  sourceDir: string,
-  options: CreateFeedbackLogArchiveFromExportLogsOptions = {},
-): Promise<{ path: string; size: number }> {
-  return createFeedbackDiagnosticArchive({
-    sources: [
-      { directory: join(sourceDir, "logs"), archivePrefix: "logs" },
-      { directory: getZCodeCliLogDir(), archivePrefix: ".zcode/cli/log" },
-      {
-        directory: getCuaHelperRunDir(),
-        archivePrefix: ".zcode/computer-use/run",
-        exitLogsOnly: true,
-      },
-    ],
-    outputRootDir: options.outputRootDir ?? getDefaultFeedbackLogArchiveDir(),
-    now: options.now,
-    onProgress: options.onProgress,
-  });
 }
 
 export async function exportLogs(

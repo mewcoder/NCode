@@ -516,8 +516,6 @@ function RootInner({
     tabs,
     activeWorkspacePath,
     activeWorkspaceIdentity,
-    reconnectingRemoteWorkspaceKeys,
-    remoteWorkspaceErrorByWorkspaceKey,
     totalUnreadTaskCount,
     hasCompletedFullTabRestore: hasCompletedFullRestore,
     intl,
@@ -799,7 +797,6 @@ function RootInner({
         ) : (
           <RootWorkspaceContent
             workspaceScopedServices={workspaceScopedServices}
-            baseFeedbackService={services.feedbackService}
             workspaceShellPath={workspaceShellPath}
             workspaceIdentity={workspaceShellIdentity}
             workspaceRemoteSessionId={workspaceShellRemoteSessionId}

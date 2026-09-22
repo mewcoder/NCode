@@ -922,9 +922,6 @@ importers:
       yauzl:
         specifier: ^3.3.0
         version: 3.3.0
-      yazl:
-        specifier: ^3.3.1
-        version: 3.3.1
     devDependencies:
       '@types/node':
         specifier: ^25.5.0
@@ -986,9 +983,6 @@ importers:
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
-      yazl:
-        specifier: ^3.3.1
-        version: 3.3.1
       zod:
         specifier: 4.6.5
         version: 4.6.5

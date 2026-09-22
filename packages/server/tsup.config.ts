@@ -40,9 +40,6 @@ export const SERVER_HTTP_EXTERNAL_DEPENDENCIES = [
   // Dynamic require of "crypto" is not supported；这里和 desktop main/host 构建保持同一外置策略。
   "node-forge",
   "yaml",
-  // services 的反馈日志压缩链路引入 CJS 包 yazl，被内联进 ESM bundle 后
-  // 运行时命中 require("fs") 动态 require，entry-http 启动即崩；保留外部依赖交给 Node 原生加载。
-  "yazl",
   // 云内容 ZIP 解包链路引入 yauzl，其 CommonJS require("fs") 在 ESM
   // bundle 加载时崩溃；与 desktop 相同，外置后交给 Node 原生加载。
   "yauzl",
