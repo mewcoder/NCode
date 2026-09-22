@@ -124,8 +124,7 @@ function pruneCrashDumpArchive(
   archiveDir: string,
   policy: CrashArchiveRetentionPolicy,
 ): CrashArchiveCleanupResult {
-  // 启动时必须先完成本地留档与清理，再让 ARMS 扫描并删除 live；这里保持与既有归档一致的
-  // 同步临界区，避免异步 IO 改变 appCrashCaptureBootstrap -> appARMSBootstrap 的先后顺序。
+  // 启动时先完成本地留档与清理，避免异步 IO 改变 crash capture 的初始化顺序。
   const deletedFiles: string[] = [];
   const failedFiles: string[] = [];
   const dumps: Array<{ entry: string; path: string; mtimeMs: number; size: number }> = [];
@@ -381,7 +380,7 @@ export function initializeCrashCapture(
   }
 
   logger.info(
-    `[crash-capture] configured remoteCrashReporterEnabled=${String(remoteCrashReporterEnabled)} stagingDir=${paths.stagingDir} archiveDir=${paths.archiveDir}`,
+    `[crash-capture] configured localOnly=${String(!remoteCrashReporterEnabled)} stagingDir=${paths.stagingDir} archiveDir=${paths.archiveDir}`,
   );
   return paths;
 }
@@ -427,9 +426,8 @@ export function registerCrashEventMonitor(
       url: webContents.getURL(),
     });
     hooks?.onRenderProcessGone?.(webContents, details);
-    // 远端 crash SDK 可能会在处理后清理 live 目录里的原始 dmp。
-    // 这里在事件后补两次延迟归档，把原始 dump 复制到 ~/.zcode/v2/crash/archive，
-    // 这样既保留线上上报，又能在本地留下一份可供排查的副本。
+    // 在事件后补两次延迟归档，把原始 dump 复制到 ~/.zcode/v2/crash/archive，
+    // 让本地始终留下一份可供排查的副本。
     scheduleCrashArchive(logger, paths, "render-process-gone");
   });
 

@@ -117,8 +117,6 @@ export type {
 export { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 export { ensureDeviceMid } from "./device/deviceMid.js";
 export type { EnsureDeviceMidOptions } from "./device/deviceMid.js";
-export { createTelemetryCore, ensureTelemetryDeviceMid } from "./telemetry/telemetryCore.js";
-export type { EnsureTelemetryDeviceMidOptions } from "./telemetry/telemetryCore.js";
 export type { AccountRequestAuthResolver } from "./model-provider/accountProviderRequestAuthService.js";
 export { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
 export type {
@@ -441,8 +439,6 @@ import {
   getCapturedZCodeAgentTelemetryEnv,
   ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
   ZCODE_VERSION,
-  ZCODE_ENV,
-  buildRuntimeZCodeApiUrl,
 } from "@zcode/shared";
 
 interface ServiceWithDisposeAll {
@@ -2213,24 +2209,6 @@ export function createLocalServices(options: {
   sqliteReposToClose.push(taskIndexRepo);
   sharedSqliteRepos.set(services, sqliteReposToClose);
   return services;
-}
-
-export function createTelemetryUserIdLoader(
-  _credentialService: Pick<ICredentialService, "load">,
-): () => Promise<string> {
-  return async () => "";
-}
-
-export function createTelemetryAuthorizationLoader(
-  _credentialService: Pick<ICredentialService, "load">,
-): (userId: string) => Promise<string | null> {
-  return async () => null;
-}
-
-export function createTelemetryMarketingParamsLoader(
-  _credentialService: ICredentialService,
-): () => Promise<import("@zcode/shared").OAuthLoginAttribution | null> {
-  return async () => null;
 }
 
 export function disposeServiceResources(services: ServiceCollection): void {

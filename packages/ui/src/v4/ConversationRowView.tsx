@@ -80,8 +80,6 @@ import { isAmendWorkflowToolCall } from "@/lib/workflowToolNames.js";
 import { ToolCallBlock } from "@/ToolCallBlocks.js";
 import { resolveWorkflowRunOpenToolCallId } from "@/v4/workflowRunCardJoin.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { useOptionalPlatform } from "@/hooks/usePlatform.js";
-import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
 import { runUserAction, runUserActionAsync } from "@/lib/userActionTelemetry.js";
 import { logger } from "@/logger.js";
 import type { AssistantPreviewCard } from "@/lib/assistantPreviewCards.js";
@@ -1300,7 +1298,6 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
   createdAt,
   feedback = null,
   hookInvocations,
-  sessionId,
   turnId,
   onFork,
   onFeedbackChange,
@@ -1320,7 +1317,6 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
   className?: string;
 }) {
   const { intl, locale } = useZCodeIntl();
-  const platform = useOptionalPlatform();
   const [localFeedback, setLocalFeedback] = useState<AssistantMessageFeedback | null>(feedback);
   const copyLabel = intl.formatMessage({ id: "chat.message.copy" });
   const likeLabel = intl.formatMessage({
@@ -1362,22 +1358,8 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
           },
         );
       }
-      if (platform && entityId) {
-        void reportAppTelemetryEvent(
-          platform,
-          {
-            elementName: "assistant_message_feedback",
-            eventRegion: "chat",
-            eventType: "ck",
-            eventExtraDetail: { reaction: resolvedFeedback ?? "none" },
-            ...(sessionId ? { talkId: sessionId } : {}),
-            messageId: entityId,
-          },
-          "ConversationRowView",
-        );
-      }
     },
-    [entityId, localFeedback, onFeedbackChange, platform, rowId, sessionId],
+    [entityId, localFeedback, onFeedbackChange, rowId],
   );
   const handleFork = useCallback(() => {
     if (entityId) {

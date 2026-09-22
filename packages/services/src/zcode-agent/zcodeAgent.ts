@@ -711,7 +711,7 @@ export interface IZCodeAgentService {
    * 该事件不属于 session/conversation continuous 或 replayable 状态。
    */
   onDynamicProcessResourceSample(): Event<AgentLaneResourceSample>;
-  /** MCP 进程生命周期与低频内存事件，仅供可信 Host relay 上报 ARMS。 */
+  /** MCP 进程生命周期与低频内存事件，仅供可信 Host relay 按需消费。 */
   onDynamicMcpTelemetry(): Event<ZCodeMcpTelemetryEvent>;
   /** MCP 进程树资源事实，只供可信 Host 汇总上报。 */
   onDynamicMcpResourceSamples(): Event<ZCodeMcpResourceSample[]>;

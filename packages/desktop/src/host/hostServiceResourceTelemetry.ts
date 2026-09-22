@@ -4,7 +4,6 @@ import type { IDisposable } from "@zcode/rpc";
 import { IZCodeAgentService, type ServiceCollection } from "@zcode/services";
 import type { ProcessResourceRuntimeSurface } from "@zcode/shared";
 import { registerHostAgentResourceTelemetry } from "./hostAgentResourceTelemetry.js";
-import { registerHostMcpTelemetry } from "./hostMcpTelemetry.js";
 
 interface RegisterHostServiceResourceTelemetryOptions {
   services: Pick<ServiceCollection, "getOptional">;
@@ -12,7 +11,7 @@ interface RegisterHostServiceResourceTelemetryOptions {
   runtimeSurface: ProcessResourceRuntimeSurface;
   /** 独立 Server 必须显式声明支持；本地及配套部署的远端默认支持。 */
   telemetrySupported?: boolean;
-  /** Host 已哈希的运行环境身份，仅透传给 main 的资源分组，不进入 ARMS。 */
+  /** Host 已哈希的运行环境身份，仅透传给 main 的资源分组。 */
   environmentKey?: string;
   onError?(error: unknown): void;
 }
@@ -62,13 +61,6 @@ export function registerHostServiceResourceTelemetry(
         postMessage: options.postMessage,
         runtimeSurface: options.runtimeSurface,
         environmentKey: options.environmentKey,
-      }),
-    );
-    registrations.push(
-      registerHostMcpTelemetry({
-        agentService,
-        postMessage: options.postMessage,
-        runtimeSurface: options.runtimeSurface,
       }),
     );
     registrations.push(

@@ -67,13 +67,13 @@ export function startMemoryDiagnosticsLogger(
     try {
       const heap = readHeap();
       const heapUsedKb = heap ? Math.round(heap.usedJSHeapSize! / 1024) : undefined;
-      // 读到就先交给资源遥测：ARMS 要的是完整的 60 秒序列，而本地日志只在有变化时才写，
+      // 读到就先交给资源观测：资源聚合要的是完整的 60 秒序列，而本地日志只在有变化时才写，
       // 两个出口不能共用同一个门控结论；计数器采集与格式化也不该拖走这条 heap 样本。
       if (heapUsedKb !== undefined) {
         try {
           reportHeapSample?.({ heapUsedKb });
         } catch {
-          // 桥失败只丢这条遥测样本，本地诊断日志与渲染都不受影响。
+          // 桥失败只丢这条资源样本，本地诊断日志与渲染都不受影响。
         }
       }
       const sample: MemorySample = {

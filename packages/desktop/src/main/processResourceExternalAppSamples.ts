@@ -31,7 +31,7 @@ const PROCESS_RESOURCE_MAX_EXTERNAL_SAMPLE_SOURCES = 128;
 interface ExternalAppResourceSample extends AppResourceTotals {
   /**
    * 来源的稳定 key（如 CLI 实例、MCP 来源组）：只用于覆盖旧样本与判定过期，
-   * 不进入任何 ARMS 属性，因此不得放 pid、路径或 workspace 标识。
+   * 不进入外部属性，因此不得放 pid、路径或 workspace 标识。
    */
   sourceKey: string;
   /** 设备级总量只统计本机进程；远端 CLI / MCP 的样本在这里直接丢弃。 */

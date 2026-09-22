@@ -848,7 +848,7 @@ export function createZCodeAgentConnectionScope(
     onDynamicConversationTelemetryFact(params) {
       assertOpen();
       // 可信 clientMode 来自 host attachment；Web/mobile/relay 即使能读权威对话态，
-      // 也不能借共享 workspace emitter 安装生产 telemetry reporter。
+      // 也不能借共享 workspace emitter 安装跨连接的生产观测 reporter。
       const downstream = readTrustedZCodeAgentV4Connection(params);
       const relayDesktopDownstream =
         role === "trusted-host-relay" && downstream?.clientMode === "desktop-continuous";

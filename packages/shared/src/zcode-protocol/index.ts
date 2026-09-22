@@ -548,7 +548,7 @@ export const zcodeProcessResourceSampleSchema = z
     totalMemoryGb: z.number().int().nonnegative().max(1_048_576).optional(),
     /**
      * CLI 进程启动时随机生成的实例标识，仅供 app 侧 main 统计「同时存活几个 CLI 进程」
-     * 与「最大单进程 RSS」。不进 ARMS 属性、不含 pid。收紧字符集是隐私红线的机械保障：
+     * 与「最大单进程 RSS」。不进入外部属性、不含 pid。收紧字符集是隐私红线的机械保障：
      * 路径、workspace 标识这类内容不可能通过校验。
      */
     instanceToken: z

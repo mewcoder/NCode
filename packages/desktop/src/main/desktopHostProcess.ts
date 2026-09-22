@@ -1,4 +1,3 @@
-import { ingestToolExecResource } from "./desktopResourceTelemetry.js";
 import { ingestMcpResourceSamples } from "./processResourceMcpTelemetrySource.js";
 /* eslint-disable max-lines -- host process 统一处理 main↔host 生命周期、日志、ZCode Agent，拆分前先保持跨进程消息收口。 */
 import { bindDatabaseStartupRelay } from "./databaseStartupRelay.js";
@@ -12,14 +11,7 @@ import {
 } from "electron";
 import type { MessagePortMain, UtilityProcess as ElectronUtilityProcess } from "electron";
 import {
-  type HostAgentProcessErrorResponse,
-  type HostAgentProcessExceptionResponse,
-  type HostAgentProcessExitedResponse,
-  type HostAgentProcessReadyResponse,
-  type HostAgentProcessSpawnedResponse,
   type HostCuaOperationStateResponse,
-  type HostMcpTelemetryResponse,
-  type HostSessionCreateTelemetryResponse,
   type TaskRealtimeHostDeliveryKind,
   formatZCodeHostProcessName,
   HostMessageTypes,
@@ -29,7 +21,6 @@ import {
   LAUNCH_MARKS_QUERY_KEY,
   RUNTIME_ZCODE_DEBUG,
   serializeLaunchMarks,
-  type RemoteTarget,
   type WorkspacePurpose,
   ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
 } from "@zcode/shared";
@@ -49,7 +40,6 @@ import {
   hostModulePath,
   resolveBundledGlmBinaryPath,
 } from "./desktopRuntimeEnv.js";
-import { ingestHostNetworkObservations } from "./desktopNetworkTelemetry.js";
 import { ingestCliResourceSample } from "./processResourceCliSource.js";
 import { ingestHostSelfResourceSample } from "./processResourceSelfHeapSource.js";
 import { buildHostE2ECoverageEnv } from "./e2eCoverage.js";
@@ -170,13 +160,6 @@ export function spawnHostProcess(
         runningTaskCount: number;
       },
     ) => void;
-    onAgentProcessExited?: (event: HostAgentProcessExitedResponse) => void;
-    onAgentProcessError?: (event: HostAgentProcessErrorResponse) => void;
-    onAgentProcessException?: (event: HostAgentProcessExceptionResponse) => void;
-    onAgentProcessReady?: (event: HostAgentProcessReadyResponse) => void;
-    onAgentProcessSpawned?: (event: HostAgentProcessSpawnedResponse) => void;
-    onMcpTelemetry?: (event: HostMcpTelemetryResponse) => void;
-    onSessionCreateTelemetry?: (event: HostSessionCreateTelemetryResponse) => void;
     onCuaOperationStateChanged?: (
       source: ElectronUtilityProcess,
       event: HostCuaOperationStateResponse,
@@ -284,11 +267,6 @@ export function spawnHostProcess(
       return;
     }
 
-    if (result.data.type === HostResponseTypes.NetworkTelemetryBatch) {
-      ingestHostNetworkObservations(result.data.observations);
-      return;
-    }
-
     // CLI 自采的 60 秒样本：按 services 打的 lane 归入 cli_chat / cli_aux 角色。
     if (result.data.type === HostResponseTypes.AgentResourceSample) {
       ingestCliResourceSample(
@@ -310,27 +288,12 @@ export function spawnHostProcess(
       return;
     }
 
-    if (result.data.type === HostResponseTypes.ToolExecResource) {
-      ingestToolExecResource(result.data.sample, result.data.runtimeSurface);
-      return;
-    }
-
     if (result.data.type === HostResponseTypes.McpResourceSamples) {
       ingestMcpResourceSamples(
         result.data.samples,
         result.data.runtimeSurface,
         result.data.environmentKey,
       );
-      return;
-    }
-
-    if (result.data.type === HostResponseTypes.McpTelemetry) {
-      dependencies.onMcpTelemetry?.(result.data);
-      return;
-    }
-
-    if (result.data.type === HostResponseTypes.SessionCreateTelemetry) {
-      dependencies.onSessionCreateTelemetry?.(result.data);
       return;
     }
 
@@ -429,28 +392,23 @@ export function spawnHostProcess(
         args: result.data.args,
         startedAt: result.data.startedAt,
       });
-      dependencies.onAgentProcessSpawned?.(result.data);
       return;
     }
 
     if (result.data.type === HostResponseTypes.AgentProcessReady) {
-      dependencies.onAgentProcessReady?.(result.data);
       return;
     }
 
     if (result.data.type === HostResponseTypes.AgentProcessExited) {
       unregisterHostAgentProcess(label, result.data.pid);
-      dependencies.onAgentProcessExited?.(result.data);
       return;
     }
 
     if (result.data.type === HostResponseTypes.AgentProcessError) {
-      dependencies.onAgentProcessError?.(result.data);
       return;
     }
 
     if (result.data.type === HostResponseTypes.AgentProcessException) {
-      dependencies.onAgentProcessException?.(result.data);
       return;
     }
 

@@ -95,8 +95,8 @@ export function resolveOtlpMetricEndpoint(env: EnvRecord): string | undefined {
     parsed.pathname = `${parsed.pathname.replace(/\/$/u, "")}/v1/metrics`;
     return parsed.toString();
   }
-  // ARMS 的自定义 OTLP HTTP 接入点对 Trace/Metric 共用同一 URL；只有 traces 专用
-  // 配置时沿用它，避免打包环境必须额外维护一套密钥和接入点。
+  // 自定义 OTLP HTTP 接入点对 Trace/Metric 共用同一 URL；只有 traces 专用配置时
+  // 沿用它，避免打包环境必须额外维护一套接入点。
   return resolveOtlpTraceEndpoint(env);
 }
 
@@ -121,7 +121,7 @@ export async function prepareModelTelemetryEnv(
   env: EnvRecord,
   options: PrepareModelTelemetryOptions = {},
 ): Promise<EnvRecord> {
-  if (!resolveOtlpTraceEndpoint(env) || isExplicitlyDisabled(env.ZCODE_MODEL_TELEMETRY_ENABLED)) {
+  if (!resolveOtlpTraceEndpoint(env) || !isExplicitlyEnabled(env.ZCODE_MODEL_TELEMETRY_ENABLED)) {
     return env;
   }
   const existingInstallationId = normalizeTelemetryDeviceMid(env.ZCODE_TELEMETRY_DEVICE_MID);
@@ -411,8 +411,8 @@ function validHttpUrl(value: string): string | undefined {
   }
 }
 
-function isExplicitlyDisabled(value: string | undefined): boolean {
-  return ["0", "false", "off", "disabled"].includes(value?.trim().toLowerCase() ?? "");
+function isExplicitlyEnabled(value: string | undefined): boolean {
+  return ["1", "true", "on", "enabled"].includes(value?.trim().toLowerCase() ?? "");
 }
 
 function safeDecode(value: string): string {
