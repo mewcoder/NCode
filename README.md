@@ -1,13 +1,17 @@
-# ZCode
+# NCode
 
 <div align="center">
-  <img src="public/logo/icons/1024x1024.png" alt="ZCode" width="128" height="128" />
+  <img src="public/logo/icons/1024x1024.png" alt="NCode" width="128" height="128" />
 </div>
 <p align="center">
   简体中文
 </p>
 
-ZCode 是 AI 编程工作台，提供桌面应用、浏览器界面和终端 Agent。本仓库包含客户端、后端服务、共享 UI，以及 Agent CLI 与运行时源码。
+> NCode 是基于 ZCode 二次开发的 AI 编程工作台，不是 ZCode 官方发行版。
+
+项目地址：[github.com/mewcoder/NCode](https://github.com/mewcoder/NCode)
+
+NCode 提供桌面应用、浏览器界面和终端 Agent。本仓库包含客户端、后端服务、共享 UI，以及 Agent CLI 与运行时源码。
 
 后续改造会逐步移除对官方品牌、服务、账号、域名和产品配置的强绑定，形成可独立定制的版本（“去 Z.ai 化”）。每次功能、配置、品牌或依赖变更都需要记录在 [CHANGELOG.md](CHANGELOG.md) 中。官方更新只作为代码和行为参考，由 AI 根据 commit、diff、测试与当前源码进行适配，不直接合入官方提交。
 
@@ -149,11 +153,24 @@ pnpm bundle:desktop -- --help
 
 默认目标为 macOS arm64，默认输出目录为 `packages/desktop/dist/`。`--os` 支持 `mac`、`win`、`linux`，`--arch` 支持 `x64`、`arm64`；实际打包与签名需要目标平台对应的工具和配置。
 
-安装：双击打开产物 DMG，将 ZCode 拖入"应用程序"。本地构建未签名，首次打开若被 macOS 拦截，执行：
+安装：双击打开产物 DMG，将 NCode 拖入"应用程序"。本地构建未签名，首次打开若被 macOS 拦截，执行：
 
 ```bash
-sudo xattr -rd com.apple.quarantine /Applications/ZCode.app
+sudo xattr -rd com.apple.quarantine /Applications/NCode.app
 ```
+
+### 桌面版自动发布
+
+桌面生产包通过 GitHub Actions 自动发布到 [NCode Releases](https://github.com/mewcoder/NCode/releases)，当前构建 macOS arm64 和 Windows x64。
+
+```bash
+# 更新版本、生成变更日志、创建并推送 v<version> tag
+pnpm release
+```
+
+推送 `v<version>` tag 后，`.github/workflows/release-desktop.yml` 会创建 Draft Release、并行构建两个平台、上传安装包与更新清单，并在资产校验通过后公开 Release。当前 macOS 包暂不签名或公证，用户首次打开时可能需要在系统提示中选择“打开”，或移除本地构建包的 quarantine 属性。手动运行该 workflow 默认只保留 Draft，适合先验证构建。
+
+后续如果需要启用 macOS 签名和公证，可再配置 `APPLE_CERTIFICATE_P12_BASE64`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD` 和 `APPLE_TEAM_ID`；构建配置已保留对应的可选能力。
 
 ### ZCode 命令行版
 

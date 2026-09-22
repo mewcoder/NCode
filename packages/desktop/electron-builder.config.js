@@ -84,6 +84,16 @@ const macSigningIdentity =
   rawMacSigningIdentity?.replace(/^Developer ID Application:\s*/, "") ?? null;
 const shouldEnableMacSigning =
   process.env.ZCODE_ENABLE_MAC_SIGN === "1" && Boolean(macSigningIdentity);
+const hasAppleNotarizationCredentials = Boolean(
+  (process.env.APPLE_API_KEY?.trim() &&
+    process.env.APPLE_API_KEY_ID?.trim() &&
+    process.env.APPLE_API_ISSUER?.trim()) ||
+  (process.env.APPLE_ID?.trim() &&
+    process.env.APPLE_APP_SPECIFIC_PASSWORD?.trim() &&
+    process.env.APPLE_TEAM_ID?.trim()) ||
+  (process.env.APPLE_KEYCHAIN?.trim() && process.env.APPLE_KEYCHAIN_PROFILE?.trim()),
+);
+const shouldEnableMacNotarization = shouldEnableMacSigning && hasAppleNotarizationCredentials;
 const workspaceRoot = resolve(import.meta.dirname, "../..");
 const desktopPackageRoot = import.meta.dirname;
 const runtimeModuleLookupRoots = [
@@ -667,10 +677,9 @@ export default {
     // electron-builder 也不会自动切到 hardened runtime / entitlement 这套发布参数。
     // 这里显式收拢到环境开关，保证本地开发不被签名配置绑死，CI 发布时再按需打开。
     identity: shouldEnableMacSigning ? macSigningIdentity : null,
-    // macOS 产物采用“build 阶段签名 + 独立公证阶段”的两段式流水线。
-    // 如果这里不显式关闭 electron-builder 内置 notarize，它会在 build 阶段读取 Apple 凭据后直接尝试公证，
-    // 并强制要求 APPLE_APP_SPECIFIC_PASSWORD，导致 build 还没产出 DMG 就提前失败。
-    notarize: false,
+    // 参考 OpenChamber：CI 同时提供 Developer ID 和 Apple 公证凭据时，
+    // 由 electron-builder 在打包阶段完成 notarize/staple；本地没有凭据时保持普通未签名构建。
+    notarize: shouldEnableMacNotarization,
     hardenedRuntime: shouldEnableMacSigning,
     gatekeeperAssess: false,
     entitlements: "build/entitlements.mac.plist",
@@ -688,6 +697,9 @@ export default {
   },
   win: {
     target: ["nsis"],
+    // Windows Shell 身份必须和 index.ts 的 app.setAppUserModelId 一致；NCode 使用独立
+    // AUMID，避免安装后继续复用旧 ZCode 固定项的任务栏图标缓存。
+    appId: desktopProductIdentity.windowsAppId,
     icon: "build/icon.ico",
     artifactName: buildDesktopArtifactName("win"),
   },
@@ -754,13 +766,9 @@ export default {
   },
   detectUpdateChannel: false,
   publish: {
-    provider: "generic",
-    // 当前 OSS/CDN 对多 Range 请求返回 206，但 Content-Type 仍是 application/x-msdownload，
-    // electron-updater 会因缺少 multipart/byteranges 直接回退整包下载。关闭 multiple range 后仍走差分，
-    // 只是按单 Range 顺序拉取差异块，避免 Windows 用户更新时从约 15MB 退化成 300MB+ 全量包。
-    useMultipleRangeRequest: false,
-    // 新客户端运行时使用服务端 manifest provider；这里仅保留 electron-builder 必需的
-    // generic publish 占位，避免打包产物继续携带可配置的旧 stable feed。
-    url: "http://localhost:8081",
+    provider: "github",
+    owner: "mewcoder",
+    repo: "NCode",
+    releaseType: "release",
   },
 };

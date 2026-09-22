@@ -705,6 +705,9 @@ async function main() {
     "electron-builder",
     "--config",
     "electron-builder.config.js",
+    // GitHub Release 的创建与资产上传由 CI workflow 统一负责；构建器只生成安装包和 latest*.yml，
+    // 避免 tag 构建时根据 publish 配置重复上传或与 Draft Release 产生竞态。
+    "--publish=never",
     osBuilderFlagMap[os],
     archBuilderFlagMap[arch],
   ];

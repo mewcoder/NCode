@@ -904,14 +904,6 @@ const zhCN: Record<string, string> = {
   "update.toast.ready": "v{version} 已下载，重启即可安装",
   "update.toast.devSkipped": "开发环境不检查更新",
   "update.toast.error": "检查更新失败：{error}",
-  "forceUpdate.title": "需要升级 ZCode 后继续使用",
-  "forceUpdate.description":
-    "当前版本 v{currentVersion} 低于最低可用版本 v{minimalVersion}。请先完成升级，升级前暂时无法继续使用当前客户端。",
-  "forceUpdate.currentVersion": "当前版本",
-  "forceUpdate.minimalVersion": "最低版本",
-  "forceUpdate.action.check": "检查并下载更新",
-  "forceUpdate.action.restart": "重启安装更新",
-  "forceUpdate.action.reload": "刷新页面",
   "desktopMenu.help.checkingForUpdates": "正在检查更新...",
   "desktopMenu.help.updateAvailableVersion": "发现新版本 {version}",
   "desktopMenu.help.downloadingUpdateVersion": "正在下载更新 {version}...",
@@ -1503,9 +1495,6 @@ const zhCN: Record<string, string> = {
     "关闭后可规避部分显卡或驱动导致的白屏、闪退、渲染异常。修改后需重启应用生效。",
   "settings.desktopChromiumHardwareAccelerationSavedHint":
     "Chrome 硬件加速设置已保存，重启应用后生效",
-  "settings.receivePreviewUpdates": "接受提前收到预览版更新",
-  "settings.receivePreviewUpdatesDescription":
-    "开启后将最快、提前体验新功能和改进版本，关闭后将随着版本发布节奏获得版本推送更新。",
   "settings.autoDownloadAndInstallUpdates": "自动下载并安装更新",
   "settings.autoDownloadAndInstallUpdatesDescription":
     "开启后检测到更新会自动开始下载；下载完成后，如有任务正在运行，重启更新前仍会要求确认。",

@@ -1,0 +1,299 @@
+name: Release desktop
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to build, for example v3.14.1"
+        required: true
+        type: string
+      publish:
+        description: "Publish the Draft Release after asset verification"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "24.14.0"
+  PNPM_VERSION: "10.33.2"
+  # 公开 Release 必须使用正式 NCode 身份；Preview/_TEST 仅用于测试构建。
+  ZCODE_ENV: production
+  ZCODE_PREVIEW_IDENTITY: "0"
+
+jobs:
+  prepare-release:
+    name: Prepare Draft Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Validate version tag
+        id: version
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            tag="$INPUT_TAG"
+          else
+            tag="$GITHUB_REF_NAME"
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+
+          version="${tag#v}"
+          package_version="$(node -p "require('./package.json').version")"
+          if [[ "$package_version" != "$version" ]]; then
+            echo "Tag $tag does not match package.json version $package_version" >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Chinese release notes
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/extract-release-notes.mjs "${{ steps.version.outputs.version }}" > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: NCode ${{ steps.version.outputs.tag }}
+          draft: true
+          prerelease: false
+          body_path: ${{ runner.temp }}/release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos:
+    name: Build macOS arm64
+    needs: prepare-release
+    runs-on: macos-14
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure macOS signing
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${APPLE_CERTIFICATE_P12_BASE64:-}" ]]; then
+            echo "Apple signing secrets are not configured; building an unsigned macOS package."
+            exit 0
+          fi
+
+          keychain_path="$RUNNER_TEMP/ncode-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 32)"
+          certificate_path="$RUNNER_TEMP/ncode-signing.p12"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 -D > "$certificate_path"
+          security import "$certificate_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 \
+            -k "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$keychain_password" "$keychain_path"
+
+          {
+            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+            echo "CSC_NAME=$APPLE_SIGNING_IDENTITY"
+            echo "ZCODE_ENABLE_MAC_SIGN=1"
+          } >> "$GITHUB_ENV"
+
+      - name: Build macOS arm64 package
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm bundle:desktop -- --os mac --arch arm64
+
+      - name: Verify macOS release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s packages/desktop/dist/latest-mac.yml
+          compgen -G 'packages/desktop/dist/*.dmg' > /dev/null
+          compgen -G 'packages/desktop/dist/*.zip' > /dev/null
+          compgen -G 'packages/desktop/dist/*.blockmap' > /dev/null
+          app_path="$(find packages/desktop/dist -maxdepth 3 -type d -name '*.app' -print -quit)"
+          if [[ -z "$app_path" ]]; then
+            echo "macOS app bundle was not produced" >&2
+            exit 1
+          fi
+          echo "Unsigned macOS app bundle verified: $app_path"
+
+      - name: Upload macOS assets to Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          draft: true
+          files: |
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/*.blockmap
+            packages/desktop/dist/latest-mac.yml
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    name: Build Windows x64
+    needs: prepare-release
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows x64 package
+        env:
+          # Windows 安装包不依赖 mock-cdn 远程资产；跳过跨平台 Node 运行时下载，避免 CI 在 Linux arm64 资源上长时间等待。
+          ZCODE_SKIP_REMOTE_ASSETS: "1"
+        run: pnpm bundle:desktop -- --os win --arch x64
+
+      - name: Verify Windows release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s packages/desktop/dist/latest.yml
+          compgen -G 'packages/desktop/dist/*.exe' > /dev/null
+          compgen -G 'packages/desktop/dist/*.blockmap' > /dev/null
+
+      - name: Upload Windows assets to Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          draft: true
+          files: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.blockmap
+            packages/desktop/dist/latest.yml
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  finalize-release:
+    name: Verify and publish Release
+    needs: [prepare-release, build-macos, build-windows]
+    if: ${{ always() && needs.prepare-release.result == 'success' && needs.build-macos.result == 'success' && needs.build-windows.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify release asset inventory
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # GitHub 的按 tag 查询接口不会返回 Draft Release；列出 Releases 后再按 tag 匹配。
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          node --input-type=module - "$RUNNER_TEMP/releases.json" <<'NODE'
+          import { readFileSync } from "node:fs";
+
+          const releases = JSON.parse(readFileSync(process.argv[2], "utf8"));
+          const release = releases.find((item) => item.tag_name === process.env.RELEASE_TAG);
+          if (!release) {
+            throw new Error(`Release ${process.env.RELEASE_TAG} not found`);
+          }
+          const names = release.assets.map((asset) => asset.name);
+          const required = ["latest-mac.yml", "latest.yml"];
+          for (const name of required) {
+            if (names.filter((asset) => asset === name).length !== 1) {
+              throw new Error(`Expected exactly one ${name}, got: ${names.join(", ")}`);
+            }
+          }
+
+          const requiredPatterns = [
+            /\.dmg$/u,
+            /\.zip$/u,
+            /\.exe$/u,
+            /\.blockmap$/u,
+          ];
+          for (const pattern of requiredPatterns) {
+            if (!names.some((name) => pattern.test(name))) {
+              throw new Error(`No release asset matched ${pattern}`);
+            }
+          }
+
+          console.log(`Verified ${names.length} release assets for ${release.tag_name}.`);
+          NODE
+
+      - name: Publish Release
+        if: ${{ github.event_name == 'push' || inputs.publish == true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Keep Draft Release for manual verification
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish != true }}
+        run: echo "Build verified; Draft Release was intentionally left unpublished."
