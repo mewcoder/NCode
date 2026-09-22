@@ -4661,8 +4661,6 @@ const zhCN: Record<string, string> = {
   "modelSelection.invalidated.fallback":
     "原来的模型选择已失效，已切换到当前默认模型，请确认后继续。",
   "modelSelection.invalidated.reselect": "原来的模型选择已失效，请重新选择模型。",
-  "automations.moreIdeas": "定时任务模板",
-  "automations.templates.unavailable": "无可用模板",
   "automations.runNow": "立即运行",
   "automations.runNowQueued": "已触发，即将运行",
   "automations.runNowAlreadyRunning": "上一条正在运行中，请稍后再试",

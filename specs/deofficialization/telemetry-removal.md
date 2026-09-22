@@ -18,8 +18,8 @@
 - `apps/zcode-cli` 不删除 CLI telemetry 实现、运行时事实和本地诊断协议；但 OTLP 远程上报改为
   默认关闭，只有显式设置 `ZCODE_MODEL_TELEMETRY_ENABLED=1`（或 `true`/`on`/`enabled`）且配置
   OTLP endpoint 时才启用。
-- Desktop 本地 OpenTelemetry trace/metric（例如 Local TTFT、Renderer Action Trace）和本地日志
-  诊断保持可用；它们不属于官方遥测出口。
+- Desktop 本地日志诊断保持可用；Renderer Action Trace 和 Local TTFT 不再保留。保留的本地日志
+  不属于官方遥测出口。
 - `deviceMid` 仍可作为本地数据隔离、Provider 请求 header、引导记录和流式 client id 使用，
   但不再因为遥测生成或上报。
 
@@ -39,7 +39,7 @@
 应用启动
   ├─ 创建本地工作区、Provider、Host 和窗口
   ├─ 不创建官方遥测 Core，不启动 ARMS/RUM
-  └─ 仅保留本地日志、Local TTFT 和本地 trace/metric（若已配置）
+  └─ 仅保留本地日志
 
 模型/会话/远程 workspace 操作
   └─ 直接执行原业务路径，不经过远程遥测 IPC 或官方观测出口
@@ -50,7 +50,7 @@
 - 官方遥测端点不可达不再是应用运行时失败场景；不会重试、flush 或输出遥测网络告警。
 - 删除遥测 IPC 后，旧 renderer 不会获得兼容的远程上报入口；当前 Desktop/Web 代码必须在编译期
   清理所有调用方，不保留点击无效或运行时兜底。
-- 本地 trace/metric 或日志写入失败仍按各自既有旁路语义处理，不影响模型、会话和工作区主链路。
+- 日志写入失败仍按既有旁路语义处理，不影响模型、会话和工作区主链路。
 
 ## 验收场景
 
@@ -61,8 +61,8 @@
    SSH/WSL/Docker workspace 和自动更新仍可启动。
 3. 自定义 API Key Provider 可以发起模型请求；使用统计仍显示本地会话聚合和允许的 API Key 额度
    查询，不因没有遥测模块而进入加载或错误状态。
-4. Local TTFT、Renderer Action Trace 和 CLI telemetry 实现不被本次改动删除；CLI 默认不初始化
-   OTLP exporter，显式 opt-in 后仍可使用原有 telemetry 能力。
+4. Renderer Action Trace 和 Local TTFT 的 UI 记录器、IPC、共享协议、CLI 事实链路和 exporter
+   入口均被删除。CLI 默认不初始化 OTLP exporter，显式 opt-in 后仍可使用原有 CLI telemetry。
 5. `pnpm typecheck`、`pnpm lint`、`pnpm architecture:check --changed` 和 `git diff --check` 通过；
    如存在本次之前的格式检查失败，必须单独说明。
 6. 生产依赖图与第三方声明中不再包含 `@arms/rum-*`、rrweb 或仅为其 peer dependency 保留的
@@ -70,6 +70,7 @@
 
 ## 迁移边界
 
-本次移除官方远程遥测的配置、上报 Core、ARMS SDK、Desktop/UI IPC 和远程观测专用实现；不迁移
-历史遥测事件、不提供兼容端点、不主动清理磁盘状态。后续如果需要自建匿名诊断服务，应按新的
-产品规则重新设计同意、数据字段、状态所有者和传输协议，而不是恢复官方遥测链路。
+本次移除官方远程遥测的配置、上报 Core、ARMS SDK、Desktop/UI IPC 和 Renderer Action Trace；不迁移
+历史遥测事件、不提供兼容端点、不主动清理磁盘状态。CLI telemetry 和本地日志仍按各自显式配置
+工作。后续如果需要自建匿名诊断服务，应按新的产品规则重新设计同意、数据字段、状态所有者和
+传输协议，而不是恢复已删除的诊断链路。

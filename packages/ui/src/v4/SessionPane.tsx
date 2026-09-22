@@ -1,5 +1,4 @@
 import type { SessionCreateSource } from "@zcode/shared";
-import { getLocalTtftObserver } from "@/v4/telemetry/localTtftObserver.js";
 /* oxlint-disable eslint(max-lines) -- SessionPane 是单 pane 竖切的命令编排收口（订阅/发送/停止/fork/edit/retry/queue/slash 全集），与旧 ChatView 同粒度；HEAD 已超限（693 行计数），拆散命令组会打散 dispatchCommand/snapshotRef 的闭包纪律。 */
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
 import {
@@ -152,7 +151,6 @@ import type {
 } from "@/v4/legacyChatViewTypes.js";
 import type { SessionLease } from "@/v4/sessionDataLayer.js";
 import { V4InteractionDialogs } from "@/v4/V4InteractionDialogs.js";
-import type { LocalTtftSendSeed } from "@/v4/telemetry/localTtftSend.js";
 import {
   parseV4VisibleSlashCommand,
   parseSelectionSideSlashCommand,
@@ -829,7 +827,6 @@ export function SessionPane({
       targetSessionId: string | null,
       baseRevision?: number,
       baseLogEpoch?: string,
-      telemetrySeed?: LocalTtftSendSeed,
       onEnvelopeCreated?: (envelope: CommandEnvelope) => void,
       sessionCreateSource?: SessionCreateSource,
     ): Promise<CommandAck> => {
@@ -880,22 +877,8 @@ export function SessionPane({
       }
       let ack: CommandAck;
       try {
-        if (telemetrySeed?.localTtft && !workspaceIdentity?.trim()) {
-          envelope.ttft = getLocalTtftObserver()?.dispatch(
-            telemetrySeed.localTtft,
-            workspacePath,
-            envelope.commandId,
-            targetSessionId,
-          );
-        }
         ack = await sendCommand(envelope);
-        if (telemetrySeed?.localTtft && ack.reasonCode === "guard.heldQueueConfirmationStale")
-          getLocalTtftObserver()?.confirmationRetry(telemetrySeed.localTtft);
-        else if (telemetrySeed?.localTtft)
-          getLocalTtftObserver()?.ack(telemetrySeed.localTtft, ack.status, ack.ttftExcluded);
       } catch (error) {
-        if (telemetrySeed?.localTtft)
-          getLocalTtftObserver()?.exclude(telemetrySeed.localTtft, "failed");
         if (lease?.store) {
           lease.store.settleCommand(envelope.commandId);
         }
@@ -1339,7 +1322,7 @@ export function SessionPane({
   );
 
   const handleOpenSelectionSideConversationWithPrompt = useCallback(
-    async (text: string, telemetrySeed?: LocalTtftSendSeed): Promise<boolean> => {
+    async (text: string): Promise<boolean> => {
       if (!sessionId || !selectionSideChatKey || !onOpenSelectionSideChat) {
         throw new Error("selection side chat is unavailable");
       }
@@ -1353,7 +1336,6 @@ export function SessionPane({
           sessionId,
           undefined,
           undefined,
-          telemetrySeed,
         );
         if (
           (ack.status !== "accepted" && ack.status !== "duplicate") ||
@@ -1941,7 +1923,6 @@ export function SessionPane({
       if (sessionId && selectionSideSlashCommand) {
         const created = await handleOpenSelectionSideConversationWithPrompt(
           selectionSideSlashCommand.text,
-          options?.telemetrySeed,
         );
         return created ? ("sent" as const) : ("blocked" as const);
       }
@@ -2089,7 +2070,6 @@ export function SessionPane({
               prewarm.sessionId,
               undefined,
               undefined,
-              options?.telemetrySeed,
             );
             if (ack.status === "accepted") {
               prewarm.promote();
@@ -2134,7 +2114,6 @@ export function SessionPane({
             null,
             undefined,
             undefined,
-            options?.telemetrySeed,
             undefined,
             createSourceAtSend,
           );
@@ -2174,7 +2153,6 @@ export function SessionPane({
           newSessionId,
           undefined,
           undefined,
-          options?.telemetrySeed,
         );
         if (sendAck.status !== "accepted") {
           throw new Error(sendAck.reasonCode ?? "sendText 被拒绝");
@@ -2203,7 +2181,6 @@ export function SessionPane({
         sessionId,
         undefined,
         undefined,
-        options?.telemetrySeed,
       );
       if (ack.reasonCode === "guard.heldQueueConfirmationStale") {
         return "confirmationRequired" as const;
@@ -3351,11 +3328,6 @@ export function SessionPane({
         <ConversationDraftSuggestedPromptsContainer
           className={isOfficeMode ? "mt-4" : "mt-6"}
           proactive={isOfficeMode}
-          onOpenAutomations={
-            onOpenAutomationsMain
-              ? (automationTab) => onOpenAutomationsMain(undefined, automationTab)
-              : undefined
-          }
           workspacePath={workspacePath}
           workspaceIdentity={workspaceIdentity}
           remoteSessionId={remoteSessionId ?? undefined}

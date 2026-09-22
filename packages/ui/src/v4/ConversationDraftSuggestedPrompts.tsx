@@ -9,8 +9,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog.js";
-/* New task 草稿页推荐提示词入口。
-   推荐配置来自 Client Scenes 的 draft-suggestion scene。 */
+/* New task 草稿页推荐提示词入口。 */
 import type { CSSProperties } from "react";
 import { X, Check, Info, LoaderCircle, SquareCode, TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";

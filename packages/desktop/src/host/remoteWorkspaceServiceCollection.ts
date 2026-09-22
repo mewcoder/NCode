@@ -16,7 +16,6 @@ import {
   IModelSelectionService,
   IProviderSettingsService,
   IUsageStatsService,
-  IClientScenesService,
   ISkillsService,
   ISkillSyncService,
   IMcpSyncService,
@@ -40,7 +39,6 @@ import {
   createDisabledAccountRequestAuthService,
   createSettingsSyncService,
   createUsageStatsService,
-  createClientScenesService,
   createServiceLogger,
   createSubagentsService,
   createMemoryService,
@@ -229,7 +227,6 @@ export function createRemoteWorkspaceServiceCollection(params: {
         zcodeAgentService: params.connectionServices.zcodeAgentService,
       }),
     )
-    .register(IClientScenesService, createClientScenesService({ apiClient: localApiClient }))
     // 远端 workspace 的项目级 skills/plugins/commands 位于 SSH/Docker 文件系统。
     // 这里必须透出远端服务，避免本机服务拿远端 workspacePath 去本机目录扫描。
     .register(ISkillsService, params.connectionServices.skillsService)

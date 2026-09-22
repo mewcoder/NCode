@@ -4823,8 +4823,6 @@ const enUS: Record<string, string> = {
     "The previous model selection is no longer available. Switched to the current default; review it before continuing.",
   "modelSelection.invalidated.reselect":
     "The previous model selection is no longer available. Choose a model again.",
-  "automations.moreIdeas": "Scheduled task template",
-  "automations.templates.unavailable": "No templates available",
   "automations.runNow": "Run now",
   "automations.runNowQueued": "Triggered — starting soon",
   "automations.runNowAlreadyRunning": "A run is already in progress",

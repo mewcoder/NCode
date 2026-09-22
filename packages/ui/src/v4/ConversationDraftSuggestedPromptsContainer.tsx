@@ -26,7 +26,6 @@ import { usePlatform } from "@/hooks/usePlatform.js";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
-import type { AutomationsNavigationTab } from "@/lib/taskNavigationHistory.js";
 import { invalidateDeferredDraftSessionForSkillChange } from "@/lib/zcodeDraftSkillInvalidation.js";
 import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import {
@@ -36,17 +35,12 @@ import {
 import { buildDraftSuggestedPluginMention } from "@/v4/draftSuggestedPromptPrefill.js";
 import { resolveDraftSuggestedPromptText } from "@/v4/draftSuggestedPromptItems.js";
 import {
-  DRAFT_SUGGESTED_PROMPT_NAVIGATE_AUTOMATIONS,
-  DRAFT_SUGGESTED_PROMPT_NAVIGATE_AUTOMATIONS_OFFPEAK,
-} from "@/v4/draftSuggestedPromptItems.js";
-import {
   resolveDraftSuggestedPluginFlowStage,
   type ConversationDraftSuggestedPromptsContainerProps,
   type DraftSuggestedPluginFlow,
   type DraftSuggestedPluginOperation,
   trackDraftSuggestedPluginOperation,
 } from "@/v4/ConversationDraftSuggestedPluginFlow.js";
-import { useDraftSuggestedPromptItems } from "@/v4/useDraftSuggestedPromptItems.js";
 import { useDraftSuggestedPluginActionPopover } from "@/v4/useDraftSuggestedPluginActionPopover.js";
 import { getComposerDraftRevision } from "@/v4/composer/composerDraftRevision.js";
 import { useComposerTextInsertApplied } from "@/v4/useComposerTextInsertApplied.js";
@@ -57,7 +51,6 @@ const INSTALL_OPERATION_TIMEOUT_MS = 10_000;
 
 type Props = ConversationDraftSuggestedPromptsContainerProps & {
   proactive?: boolean;
-  onOpenAutomations?: (automationTab?: AutomationsNavigationTab) => void;
 };
 
 let draftSuggestedPluginOperationSequence = 0;
@@ -83,7 +76,6 @@ export function ConversationDraftSuggestedPromptsContainer({
   workspacePath,
   workspaceIdentity,
   remoteSessionId,
-  onOpenAutomations,
 }: Props) {
   const { intl, locale } = useZCodeIntl();
   const platform = usePlatform();
@@ -134,23 +126,7 @@ export function ConversationDraftSuggestedPromptsContainer({
   const activeOperationRef = useRef<DraftSuggestedPluginOperation | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const workspaceKey = workspaceIdentity?.trim() || workspacePath;
-  const allItems = useDraftSuggestedPromptItems({
-    clientScenesService: resolution.services.clientScenesService,
-    rpcReady: resolution.rpcReady,
-    workspaceKey,
-  });
-  const items = useMemo(
-    () =>
-      (proactive ? recommendedItems : allItems).filter(
-        (item) =>
-          !item.actions?.some(
-            (action) =>
-              action === DRAFT_SUGGESTED_PROMPT_NAVIGATE_AUTOMATIONS ||
-              action === DRAFT_SUGGESTED_PROMPT_NAVIGATE_AUTOMATIONS_OFFPEAK,
-          ) || Boolean(onOpenAutomations),
-      ),
-    [allItems, onOpenAutomations, proactive, recommendedItems],
-  );
+  const items = useMemo(() => (proactive ? recommendedItems : []), [proactive, recommendedItems]);
   const {
     clearPluginActionPopover,
     pluginActionPopover,
@@ -529,20 +505,6 @@ export function ConversationDraftSuggestedPromptsContainer({
       const requestVersion = requestVersionRef.current + 1;
       requestVersionRef.current = requestVersion;
       const prompt = resolveDraftSuggestedPromptText(item.prompt, locale);
-      if (
-        onOpenAutomations &&
-        item.actions?.includes(DRAFT_SUGGESTED_PROMPT_NAVIGATE_AUTOMATIONS_OFFPEAK)
-      ) {
-        onOpenAutomations("idle");
-        return;
-      }
-      if (
-        onOpenAutomations &&
-        item.actions?.includes(DRAFT_SUGGESTED_PROMPT_NAVIGATE_AUTOMATIONS)
-      ) {
-        onOpenAutomations();
-        return;
-      }
       const plugin = item.plugin
         ? {
             stableId: item.plugin.stableId,
@@ -696,7 +658,6 @@ export function ConversationDraftSuggestedPromptsContainer({
       cancelOperation,
       clearOperationFeedback,
       locale,
-      onOpenAutomations,
       platform,
       replacePlainPrompt,
       replaceWithResolvedPluginAndPrompt,

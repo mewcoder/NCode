@@ -25,7 +25,6 @@ import { Spinner } from "@/components/ui/spinner.js";
 import { toast as showToast, type ToastOptions } from "@/components/ui/toast.js";
 import { cn } from "@/components/lib/utils.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { AutomationScheduledTemplateIcon } from "@/settings/AutomationScheduledTemplateIcon.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useServices } from "@/hooks/useServices.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
@@ -67,12 +66,6 @@ import {
   type AutomationStatusFilter,
 } from "@/settings/automationStatusFilter.js";
 import { isRemoteAutomationWorkspace } from "@/hooks/useAutomationProjectOptions.js";
-import {
-  materializeScheduledTemplateDraft,
-  resolveAutomationTemplateText,
-  type ScheduledAutomationTemplate,
-} from "@/settings/automationTemplateCatalog.js";
-import { useAutomationTemplates } from "@/settings/useAutomationTemplates.js";
 import type { AutomationsNavigationTab } from "@/lib/taskNavigationHistory.js";
 import {
   AutomationsPageTitle,
@@ -91,7 +84,6 @@ import {
   type SavedWorkflowsOpenRunParams,
   type SavedWorkflowsOpenTarget,
 } from "@/settings/saved-workflows/SavedWorkflowsSection.js";
-import { AutomationTemplateSkeletonGrid } from "@/settings/AutomationTemplateSkeletonGrid.js";
 
 interface AutomationsSectionProps {
   workspacePath?: string | null;
@@ -350,8 +342,8 @@ export function AutomationsSection({
   onOpenWorkflowConsumed,
   onOpenSession,
 }: AutomationsSectionProps) {
-  const { intl, locale } = useZCodeIntl();
-  const { clientScenesService, zcodeAgentService } = useServices();
+  const { intl } = useZCodeIntl();
+  const { zcodeAgentService } = useServices();
   const confirmDialog = useConfirmDialog();
   const { settings: sharedSettings, update: updateSharedSettings } = useSettings();
 
@@ -370,8 +362,6 @@ export function AutomationsSection({
   const loadRuns = useAutomationManagementStore((state) => state.loadRuns);
   const deleteRun = useAutomationManagementStore((state) => state.deleteRun);
   const refresh = useAutomationManagementStore((state) => state.refresh);
-
-  const automationTemplates = useAutomationTemplates(clientScenesService);
 
   const [refreshing, setRefreshing] = useState(false);
   const [view, setView] = useState<AutomationsView>({ mode: "list" });
@@ -535,21 +525,6 @@ export function AutomationsSection({
     onCreateViaChat,
     showAutomationCreateLimitToast,
   ]);
-
-  const handleUseTemplate = useCallback(
-    (template: ScheduledAutomationTemplate) => {
-      if (automationCreateLimitReached) {
-        showAutomationCreateLimitToast();
-        return;
-      }
-      const draft = materializeScheduledTemplateDraft(template, locale);
-      setView({
-        mode: "create",
-        draft,
-      });
-    },
-    [automationCreateLimitReached, locale, showAutomationCreateLimitToast],
-  );
 
   // 创建/编辑整页提交:创建可指定目标项目;编辑锁定原项目。
   const handleEditSubmit = useCallback(
@@ -1144,61 +1119,6 @@ export function AutomationsSection({
               <div className="h-px w-full bg-card-border" />
             </div>
           ) : null}
-
-          {/* Scheduled task template：Client Scenes 候选目录；点击只预填新建整页。 */}
-          <section
-            data-automations-scheduled-templates
-            aria-busy={automationTemplates.loading}
-            className="flex w-full flex-col gap-4"
-          >
-            <h2 className="text-ui-base font-medium leading-5 text-foreground-subtle">
-              {intl.formatMessage({ id: "automations.moreIdeas" })}
-            </h2>
-            {automationTemplates.loading ? (
-              <AutomationTemplateSkeletonGrid
-                label={intl.formatMessage({ id: "common.loading" })}
-              />
-            ) : automationTemplates.scheduled.length === 0 ? (
-              <div
-                data-automation-template-empty-state
-                className="flex min-h-[114px] w-full items-center justify-center rounded-xl border border-card-border bg-background p-3 text-center text-ui-base font-normal text-foreground-subtlest"
-              >
-                {intl.formatMessage({ id: "automations.templates.unavailable" })}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {automationTemplates.scheduled.map((template) => {
-                  return (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => handleUseTemplate(template)}
-                      className="group flex min-h-[114px] flex-col gap-2 overflow-hidden rounded-xl border border-card-border bg-background p-3 text-left transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-focused"
-                    >
-                      <div className="flex min-w-0 items-center gap-1 text-foreground">
-                        <span className="flex size-5 shrink-0 items-center justify-center">
-                          <AutomationScheduledTemplateIcon
-                            iconName={template.iconName}
-                            name={template.icon}
-                          />
-                        </span>
-                        <span className="truncate text-ui-base font-medium leading-5 text-foreground">
-                          {resolveAutomationTemplateText(template.title, locale)}
-                        </span>
-                      </div>
-                      {/* 定时模板把周期时间放在底部，保持标题与描述层级稳定。 */}
-                      <p className="line-clamp-2 flex-1 text-ui-base font-normal leading-5 text-foreground-subtle">
-                        {resolveAutomationTemplateText(template.description, locale)}
-                      </p>
-                      <div className="text-ui-base font-normal leading-5 text-foreground-subtle">
-                        {describeAutomationCardSchedule({ cronExpr: template.cronExpr }, intl)}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </section>
         </div>
       )}
     </div>

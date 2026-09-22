@@ -698,11 +698,6 @@ export function createZCodeAgentConnectionScope(
     },
     async queryConversationCommandsV4(params) {
       assertReady();
-      // 纯时钟探测不查询任何 command，不能抢占/改变业务查询的 workspace 绑定。
-      if (params.clock)
-        return base.queryConversationCommandsV4(
-          withTrustedConnection(params, forwardedConnection(params)),
-        );
       const requestedWorkspaceKey = workspaceKey(params);
       if (commandQueryWorkspaceKey !== null && commandQueryWorkspaceKey !== requestedWorkspaceKey) {
         throw new Error("fault.command.queryForeignWorkspace");
@@ -833,17 +828,6 @@ export function createZCodeAgentConnectionScope(
         params,
         base.onDynamicConversationFrame(params),
       );
-    },
-    onDynamicLocalTtftFacts(params) {
-      assertOpen();
-      if (
-        role !== "terminal-client" ||
-        context.clientMode !== "desktop-continuous" ||
-        params.workspaceIdentity?.trim() ||
-        params.remoteSessionId
-      )
-        return RpcEvent.None;
-      return base.onDynamicLocalTtftFacts(workspaceTarget(params));
     },
     onDynamicConversationTelemetryFact(params) {
       assertOpen();

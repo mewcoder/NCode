@@ -21,11 +21,11 @@
 
 ### 1. `/api/v1/client/configs` 官方远程配置
 
-Desktop 和 Host 仍会默认请求 `https://zcode.z.ai/api/v1/client/configs`，用于插件排序、
-Desktop Context Prompt 和 Renderer Action Trace 灰度。个人版应由本地配置或编译期默认值决定。
+Desktop 和 Host 仍会默认请求 `https://zcode.z.ai/api/v1/client/configs`，用于插件排序和
+Desktop Context Prompt 灰度；Renderer Action Trace 已从个人版移除。
 
 - [ ] 为 Desktop Context Prompt 明确本地默认值或本地设置项。
-- [ ] Renderer Action Trace 改为本地显式 opt-in，默认关闭。
+- [x] Renderer Action Trace 已移除；Desktop Context Prompt 改为本地显式 opt-in，默认关闭。
 - [ ] 删除 `IClientConfigService`、对应 channel、缓存和远程 Host 代理。
 - [ ] 删除通用 `singleFeatureRollout`；若仍有本地消费者，改为本地配置读取。
 - [ ] 删除官方 endpoint source headers 中仅服务远程配置的设备字段。
@@ -35,7 +35,6 @@ Desktop Context Prompt 和 Renderer Action Trace 灰度。个人版应由本地�
 - `packages/services/src/client-config/clientConfigService.ts`
 - `packages/shared/src/clientConfig.ts`
 - `packages/desktop/src/main/desktopContextPromptRollout.ts`
-- `packages/desktop/src/main/rendererActionTraceRollout.ts`
 - `packages/desktop/src/main/singleFeatureRollout.ts`
 
 验收：正常启动、打开插件页和创建首个 Host 时均不请求 `/api/v1/client/configs`；功能开关只由
@@ -79,6 +78,21 @@ SSH/WSL/Docker 远程工作区在生产环境仍从 `cdn-zcode.z.ai/zcode/electr
 不能回退到官方 CDN。
 
 ## P1：确定可清理的残留
+
+### 3A. Client Scenes 官方远程目录
+
+- [x] 删除 `/api/v1/client/scenes` 请求、服务描述符、RPC channel 和 UI 远程场景 hook。
+- [x] 删除依赖 Client Scenes 的 Automations 定时任务模板；手动创建、编辑、运行保持可用。
+- [ ] 继续复核其他随包推荐 Prompt 和插件市场入口，确保名称不会暗示 NCode 官方运营。
+
+### 3B. Coding Plan reset 与 Start Plan 兼容路径
+
+- [ ] 删除 `bigmodelUsageQuotaProvider` 中只服务账号型 Start Plan 的余额查询、额度构造和授权分支，
+      移除无调用方的 `zaiStartPlanBilling.ts`；普通 Coding Plan API Key 额度查询保持可用。
+- [ ] 删除依赖账号/OAuth 的 Coding Plan reset 服务、UI hook、轮询状态和 `/api/v1/coding-plan/reset/*`
+      官方 endpoint；不要影响本地 App Usage 聚合和 API Key 额度查询。
+- [ ] 上述路径清理后再评估 `DEFAULT_ZCODE_ENDPOINT_ORIGIN`、source headers 和 endpoint 命令兼容代码，
+      避免在没有本地用途时保留 `https://zcode.z.ai` 默认回退。
 
 ### 4. 支付与套餐死资源
 
@@ -188,7 +202,9 @@ Provider 仍可用。
 ### 12. SSH / WSL / Docker 远程工作区
 
 - [x] 当前个人版不启用远程机器、WSL 或容器 workspace；Desktop UI 不展示入口，也不恢复旧远程会话。
-- [ ] 若从不使用：删除连接向导、target 解析、资源部署、Host attachment、重连与缓存。
+- [ ] 若确认长期不使用：删除连接向导、target 解析、资源部署、Host attachment、重连与缓存。
+- [ ] 同步清理 `remote-download`、官方 CDN/cache、远程资源 manifest、远程部署 installer、
+      远程 workspace session persistence 及对应 UI/i18n/test 引用；保留协议迁移所需的最小历史兼容层。
 - [ ] 保留 `workspaceIdentity?.trim() || workspacePath`，直到所有远程持久数据和协议迁移完成。
 
 删除收益：去掉当前最重的跨平台部署、远端资源发布和双链路恢复负担。
@@ -225,7 +241,7 @@ PiP、设置页和插件入口。
 
 ### 17. 本地诊断与资源管理
 
-- [ ] 可选删除 Renderer Action Trace、Local TTFT 和资源管理器 UI。
+- [x] 删除 Renderer Action Trace 和 Local TTFT；保留资源管理器 UI。
 - [ ] 建议保留本地日志、导出日志和崩溃诊断；它们没有官方远程出口，排错价值高。
 - [ ] 不要仅因类名包含 `telemetry` 就删除本地进程资源采样。
 

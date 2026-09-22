@@ -32,8 +32,6 @@ import type {
   RemoteSessionClosedEvent,
   RemoteTarget,
   SSHConfigAliasOption,
-  RendererActionTraceBatchV1,
-  RendererActionTraceConfigV1,
   RendererHeapSample,
   TaskNotificationPayload,
   EmbeddedBrowserDataClearResult,
@@ -191,10 +189,6 @@ declare global {
       startCuaHelperPermissionDrag?(): void;
       /** 通知 main process renderer 已就绪 */
       notifyRendererReady(): void;
-      /** 读取 Desktop Renderer 用户操作 Trace 灰度配置。 */
-      getRendererActionTraceConfig?(): Promise<RendererActionTraceConfigV1>;
-      /** 发送已结束的 ui_action batch；Main 不返回业务结果。 */
-      reportRendererActionTraceBatch?(batch: RendererActionTraceBatchV1): void;
       /** 主窗口 renderer 的 60 秒 heap 读数；单向 send，Main 不回执。 */
       reportRendererHeapSample?(sample: RendererHeapSample): void;
       /** 触发任务状态对应的系统通知 */
