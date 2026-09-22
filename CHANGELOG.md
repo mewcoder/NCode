@@ -31,6 +31,8 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
   不恢复旧远程会话；本地 workspace、Web 本地 Server 和 API Key 使用不受影响。
 - `940aa36`：移除本地 Renderer Action Trace、Local TTFT 和 Client Scenes 远程目录链路，清理相关
   UI、协议、CLI 事实链路与 Desktop OpenTelemetry 依赖。
+- `742e769`：修复 CLI Provider Registry 与本地 `provider-node` 运行时接口不一致，Agent bundle
+  构建改为只使用随包 Built-in 与本地 Personal Provider 配置，不恢复远程下载。
 
 ### 已知限制
 
