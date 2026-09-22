@@ -13,6 +13,7 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
 
 ### 去官方服务与功能精简
 
+- `96bc3cb`：移除 Coding Plan reset/Billing、账号鉴权与 Off-Peak 运行时链路；Provider Runtime 仅保留普通 API Key/Coding Plan API Key，供应商模板和历史数据兼容边界保持可用。
 - `b078877`：应用不再要求官方账号登录；移除官方 OAuth、套餐购买、权益设置和相关账号界面，
   普通 API Key、Coding Plan API Key 与自定义 Provider 保持可用。
 - `be024a7`：移除会话发布、分享链接预览和分享内容导入。
