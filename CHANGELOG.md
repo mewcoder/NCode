@@ -11,7 +11,7 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
 - `a24310e`：桌面更新迁移到 NCode GitHub Releases，并提供 macOS arm64、Windows x64
   自动发布流程；保留检查更新、下载进度、取消下载和安装更新能力。
 
-### 本地优先调整
+### 去官方服务与功能精简
 
 - `b078877`：应用不再要求官方账号登录；移除官方 OAuth、套餐购买、权益设置和相关账号界面，
   普通 API Key、Coding Plan API Key 与自定义 Provider 保持可用。
@@ -25,6 +25,8 @@ NCode 的首个发布版本，基于 ZCode 3.14.0 进行个人学习与二次开
   Local TTFT 和 Renderer Action Trace，CLI OTLP telemetry 仅在显式启用并配置 endpoint 时工作。
 - `792f3ad`：停止官方 Client Config 与 Built-in Provider 远程更新，插件改用本地固定排序；清理官方产品
   文档入口，以及已退役的账号套餐、支付、闲时任务和旧插件管理兼容代码。
+- `c36c11b`：安装包和桌面外链统一使用 NCode/GitHub Releases；测试菜单不再提供官方 endpoint 选择，
+  Renderer Action Trace 的本地采样限制与配置校验保持一致。
 
 ### 已知限制
 
