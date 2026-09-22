@@ -116,7 +116,6 @@ export function ModelProviderSection({
             type: "custom",
             label: provider.providerName?.trim() || provider.providerId,
             provider,
-            statusActive: provider.executable === true,
           }),
         ),
       },
@@ -264,8 +263,7 @@ export function ModelProviderSection({
       description={intl.formatMessage({ id: "settings.modelProviderDescription" })}
       refreshLabel={intl.formatMessage({ id: "settings.modelProvider.refresh" })}
       loadingLabel={intl.formatMessage({ id: "common.loading" })}
-      presetLoading={false}
-      customLoading={loading || refreshing}
+      loading={loading || refreshing}
       onRefresh={() => {
         void refreshModelProviderSection({ refresh });
       }}
@@ -297,7 +295,7 @@ export function ModelProviderSection({
       ) : (
         <ModelProviderSectionDetail
           selectedNavItem={selectedNavItem}
-          presetLoading={loading || refreshing}
+          loading={loading || refreshing}
           onSave={handleSave}
           onAddPersonalModel={addPersonalModel}
           onSavePersonalModelDraft={savePersonalModelDraft}

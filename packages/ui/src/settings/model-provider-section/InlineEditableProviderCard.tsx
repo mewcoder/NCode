@@ -24,7 +24,6 @@ import {
   ProviderConnectionSection,
   ProviderModelsSection,
 } from "./ProviderCardSections.js";
-import { resolveModelProviderDisplayName } from "./constants.js";
 import { useProviderDetailFeedback } from "./ProviderDetailFeedback.js";
 import { useIdleTrigger } from "./useIdleTrigger.js";
 import { useOptimisticReorder } from "./useOptimisticReorder.js";
@@ -212,7 +211,7 @@ export function InlineEditableProviderCard({
   const dirtyProviderFieldsRef = useRef(new Set<keyof ProviderDraftValues>());
   const draftRevisionRef = useRef(0);
   const lastSubmittedDraftSignatureRef = useRef<string | null>(null);
-  const providerDisplayName = resolveModelProviderDisplayName(provider);
+  const providerDisplayName = getProviderFormLabel(provider);
   const saveNotificationRef = useRef({
     providerId: provider.providerId,
     providerDisplayName,

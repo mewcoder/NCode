@@ -5,8 +5,8 @@ import {
   getProviderFormApiKeyManagementUrl,
   type ProviderSettingsFormProvider,
 } from "@/lib/providerSettingsFormTypes.js";
-import { ModelProviderLoadingCard } from "./StatusCards.js";
 import { InlineEditableProviderCard } from "./InlineEditableProviderCard.js";
+import { ModelProviderLoadingCard } from "./ModelProviderLoadingCard.js";
 import type { ModelProviderNavItem } from "./constants.js";
 
 /**
@@ -17,7 +17,7 @@ import type { ModelProviderNavItem } from "./constants.js";
  */
 export function ModelProviderSectionDetail({
   selectedNavItem,
-  presetLoading,
+  loading,
   onSave,
   onAddPersonalModel,
   onSavePersonalModelDraft,
@@ -29,7 +29,7 @@ export function ModelProviderSectionDetail({
   onOpenApiKeyUrl,
 }: {
   selectedNavItem: ModelProviderNavItem | null;
-  presetLoading: boolean;
+  loading: boolean;
   onSave: (config: ProviderSettingsFormProvider) => void | Promise<void>;
   onAddPersonalModel?: (
     providerId: string,
@@ -51,7 +51,7 @@ export function ModelProviderSectionDetail({
 }) {
   const { intl } = useZCodeIntl();
 
-  if (presetLoading && !selectedNavItem) {
+  if (loading && !selectedNavItem) {
     return <ModelProviderLoadingCard loadingLabel={intl.formatMessage({ id: "common.loading" })} />;
   }
 

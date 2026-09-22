@@ -7,7 +7,6 @@ import type {
   GlmQuotaBannerBusinessCode,
   StartPlanConcurrentLimitBannerReason,
 } from "@/lib/providerBusinessError.js";
-import type { McpUnavailableNotice } from "@/v4/mcpUnavailableBannerNotice.js";
 
 import {
   allBucketsExhausted,
@@ -22,9 +21,7 @@ export type SessionQuotaBannerKind =
   | "model-exhausted"
   | "daily-exhausted"
   | "concurrent-limit"
-  | "provider-limited"
-  | "mcp-quota-exhausted"
-  | "mcp-plan-required";
+  | "provider-limited";
 
 export interface SessionQuotaBannerState {
   visible: boolean;
@@ -34,10 +31,6 @@ export interface SessionQuotaBannerState {
   providerLimitedBusinessCode: GlmQuotaBannerBusinessCode | null;
   providerLimitedMessage: string | null;
   modelName: string | null;
-  /** 官方 Server MCP 提示专用：出问题的 MCP server 名，用于文案点名。 */
-  mcpServerName: string | null;
-  /** 官方 Server MCP 提示专用：产生该事实的 tool row，参与去重键。 */
-  mcpNoticeRowId: number | null;
   /** 仅低额度提醒携带稳定桶周期键；不影响其他业务错误关闭。 */
   reminderKey?: string;
   reminderExpiresAt?: number;
@@ -59,8 +52,6 @@ const HIDDEN_SESSION_QUOTA_BANNER_STATE: SessionQuotaBannerState = {
   providerLimitedBusinessCode: null,
   providerLimitedMessage: null,
   modelName: null,
-  mcpServerName: null,
-  mcpNoticeRowId: null,
   remainingTokens: null,
   remainingPercent: null,
   dismissible: false,
@@ -100,8 +91,6 @@ export function buildSessionQuotaBannerState(params: {
   serverConcurrentLimitReason?: StartPlanConcurrentLimitBannerReason;
   serverProviderLimitedBusinessCode?: GlmQuotaBannerBusinessCode;
   serverProviderLimitedMessage?: string | null;
-  /** 官方 Server MCP 在本次会话内被判定不可用的事实（来自 tool row 的结构化标识）。 */
-  mcpUnavailableNotice?: McpUnavailableNotice | null;
 }): SessionQuotaBannerState {
   if (
     params.serverConcurrentLimited === true &&
@@ -116,8 +105,6 @@ export function buildSessionQuotaBannerState(params: {
       providerLimitedBusinessCode: null,
       providerLimitedMessage: null,
       modelName: params.modelId,
-      mcpServerName: null,
-      mcpNoticeRowId: null,
       remainingTokens: null,
       remainingPercent: null,
       dismissible: true,
@@ -139,8 +126,6 @@ export function buildSessionQuotaBannerState(params: {
       providerLimitedBusinessCode: null,
       providerLimitedMessage: null,
       modelName: null,
-      mcpServerName: null,
-      mcpNoticeRowId: null,
       remainingTokens: null,
       remainingPercent: 0,
       dismissible: false,
@@ -164,39 +149,11 @@ export function buildSessionQuotaBannerState(params: {
         params.serverProviderLimitedMessage,
       ),
       modelName: params.modelId,
-      mcpServerName: null,
-      mcpNoticeRowId: null,
       remainingTokens: null,
       remainingPercent: null,
       dismissible: true,
       blocksSubmit: false,
       priority: 45,
-    };
-  }
-
-  // 官方 Server MCP 不可用（额度耗尽 / 无 Coding Plan）。
-  //
-  // 位置要求：必须在上面几条服务端业务错误之后（模型侧问题更紧急，不能被 MCP 提示挡住），
-  // 且必须在下面那道 Start-Plan-only 早退之前——Coding Plan 会话一定命中那道早退，
-  // 放在其后这条分支永远不会生效。
-  if (params.mcpUnavailableNotice) {
-    const mcpQuotaExhausted = params.mcpUnavailableNotice.code === "quota_exceeded";
-    return {
-      visible: true,
-      kind: mcpQuotaExhausted ? "mcp-quota-exhausted" : "mcp-plan-required",
-      concurrentLimitBusinessCode: null,
-      concurrentLimitReason: null,
-      providerLimitedBusinessCode: null,
-      providerLimitedMessage: null,
-      modelName: null,
-      mcpServerName: params.mcpUnavailableNotice.serverName,
-      mcpNoticeRowId: params.mcpUnavailableNotice.rowId,
-      remainingTokens: null,
-      remainingPercent: null,
-      dismissible: true,
-      // MCP 不可用不影响模型对话，绝不阻断输入。
-      blocksSubmit: false,
-      priority: mcpQuotaExhausted ? 6 : 8,
     };
   }
 
@@ -280,10 +237,6 @@ export function buildSessionQuotaBannerDismissKey(
     state.providerLimitedBusinessCode ?? "",
     state.providerLimitedMessage ?? "",
     state.modelName ?? "",
-    // MCP 提示按 server + 具体调用去重：关闭一次后同一次调用不再弹，
-    // 之后再有新的失败调用（新 rowId）会重新弹。
-    state.mcpServerName ?? "",
-    state.mcpNoticeRowId ?? "",
     state.remainingTokens ?? "",
     state.remainingPercent ?? "",
     state.blocksSubmit ? "blocked" : "unblocked",
@@ -295,12 +248,6 @@ export function resolveQuotaBannerUpgradeProviderId(providerId: string | null): 
   return providerId;
 }
 
-/**
- * 该提示是否应该带升级入口。
- *
- * `mcp-quota-exhausted` 明确不带：今日额度用完只能等自然日重置，升级按钮会让用户以为
- * 花钱就能立刻继续，是误导。权益缺失（`mcp-plan-required`）才是升级能解决的问题。
- */
 export function shouldOfferQuotaBannerUpgrade(kind: SessionQuotaBannerKind | null): boolean {
-  return kind !== "mcp-quota-exhausted";
+  return kind !== null;
 }

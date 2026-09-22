@@ -9,8 +9,7 @@ interface ModelProviderSectionLayoutProps {
   description: string;
   refreshLabel: string;
   loadingLabel: string;
-  presetLoading: boolean;
-  customLoading: boolean;
+  loading: boolean;
   onRefresh: () => void;
   addProviderLabel: string;
   onAddProvider: () => void;
@@ -22,19 +21,11 @@ interface ModelProviderSectionLayoutProps {
   children: ReactNode;
 }
 
-function shouldShowModelProviderRefreshLoading(params: {
-  presetLoading: boolean;
-  customLoading: boolean;
-}): boolean {
-  return params.presetLoading || params.customLoading;
-}
-
 export function ModelProviderSectionLayout({
   description,
   refreshLabel,
   loadingLabel,
-  presetLoading,
-  customLoading,
+  loading,
   onRefresh,
   addProviderLabel,
   onAddProvider,
@@ -45,11 +36,6 @@ export function ModelProviderSectionLayout({
   reorderableProviderIds,
   children,
 }: ModelProviderSectionLayoutProps) {
-  const refreshButtonLoading = shouldShowModelProviderRefreshLoading({
-    presetLoading,
-    customLoading,
-  });
-
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
@@ -57,8 +43,8 @@ export function ModelProviderSectionLayout({
         <SettingsResourceHeaderActions
           onRefresh={onRefresh}
           onNew={onAddProvider}
-          refreshing={refreshButtonLoading}
-          refreshLabel={refreshButtonLoading ? loadingLabel : refreshLabel}
+          refreshing={loading}
+          refreshLabel={loading ? loadingLabel : refreshLabel}
           newLabel={addProviderLabel}
           newTestId={TID_MODEL_PROVIDER_ADD_PROVIDER_BUTTON}
         />
@@ -76,8 +62,7 @@ export function ModelProviderSectionLayout({
             <ModelProviderSectionNavigation
               navigationGroups={navigationGroups}
               selectedNodeKey={selectedNodeKey}
-              presetLoading={presetLoading}
-              customLoading={customLoading}
+              loading={loading}
               onSelectNavItem={onSelectNavItem}
               onReorderProviderIds={onReorderProviderIds}
               reorderableProviderIds={reorderableProviderIds}

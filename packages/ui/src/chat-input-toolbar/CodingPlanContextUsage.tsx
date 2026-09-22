@@ -6,7 +6,7 @@ import {
   type CodingPlanUsageRemainingEntitlement,
   type CodingPlanUsageAvailableProvider,
   resolveCodingPlanUsageRemainingState,
-} from "@/CodingPlanUsageRemainingPanel.js";
+} from "@/lib/codingPlanUsageRemainingState.js";
 import { cn } from "@/components/lib/utils.js";
 import { LocalizedCodingPlanQuotaResetAction } from "@/components/coding-plan-quota-reset/CodingPlanQuotaResetAction.js";
 import { CodingPlanUsageHeaderAction } from "@/chat-input-toolbar/CodingPlanUsageHeaderAction.js";
@@ -21,12 +21,10 @@ import {
   formatQuotaResetTime,
   getQuotaRemainingPercentage,
   isCodingPlanQuotaLimitFull,
-  resolveMcpQuotaLimit,
 } from "@/lib/codingPlanQuotaPresentation.js";
 import { resolveCodingPlanQuotaResetLimit } from "@/lib/codingPlanQuotaResetUi.js";
 import { getContextQuotaMeterGridClass } from "@/chat-input-toolbar/contextQuotaMeterGrid.js";
 import { resolveChatCodingPlanResetOpportunityBadge } from "@/chat-input-toolbar/codingPlanResetOpportunityBadge.js";
-import { ChatCodingPlanMcpUsageMeter } from "@/chat-input-toolbar/ChatCodingPlanMcpUsageMeter.js";
 import type { SidebarUsageCodingPlanSourceId } from "@/lib/sidebarUsageCodingPlanProviderPreference.js";
 
 export type ChatCodingPlanUsageRemainingConfig = {
@@ -220,7 +218,6 @@ export function ChatCodingPlanUsageRemainingPanel({
     resetUi.week.entry,
   );
   const monthlyToolLimit = findCodingPlanQuotaLimit(limits, "TIME_LIMIT", 5, 1);
-  const mcpQuotaLimit = resolveMcpQuotaLimit(state.visibleSnapshot);
   // 额度剩余 100% 时重置没有收益:隐藏重置按钮与机会徽标(纯展示,不影响发放与轮询)。
   const fiveHourQuotaFull = isCodingPlanQuotaLimitFull(fiveHourTokenLimit);
   const weeklyQuotaFull = isCodingPlanQuotaLimitFull(weeklyTokenLimit);
@@ -245,11 +242,6 @@ export function ChatCodingPlanUsageRemainingPanel({
         value: monthlyToolLimit.nextResetTime,
         format: "date",
       })
-    : undefined;
-  // MCP 额度按自然日重置，重置时刻恒为 00:00，展示时分没有信息量；
-  // 与 Weekly / Tool calls 统一用日期口径。
-  const mcpResetTime = mcpQuotaLimit?.nextResetTime
-    ? formatQuotaResetTime({ locale, value: mcpQuotaLimit.nextResetTime, format: "date" })
     : undefined;
   const unavailableMessage =
     unavailableReason === "not_configured"
@@ -292,19 +284,8 @@ export function ChatCodingPlanUsageRemainingPanel({
           resetTime: monthlyToolResetTime,
         }
       : null,
-    mcpQuotaLimit
-      ? {
-          color: "var(--color-usage-chart-5)",
-          key: "mcp",
-          label: intl.formatMessage({ id: "sidebar.usage.plan.mcp" }),
-          limit: mcpQuotaLimit,
-          resetTime: mcpResetTime,
-        }
-      : null,
   ].filter((meter): meter is NonNullable<typeof meter> => meter !== null);
-  const primaryQuotaMeters = quotaMeters.filter((meter) => meter.key !== "mcp");
-  const mcpQuotaMeter = quotaMeters.find((meter) => meter.key === "mcp");
-  const quotaGridCount = Math.min(primaryQuotaMeters.length + (mcpQuotaMeter ? 1 : 0), 3);
+  const quotaGridCount = Math.min(quotaMeters.length, 3);
   const quotaResetDialog = buildCodingPlanQuotaResetDialogConfig({
     fiveHourEnabled: Boolean(fiveHourTokenLimit),
     fiveHourQuotaFull,
@@ -383,7 +364,7 @@ export function ChatCodingPlanUsageRemainingPanel({
             onRefresh={config.onEntitlementRefresh}
           />
         ) : (
-          primaryQuotaMeters.map((meter) => (
+          quotaMeters.map((meter) => (
             <ChatCodingPlanUsageMeter
               key={meter.key}
               color={meter.color}
@@ -423,19 +404,6 @@ export function ChatCodingPlanUsageRemainingPanel({
             />
           ))
         )}
-        {mcpQuotaMeter ? (
-          <ChatCodingPlanMcpUsageMeter
-            color={mcpQuotaMeter.color}
-            description={intl.formatMessage({
-              id: "sidebar.usage.plan.zcodeMcpDescription",
-            })}
-            label={intl.formatMessage({ id: "sidebar.usage.plan.zcodeMcp" })}
-            percentage={getQuotaRemainingPercentage(mcpQuotaMeter.limit)}
-            primaryQuotaCount={primaryQuotaMeters.length}
-            resetTime={mcpQuotaMeter.resetTime}
-            value={formatQuotaRemainingPercentage(locale, mcpQuotaMeter.limit)}
-          />
-        ) : null}
       </div>
     </div>
   );

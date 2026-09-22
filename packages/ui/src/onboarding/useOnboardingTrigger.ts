@@ -52,8 +52,8 @@ export function useOnboardingTrigger(options: {
           if (!cancelled) setNeedsOnboarding(result);
           // 换账号恢复该用户偏好：settings 不分用户，A 答完后 B 触发引导会把 settings 顶成
           // B 的答案；再切回 A 时按 record 最近作答回填。同步失败只留日志。
-          // 仅"上次是非空的另一身份"时回填（A→B 直切、B→登出）。null→id 不回填：启动 OAuth
-          // 恢复与运行中登录共用该序列且无法区分，宁可少回填——手动修改已由各入口回写
+          // 仅"上次是非空的另一身份"时回填（A→B 直切、B→登出）。null→id 不回填：启动状态
+          // 恢复与运行中身份切换共用该序列且无法区分，宁可少回填——手动修改已由各入口回写
           // record（record=最新偏好），缺失回填只影响"apikey 态后登录旧账号"这类边缘场景。
           const previousUserId = lastSyncedUserIdRef.current;
           lastSyncedUserIdRef.current = userId;

@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- context 面板聚合 Context windows、Coding Plan 和 Start Plan 三段紧耦合展示；后续拆分需要单独梳理弹层状态边界。 */
+/* eslint-disable max-lines -- context 面板聚合上下文用量、Coding Plan 和重置交互；后续拆分需要单独梳理弹层状态边界。 */
 import {
   useCallback,
   useEffect,
@@ -25,7 +25,7 @@ import { Progress } from "@/components/ui/progress.js";
 import { useOptionalTabStore } from "@/store/TabStoreProvider.js";
 import { isSettingsTab } from "@/store/tabStore.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { resolveCodingPlanUsageRemainingState } from "@/CodingPlanUsageRemainingPanel.js";
+import { resolveCodingPlanUsageRemainingState } from "@/lib/codingPlanUsageRemainingState.js";
 import { CodingPlanQuotaResetStatusContent } from "@/components/coding-plan-quota-reset/CodingPlanQuotaResetStatus.js";
 import { useCodingPlanQuotaResetUi } from "@/hooks/useCodingPlanQuotaResetUi.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
@@ -46,11 +46,6 @@ import {
   type CodingPlanQuotaResetAutoConfettiArms,
 } from "@/chat-input-toolbar/CodingPlanContextUsage.js";
 import { resolveChatCodingPlanResetOpportunityBadge } from "@/chat-input-toolbar/codingPlanResetOpportunityBadge.js";
-import {
-  ChatStartPlanBalancePanel,
-  hasChatStartPlanBalance,
-  type ChatStartPlanBalanceConfig,
-} from "@/chat-input-toolbar/StartPlanContextBalance.js";
 import { runContextPanelActionWithClose } from "@/chat-input-toolbar/contextPanelAction.js";
 import { coordinateCodingPlanQuotaResetAutoPlay } from "@/chat-input-toolbar/codingPlanQuotaResetAutoPlay.js";
 import { formatCompactTokenNumber } from "@/lib/tokenNumberFormat.js";
@@ -234,14 +229,12 @@ function resolveAutomaticCompletedAt(entry: CodingPlanQuotaResetUiEntry | null):
 
 export function ChatContextUsage({
   codingPlanUsageRemaining,
-  startPlanBalance,
   taskUsage,
   selectedProvider: _selectedProvider,
   intl,
   locale,
 }: {
   codingPlanUsageRemaining?: ChatCodingPlanUsageRemainingConfig;
-  startPlanBalance?: ChatStartPlanBalanceConfig;
   taskUsage: {
     used: number;
     size: number;
@@ -271,10 +264,7 @@ export function ChatContextUsage({
         return;
       }
       setContextOpen(open);
-      // hover 刷新入口不能只认 Coding Plan 的 onAccess：Start Plan（今日余额）与
-      // Coding Plan 连接方式互斥，start plan 用户 hover 时整条刷新链路都不触发，余额只能被动等
-      // 设置页/侧栏刷新。改为两段配置任一提供 onAccess 即发起本次静默 access 刷新（互斥下实际只有一个存在）。
-      const accessRefresh = codingPlanUsageRemaining?.onAccess ?? startPlanBalance?.onAccess;
+      const accessRefresh = codingPlanUsageRemaining?.onAccess;
       if (!open || !accessRefresh) {
         return;
       }
@@ -289,7 +279,7 @@ export function ChatContextUsage({
         }
       });
     },
-    [codingPlanUsageRemaining?.onAccess, startPlanBalance?.onAccess],
+    [codingPlanUsageRemaining?.onAccess],
   );
   const handleQuotaResetDialogOpenChange = useCallback((open: boolean) => {
     quotaResetDialogOpenRef.current = open;
@@ -322,34 +312,9 @@ export function ChatContextUsage({
         }),
     };
   }, [codingPlanUsageRemaining, contextAccessRefreshing]);
-  const startPlanBalanceWithClose = useMemo<ChatStartPlanBalanceConfig | undefined>(() => {
-    if (!startPlanBalance) {
-      return undefined;
-    }
-    const base: ChatStartPlanBalanceConfig = {
-      ...startPlanBalance,
-      // 静默 access 刷新不置 entitlement.loading，今日余额标题旁 spinner 需要跟随
-      // 本次 hover 触发的 promise（contextAccessRefreshing），语义对齐 Coding Plan 段的 refreshing。
-      refreshing: contextAccessRefreshing || startPlanBalance.refreshing === true,
-    };
-    if (!startPlanBalance.onUpgradeClick) {
-      return base;
-    }
-
-    return {
-      ...base,
-      onUpgradeClick: () => {
-        // HoverCard 内按钮点击不会像外部 hover leave 一样自动关闭面板。
-        // 升级入口会切到设置页，必须先收起 context 面板，避免旧浮层残留在新页面上。
-        setContextOpen(false);
-        startPlanBalance.onUpgradeClick?.();
-      },
-    };
-  }, [startPlanBalance, contextAccessRefreshing]);
   const hasCodingPlanUsageRemaining = codingPlanUsageRemainingWithClose
     ? hasChatCodingPlanUsageRemaining(codingPlanUsageRemainingWithClose)
     : false;
-  const hasStartPlanBalance = hasChatStartPlanBalance(startPlanBalanceWithClose);
 
   // 自动重置：触发器和面板复用同一完整 Personal/Team scope；共享 in-flight 避免重复请求。
   const resetCodingPlanState = useMemo(
@@ -815,11 +780,7 @@ export function ChatContextUsage({
     [locale],
   );
 
-  if (
-    (!renderableTaskUsage || !contextUsageLabel) &&
-    !hasCodingPlanUsageRemaining &&
-    !hasStartPlanBalance
-  ) {
+  if ((!renderableTaskUsage || !contextUsageLabel) && !hasCodingPlanUsageRemaining) {
     return null;
   }
 
@@ -834,13 +795,7 @@ export function ChatContextUsage({
         used: renderableTaskUsage.used,
       })
     : null;
-  const triggerLabel =
-    contextUsageLabel ??
-    (hasCodingPlanUsageRemaining
-      ? intl.formatMessage({ id: "sidebar.usage.plan.title" })
-      : intl.formatMessage({
-          id: "settings.modelProvider.startPlan.balance.title",
-        }));
+  const triggerLabel = contextUsageLabel ?? intl.formatMessage({ id: "sidebar.usage.plan.title" });
   const contextUsedTokens = renderableTaskUsage?.used ?? 0;
   const contextMaxTokens = renderableTaskUsage?.size ?? 1;
 
@@ -994,16 +949,6 @@ export function ChatContextUsage({
               separated={Boolean(renderableTaskUsage && compactTokenUsageLabel)}
               onAutoCelebrated={handleAutoResetCelebrated}
               onQuotaResetDialogOpenChange={handleQuotaResetDialogOpenChange}
-            />
-          ) : null}
-          {startPlanBalanceWithClose && hasStartPlanBalance ? (
-            <ChatStartPlanBalancePanel
-              config={startPlanBalanceWithClose}
-              intl={intl}
-              locale={locale}
-              separated={Boolean(
-                (renderableTaskUsage && compactTokenUsageLabel) || hasCodingPlanUsageRemaining,
-              )}
             />
           ) : null}
         </ContextContentBody>

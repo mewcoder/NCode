@@ -13,7 +13,6 @@ import type {
   CodingPlanResetUseResult,
   UsageEntitlementRequest,
   UsageEntitlementSnapshot,
-  UsageMcpQuotaSnapshot,
   UsageQuotaLimit,
   UsageStatsRequest,
   UsageStatsSnapshot,
@@ -61,10 +60,6 @@ import {
   resolveUsageTimeRange,
 } from "./bigmodelUsageMonitorRange.js";
 import { fetchBigModelSubscriptionSummary } from "./bigmodelSubscriptionProvider.js";
-import {
-  fetchMcpQuotaSnapshot,
-  type OfficialMcpCredentialSource,
-} from "./zcodeMcpQuotaProvider.js";
 import type { BigModelUsageQuotaEnvelope } from "./bigmodelUsageQuotaMapper.js";
 import { normalizeLimits, pickPrimaryLimit } from "./bigmodelUsageQuotaMapper.js";
 
@@ -137,11 +132,6 @@ interface BigModelUsageQuotaProviderOptions {
   ) => Promise<UsageApiAuthorization | null>;
   credentialService?: Pick<ICredentialService, "load">;
   env?: NodeJS.ProcessEnv;
-  /**
-   * 官方 Server MCP 的凭证来源。缺省时 entitlement 快照的 mcpQuota 恒为 null，
-   * 既有装配（含单测）无需改动即可保持原行为。
-   */
-  officialMcpCredentialSource?: OfficialMcpCredentialSource;
 }
 
 interface ResolvedQuotaAuthorization {
@@ -183,15 +173,12 @@ export class BigModelUsageQuotaProvider {
   private readonly resolveApiAuthorization?: BigModelUsageQuotaProviderOptions["resolveApiAuthorization"];
   private readonly credentialService?: Pick<ICredentialService, "load">;
   private readonly env: NodeJS.ProcessEnv;
-  private readonly officialMcpCredentialSource?: OfficialMcpCredentialSource;
-
   constructor(options: BigModelUsageQuotaProviderOptions) {
     this.apiClient = options.apiClient;
     this.accountRequestAuthService = options.accountRequestAuthService;
     this.resolveApiAuthorization = options.resolveApiAuthorization;
     this.credentialService = options.credentialService;
     this.env = options.env ?? process.env;
-    this.officialMcpCredentialSource = options.officialMcpCredentialSource;
   }
 
   async getSnapshot(): Promise<UsageEntitlementSnapshot> {
@@ -267,12 +254,7 @@ export class BigModelUsageQuotaProvider {
     }
     const subscription =
       entitlement.kind !== "available" ? null : buildSubscriptionSnapshot(entitlement.subscription);
-    const [payload, mcpQuota] = resolved
-      ? await Promise.all([
-          this.fetchQuota(resolved).catch(() => null),
-          this.fetchMcpQuota(resolved).catch(() => null),
-        ])
-      : [null, null];
+    const payload = resolved ? await this.fetchQuota(resolved).catch(() => null) : null;
     // quota 失败或 level 存在都不改变权益；额度耗尽也只影响用量显示。
     const quotaData = payload && isSuccessfulBigModelEnvelope(payload) ? payload.data : null;
     const limits = normalizeLimits(quotaData?.limits);
@@ -313,43 +295,15 @@ export class BigModelUsageQuotaProvider {
         : null,
       subscription,
       quota: quotaData ? { level: quotaData.level?.trim() || null, limits } : null,
-      mcpQuota,
     };
   }
 
   private async resolveRequestAccountAccess(
-    accountAccess: UsageEntitlementRequest["accountAccess"],
+    _accountAccess: UsageEntitlementRequest["accountAccess"],
   ): Promise<ZCodeAccountAccess | undefined> {
-    if (!accountAccess) return undefined;
-    if (!("mode" in accountAccess)) return accountAccess;
-    return (await this.accountRequestAuthService.resolveAccessCurrent(accountAccess)) ?? undefined;
-  }
-
-  /**
-   * 读取官方 Server MCP 额度。仅 Coding Plan provider 会发起：
-   * 环境变量 key、普通 API Key provider 与 Start Plan 都没有该权益。
-   */
-  private async fetchMcpQuota(
-    resolved: ResolvedQuotaAuthorization,
-  ): Promise<UsageMcpQuotaSnapshot | null> {
-    if (!this.officialMcpCredentialSource) {
-      return null;
-    }
-    if (!isCodingPlanModelProviderId(resolved.provider.id)) {
-      return null;
-    }
-    return fetchMcpQuotaSnapshot({
-      apiClient: this.apiClient,
-      credentialSource: this.officialMcpCredentialSource,
-      env: this.env,
-      requestScope: {
-        providerFamily:
-          resolved.teamContext?.family ??
-          (isZaiCodingPlanProviderId(resolved.provider.id) ? "zai" : "bigmodel"),
-        organizationId: resolved.teamContext?.organizationId ?? null,
-        projectId: resolved.teamContext?.projectId ?? null,
-      },
-    });
+    // 官方账号/OAuth 访问已从本地产品下线。API Key 用量不经过这里，而是继续由
+    // resolveApiAuthorization 按选中的 `zhipu-coding-plan-api-key` provider 解析。
+    return undefined;
   }
 
   private async getStartPlanSnapshot(

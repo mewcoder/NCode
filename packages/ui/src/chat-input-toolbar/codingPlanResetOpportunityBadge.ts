@@ -1,4 +1,4 @@
-import type { CodingPlanUsageRemainingState } from "@/CodingPlanUsageRemainingPanel.js";
+import type { CodingPlanUsageRemainingState } from "@/lib/codingPlanUsageRemainingState.js";
 import type { CodingPlanQuotaResetUiController } from "@/hooks/useCodingPlanQuotaResetUi.js";
 import {
   findCodingPlanQuotaLimit,
