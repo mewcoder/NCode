@@ -51,7 +51,6 @@ export function createDesktopPlatform(options: {
     startCuaHelperPermissionDrag: window.zcode.startCuaHelperPermissionDrag
       ? () => window.zcode.startCuaHelperPermissionDrag?.()
       : undefined,
-    onShareImport: (callback) => window.zcode.onShareImport?.(callback) ?? (() => {}),
     notifyRendererReady: () => window.zcode.notifyRendererReady(),
     reportTelemetryEvent: (payload) => window.zcode.reportTelemetryEvent(payload),
     reportArmsCustomEvent: (payload) => {
