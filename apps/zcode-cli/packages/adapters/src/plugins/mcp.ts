@@ -192,9 +192,14 @@ function resolveMcpServerConfig(
   // stdio 之所以能放开：请求由插件进程自己发出，身份头随每条出站协议消息的 _meta 下发
   // （见 adapters/src/mcp/index.ts）。sse 没有对应通道，继续拒绝。
   const officialAuth = parseZCodeOfficialAuth(server.auth, identity.mcpKey);
+  const officialAuthType = officialAuth?.type;
+  if (officialAuth) {
+    // 保留通用 MCP 与 OAuth；仅停用依赖 ZCode 账号/套餐的官方 MCP。
+    throw new Error(`MCP server ${identity.mcpKey}: ZCode 官方 MCP 已由 NCode 停用`);
+  }
   if (officialAuth && type !== "http" && type !== "stdio") {
     throw new Error(
-      `MCP server ${identity.mcpKey}: ${officialAuth.type} auth requires type "http" or "stdio", got "${type}"`,
+      `MCP server ${identity.mcpKey}: ${officialAuthType} auth requires type "http" or "stdio", got "${type}"`,
     );
   }
 
@@ -203,7 +208,7 @@ function resolveMcpServerConfig(
     // stdio 不走 OAuth 分支，声明 oauth 属无效配置；与 http 一样不做优先级裁决，直接禁用。
     if (officialAuth && server.oauth !== undefined) {
       throw new Error(
-        `MCP server ${identity.mcpKey}: ${officialAuth.type} auth cannot be combined with oauth`,
+        `MCP server ${identity.mcpKey}: ${officialAuthType} auth cannot be combined with oauth`,
       );
     }
     const env = resolveStringRecord(
@@ -259,7 +264,7 @@ function resolveMcpServerConfig(
     // 第一阶段不做优先级裁决：两种鉴权同时声明属于配置错误，直接禁用。
     if (oauth) {
       throw new Error(
-        `MCP server ${identity.mcpKey}: ${officialAuth.type} auth cannot be combined with oauth`,
+        `MCP server ${identity.mcpKey}: ${officialAuthType} auth cannot be combined with oauth`,
       );
     }
     // 保留头只在官方鉴权路径下拦截。普通/第三方 MCP 静态携带 authorization 是既有合法用法，
