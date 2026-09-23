@@ -1,4 +1,4 @@
-import { getCapturedZCodeAgentTelemetryEnv } from "@zcode/shared";
+import { getCapturedZCodeAgentTelemetryEnv, ZCODE_TELEMETRY_ENABLED } from "@zcode/shared";
 import {
   prepareModelTelemetryEnv,
   shutdownPreparedModelTelemetry,
@@ -13,6 +13,7 @@ export async function prepareZCodeTelemetryEnv(
   env: NodeJS.ProcessEnv = process.env,
   options: PrepareModelTelemetryOptions = {},
 ): Promise<NodeJS.ProcessEnv> {
+  if (!ZCODE_TELEMETRY_ENABLED) return env;
   const prepared = await prepareModelTelemetryEnv({
     ...getCapturedZCodeAgentTelemetryEnv(),
     ...env,

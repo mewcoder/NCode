@@ -22,11 +22,18 @@ const EXPORT_TIMEOUT_MS = 3000;
 
 /** 只接收已冻结的观测事实；Main 不参与 session/command 状态裁决。 */
 export function createLocalTtftExporter(options: {
+  enabled?: boolean;
   env: Record<string, string | undefined>;
   now?: () => number;
   version: string;
   logger: { warn(...args: unknown[]): void };
 }) {
+  if (options.enabled === false) {
+    return {
+      enqueue: (_input: unknown) => undefined,
+      shutdown: () => Promise.resolve(),
+    };
+  }
   const exporter = createRendererActionTraceExporter(options.env);
   const endpoint =
     validHttpUrl(options.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) ??

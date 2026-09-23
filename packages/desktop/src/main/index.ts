@@ -738,6 +738,7 @@ const appTelemetryRuntime = createAppTelemetryRuntime({
 });
 
 function reportRemoteUsageEventForRenderer(rendererId: number, event: TelemetryEventPayload): void {
+  if (!ZCODE_TELEMETRY_ENABLED) return;
   const context =
     appTelemetryRuntime.getRendererContext(rendererId) ??
     appTelemetryRuntime.getLatestRendererContext();
@@ -753,6 +754,7 @@ function reportRemoteUsageEventForRenderer(rendererId: number, event: TelemetryE
 }
 
 function syncAppTelemetryInteractiveState(): void {
+  if (!ZCODE_TELEMETRY_ENABLED) return;
   appTelemetryRuntime.setInteractive(
     getApplicationWindowsExcludingCuaIndicator().some(
       (win) => !win.isDestroyed() && win.isVisible() && win.isFocused(),
@@ -811,18 +813,23 @@ const rendererActionTraceRollout = createRendererActionTraceRollout({
   logger,
 });
 const localTtftExporter = createLocalTtftExporter({
+  enabled: ZCODE_TELEMETRY_ENABLED,
   env: { ...hostProcessLocalEnv, ...process.env },
   version: ZCODE_VERSION || app.getVersion(),
   logger,
 });
-ipcMain.on(PlatformChannels.ReportLocalTtftBatch, (_event, batch: unknown) =>
-  localTtftExporter.enqueue(batch),
-);
+if (ZCODE_TELEMETRY_ENABLED) {
+  ipcMain.on(PlatformChannels.ReportLocalTtftBatch, (_event, batch: unknown) =>
+    localTtftExporter.enqueue(batch),
+  );
+}
 const rendererActionTraceBroker = createRendererActionTraceBroker({
-  exporter: createRendererActionTraceExporter({
-    ...hostProcessLocalEnv,
-    ...process.env,
-  }),
+  exporter: ZCODE_TELEMETRY_ENABLED
+    ? createRendererActionTraceExporter({
+        ...hostProcessLocalEnv,
+        ...process.env,
+      })
+    : undefined,
   logger,
 });
 let disposeRendererActionTraceIpc: (() => void) | undefined;
@@ -1718,16 +1725,33 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
             windowsCuaOperationIndicator.handleState(source, event),
           onCuaOperationStateSourceExited: (source) =>
             windowsCuaOperationIndicator.clearSource(source),
-          onAgentProcessExited: (event) => reportAgentProcessExitToArms(event, logger),
-          onAgentProcessError: (event) => reportAgentProcessSpawnErrorToArms(event, logger),
-          onAgentProcessException: (event) => reportAgentProcessExceptionToArms(event, logger),
-          onAgentProcessReady: (event) => reportAgentProcessReadyToArms(event, logger),
-          onAgentProcessSpawned: (event) => reportAgentProcessStartToArms(event, logger),
-          onMcpTelemetry: (message) =>
-            reportMcpTelemetryToArms(message.event, message.runtimeSurface),
-          onSessionCreateTelemetry: (message) => {
-            void appTelemetryCore.reportEvent(message.event).catch(() => {});
-          },
+          onAgentProcessExited:
+            ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT
+              ? (event) => reportAgentProcessExitToArms(event, logger)
+              : undefined,
+          onAgentProcessError:
+            ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT
+              ? (event) => reportAgentProcessSpawnErrorToArms(event, logger)
+              : undefined,
+          onAgentProcessException:
+            ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT
+              ? (event) => reportAgentProcessExceptionToArms(event, logger)
+              : undefined,
+          onAgentProcessReady:
+            ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT
+              ? (event) => reportAgentProcessReadyToArms(event, logger)
+              : undefined,
+          onAgentProcessSpawned:
+            ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT
+              ? (event) => reportAgentProcessStartToArms(event, logger)
+              : undefined,
+          onMcpTelemetry:
+            ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT
+              ? (message) => reportMcpTelemetryToArms(message.event, message.runtimeSurface)
+              : undefined,
+          onSessionCreateTelemetry: ZCODE_TELEMETRY_ENABLED
+            ? (message) => void appTelemetryCore.reportEvent(message.event).catch(() => {})
+            : undefined,
           onCronRunResult: forwardCronRunResult,
           onOffPeakRunResult: forwardOffPeakRunResult,
           onCronSchedulerWakeRequested: wakeCronScheduler,
@@ -2088,18 +2112,20 @@ app.whenReady().then(async () => {
     deviceMid,
   });
 
-  disposeRendererActionTraceIpc = registerRendererActionTraceIpc({
-    rollout: rendererActionTraceRollout,
-    broker: rendererActionTraceBroker,
-    env: process.env,
-    logger,
-  });
+  if (ZCODE_TELEMETRY_ENABLED) {
+    disposeRendererActionTraceIpc = registerRendererActionTraceIpc({
+      rollout: rendererActionTraceRollout,
+      broker: rendererActionTraceBroker,
+      env: process.env,
+      logger,
+    });
+  }
 
   registerRemoteIpcHandlers({
     logger,
     appTelemetryRuntime,
     onOAuthCallbackHandledSideEffect: () => {
-      void armsUserIdentitySync.refresh();
+      if (ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT) void armsUserIdentitySync.refresh();
     },
     appTelemetryCore,
     reportRemoteUsageEvent: reportRemoteUsageEventForRenderer,
@@ -2127,7 +2153,7 @@ app.whenReady().then(async () => {
   await armsInitPromise;
 
   // ARMS init 完成后首次写入 user.name（落 device_mid）
-  void armsUserIdentitySync.refresh();
+  if (ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT) void armsUserIdentitySync.refresh();
 
   // 未配置 ARMS 端点时不初始化上报 context，避免把空转误当成已启用。
   if (ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT) {
@@ -2150,33 +2176,35 @@ app.whenReady().then(async () => {
       armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
     });
   }
-  configureDesktopMcpTelemetry({
-    deviceMid,
-    appVersion: ZCODE_VERSION,
-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-  });
   registerDesktopStabilityMonitors(logger, crashCapturePaths);
-  registerDesktopResourceTelemetry(logger);
-  // 主窗口 renderer 的 60 秒 heap 样本入口；随 App 生命周期常驻，只注册一次。
-  registerRendererHeapSampleIpc();
-  const defaultDataBaseDir = process.env.HOME?.trim() || homedir();
-  registerDesktopZCodeDataSizeTelemetry({
-    context: {
+  if (ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT) {
+    configureDesktopMcpTelemetry({
+      deviceMid,
       appVersion: ZCODE_VERSION,
       armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-      dataRootKind:
-        resolve(getDataBaseDir()) === resolve(defaultDataBaseDir) ? "default" : "custom",
-      deviceMid,
-      platform: process.platform,
-    },
-    getSystemIdleTimeSeconds: () => powerMonitor.getSystemIdleTime(),
-    isAppBackground: () => resolveResourceUsageScene() === "background",
-    isZCodeBusy: () => getRunningAgentSessionCount() > 0,
-    logger,
-    rootPath: getZCodeDataRootDir(),
-    stateFile: join(app.getPath("userData"), "zcode-data-size-telemetry.json"),
-  });
-  registerDesktopNetworkTelemetry(logger);
+    });
+    registerDesktopResourceTelemetry(logger);
+    // 主窗口 renderer 的 60 秒 heap 样本入口仅供外发资源遥测使用。
+    registerRendererHeapSampleIpc();
+    const defaultDataBaseDir = process.env.HOME?.trim() || homedir();
+    registerDesktopZCodeDataSizeTelemetry({
+      context: {
+        appVersion: ZCODE_VERSION,
+        armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
+        dataRootKind:
+          resolve(getDataBaseDir()) === resolve(defaultDataBaseDir) ? "default" : "custom",
+        deviceMid,
+        platform: process.platform,
+      },
+      getSystemIdleTimeSeconds: () => powerMonitor.getSystemIdleTime(),
+      isAppBackground: () => resolveResourceUsageScene() === "background",
+      isZCodeBusy: () => getRunningAgentSessionCount() > 0,
+      logger,
+      rootPath: getZCodeDataRootDir(),
+      stateFile: join(app.getPath("userData"), "zcode-data-size-telemetry.json"),
+    });
+    registerDesktopNetworkTelemetry(logger);
+  }
 
   // 本地未打包 dev 构建（app.isPackaged === false）必须跳过远端强制升级 gate。
   // 原因：force-update gate 只看 ZCODE_ENV === "production"，但 dev 构建（如 dev:desktop:cua

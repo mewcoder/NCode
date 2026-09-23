@@ -8,6 +8,7 @@ import {
   type McpTelemetryTracker,
 } from "@zcode/adapters/mcp";
 import {
+  ZCODE_TELEMETRY_ENABLED,
   zcodeProtocolNotifications,
   type ZCodeMcpResourceSample,
   type ZCodeMcpTelemetryEvent,
@@ -181,7 +182,7 @@ export async function runZCodeProtocolAgent(
     });
     const telemetryDeviceMid = telemetryEnv.ZCODE_TELEMETRY_DEVICE_MID;
     mcpTelemetryTracker =
-      configResult.config.features.mcp === false
+      !ZCODE_TELEMETRY_ENABLED || configResult.config.features.mcp === false
         ? undefined
         : createMcpTelemetryTracker({
             idSalt: traceContext.traceId,
@@ -278,8 +279,9 @@ export async function runZCodeProtocolAgent(
               }
             : {}),
           sourceTitle: "electron",
-          onToolExecResource: (params) =>
-            connection.send({ method: zcodeProtocolNotifications.toolExecResource, params }),
+          onToolExecResource: ZCODE_TELEMETRY_ENABLED
+            ? (params) => connection.send({ method: zcodeProtocolNotifications.toolExecResource, params })
+            : undefined,
         }),
       cwd: options.cwd,
       env: options.env,
@@ -335,7 +337,7 @@ export async function runZCodeProtocolAgent(
     mcpTelemetryTracker?.start();
     processResourceSampler = startProtocolResourceSampler(
       server,
-      (message) => connection.send(message),
+      ZCODE_TELEMETRY_ENABLED ? (message) => connection.send(message) : () => {},
       logger,
     );
     startupTimer.complete("ZCode Protocol agent startup completed", {

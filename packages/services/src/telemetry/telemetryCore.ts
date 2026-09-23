@@ -466,6 +466,7 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
   }
 
   async function flushPendingReports({ timeoutMs }: { timeoutMs: number }): Promise<void> {
+    if (!ZCODE_TELEMETRY_ENABLED) return;
     let timedOut = false;
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const deadline = new Promise<void>((resolve) => {
@@ -504,6 +505,7 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
       talkId?: string;
       messageId?: string;
     }): Promise<void> {
+      if (!ZCODE_TELEMETRY_ENABLED) return Promise.resolve();
       return trackReport(
         (async () => {
           const userId = input.userId ?? (await loadUserId());
@@ -536,6 +538,7 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     },
 
     reportAppLaunch(context: TelemetryRendererContext): Promise<void> {
+      if (!ZCODE_TELEMETRY_ENABLED) return Promise.resolve();
       return trackReport(
         (async () => {
           const eventId = randomUUID();
@@ -560,6 +563,7 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     },
 
     reportAppDailyActive(context: TelemetryRendererContext): Promise<void> {
+      if (!ZCODE_TELEMETRY_ENABLED) return Promise.resolve();
       return trackReport(
         (async () => {
           const timestamp = now();

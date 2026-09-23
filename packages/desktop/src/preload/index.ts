@@ -11,8 +11,10 @@ import {
 } from "../shared/armsRumBridgeForward.js";
 
 // ARMS frame preload 闭包内的 send 不会随后序 ipcRenderer.send 补丁生效，须同步包装 Bridge.send
-installArmsRumBridgeIpcForward(ipcRenderer);
-scheduleArmsEventBridgePatch();
+if (ZCODE_TELEMETRY_ENABLED) {
+  installArmsRumBridgeIpcForward(ipcRenderer);
+  scheduleArmsEventBridgePatch();
+}
 
 /** 从 command-line 参数中解析 --device-id= */
 function parseDeviceIdFromArgs(): string {
@@ -80,6 +82,7 @@ import type {
 import {
   InternalChannels,
   PlatformChannels,
+  ZCODE_TELEMETRY_ENABLED,
   formatZCodeRendererProcessName,
   shouldEnableE2ETestBridge,
 } from "@zcode/shared";
@@ -897,7 +900,7 @@ ipcRenderer.on(
 );
 
 // dom-ready autoInject 之后 Bridge 若被重置，再尝试一次包装
-scheduleArmsEventBridgePatch();
+if (ZCODE_TELEMETRY_ENABLED) scheduleArmsEventBridgePatch();
 
 // 启动控制面先于普通 RPC；reload 从 Main 的通知镜像补齐，不触发新迁移。
 ipcRenderer.on(InternalChannels.DatabaseStartupState, (_event, raw: unknown) => {

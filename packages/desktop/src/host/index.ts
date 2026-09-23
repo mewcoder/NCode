@@ -72,6 +72,7 @@ import {
 import {
   HostMessageTypes,
   HostResponseTypes,
+  ZCODE_TELEMETRY_ENABLED,
   ZCODE_VERSION,
   formatLogPrefix,
   formatZCodeHostProcessName,
@@ -1021,14 +1022,17 @@ async function dispatchManualAutomationRun(params: {
 // Node warning 不是远端连接失败，改成结构化 warn，避免默认 stderr 被误染成 error。
 process.on("warning", (warning) => logger.warn(`${warning.name}: ${warning.message}`));
 
-registerHostNetworkTelemetry(parentPort);
+if (ZCODE_TELEMETRY_ENABLED) registerHostNetworkTelemetry(parentPort);
 // Host 进程自身的 60 秒采样：一次读数两个出口——门控后写本地
 // `[memory]` 行，同一次读数换算成 HostResourceSample 经 parentPort 送 main 作 heap 来源。
 // services 计数器由各 service 工厂自注册。
 const hostSelfResourceTelemetry = startHostSelfResourceTelemetry({
   logger,
   collectCounters: collectServiceMemoryDiagnostics,
-  postMessage: parentPort ? (message) => parentPort.postMessage(message) : undefined,
+  postMessage:
+    ZCODE_TELEMETRY_ENABLED && parentPort
+      ? (message) => parentPort.postMessage(message)
+      : undefined,
 });
 
 const runtimeProcessLifecycleReporter = {
@@ -1691,6 +1695,7 @@ async function createWindowRemoteConnectionHandle(params: {
   const resourceTelemetry = registerHostServiceResourceTelemetry({
     services,
     postMessage: (message) => parentPort?.postMessage(message),
+    telemetrySupported: ZCODE_TELEMETRY_ENABLED,
     runtimeSurface: "remote",
     environmentKey: resolveResourceTelemetryEnvironmentKey(params.target),
     onError: (error) => logger.warn("remote resource telemetry subscription failed", error),
@@ -1836,6 +1841,7 @@ function wireLocalResourceTelemetry(services: ServiceCollection): void {
   activeLocalResourceTelemetry = registerHostServiceResourceTelemetry({
     services,
     postMessage: (message) => parentPort?.postMessage(message),
+    telemetrySupported: ZCODE_TELEMETRY_ENABLED,
     runtimeSurface: "local",
     onError: (error) => logger.warn("local resource telemetry subscription failed", error),
   });
@@ -1977,7 +1983,9 @@ function exposeServicesOnMessagePort(
   logger.info(`creating ChannelServer (deferInit=${deferInit})`);
   const rawServer = new ChannelServer(protocol, "host", 1000, deferInit);
   const loggedServer = new LoggingChannelServer(rawServer, logRpc);
-  const server = new NetworkTelemetryChannelServer(loggedServer);
+  const server = ZCODE_TELEMETRY_ENABLED
+    ? new NetworkTelemetryChannelServer(loggedServer)
+    : loggedServer;
   const agentService = services.getOptional(IZCodeAgentService);
   const connectionScope = agentService
     ? createZCodeAgentConnectionScope(agentService, {

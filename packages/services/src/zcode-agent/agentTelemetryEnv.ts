@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { ZCODE_TELEMETRY_ENABLED } from "@zcode/shared";
 
 interface BuildAgentTelemetrySpawnEnvInput {
   telemetryEnv: Record<string, string>;
@@ -11,8 +12,9 @@ export function buildAgentTelemetrySpawnEnv(
   input: BuildAgentTelemetrySpawnEnvInput,
 ): Record<string, string> {
   if (
-    !input.telemetryEnv.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT &&
-    !input.telemetryEnv.OTEL_EXPORTER_OTLP_ENDPOINT
+    !ZCODE_TELEMETRY_ENABLED ||
+    (!input.telemetryEnv.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT &&
+      !input.telemetryEnv.OTEL_EXPORTER_OTLP_ENDPOINT)
   ) {
     return {};
   }

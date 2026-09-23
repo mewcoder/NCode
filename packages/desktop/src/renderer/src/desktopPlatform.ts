@@ -1,5 +1,10 @@
 import { recordArmsCustomEventForE2E } from "@zcode/ui";
-import { DesktopCommandIds, buildLocalMediaPreviewUrl, type IPlatformService } from "@zcode/shared";
+import {
+  DesktopCommandIds,
+  ZCODE_TELEMETRY_ENABLED,
+  buildLocalMediaPreviewUrl,
+  type IPlatformService,
+} from "@zcode/shared";
 
 import { desktopBrowserPlatformBridge } from "./desktopBrowserPlatformBridge.js";
 
@@ -56,24 +61,33 @@ export function createDesktopPlatform(options: {
     onPaymentCallback: (callback) => window.zcode.onPaymentCallback(callback),
     onShareImport: (callback) => window.zcode.onShareImport?.(callback) ?? (() => {}),
     notifyRendererReady: () => window.zcode.notifyRendererReady(),
-    reportTelemetryEvent: (payload) => window.zcode.reportTelemetryEvent(payload),
+    reportTelemetryEvent: (payload) =>
+      ZCODE_TELEMETRY_ENABLED ? window.zcode.reportTelemetryEvent(payload) : Promise.resolve(),
     reportArmsCustomEvent: (payload) => {
       recordArmsCustomEventForE2E(payload);
-      return window.zcode.reportArmsCustomEvent(payload);
+      return ZCODE_TELEMETRY_ENABLED
+        ? window.zcode.reportArmsCustomEvent(payload)
+        : Promise.resolve();
     },
-    getRendererActionTraceConfig: window.zcode.getRendererActionTraceConfig
-      ? () => window.zcode.getRendererActionTraceConfig!()
+    getRendererActionTraceConfig:
+      ZCODE_TELEMETRY_ENABLED && window.zcode.getRendererActionTraceConfig
+        ? () => window.zcode.getRendererActionTraceConfig!()
+        : undefined,
+    onRendererActionTraceConfigChanged:
+      ZCODE_TELEMETRY_ENABLED && window.zcode.onRendererActionTraceConfigChanged
+        ? (callback) => window.zcode.onRendererActionTraceConfigChanged!(callback)
+        : undefined,
+    reportLocalTtftBatch: ZCODE_TELEMETRY_ENABLED
+      ? (batch) => window.zcode.reportLocalTtftBatch(batch)
       : undefined,
-    onRendererActionTraceConfigChanged: window.zcode.onRendererActionTraceConfigChanged
-      ? (callback) => window.zcode.onRendererActionTraceConfigChanged!(callback)
-      : undefined,
-    reportLocalTtftBatch: (batch) => window.zcode.reportLocalTtftBatch(batch),
-    reportRendererActionTraceBatch: window.zcode.reportRendererActionTraceBatch
-      ? (batch) => window.zcode.reportRendererActionTraceBatch!(batch)
-      : undefined,
-    reportRendererHeapSample: window.zcode.reportRendererHeapSample
-      ? (sample) => window.zcode.reportRendererHeapSample!(sample)
-      : undefined,
+    reportRendererActionTraceBatch:
+      ZCODE_TELEMETRY_ENABLED && window.zcode.reportRendererActionTraceBatch
+        ? (batch) => window.zcode.reportRendererActionTraceBatch!(batch)
+        : undefined,
+    reportRendererHeapSample:
+      ZCODE_TELEMETRY_ENABLED && window.zcode.reportRendererHeapSample
+        ? (sample) => window.zcode.reportRendererHeapSample!(sample)
+        : undefined,
     showTaskNotification: (payload) => window.zcode.showTaskNotification(payload),
     syncWindowTabs: (paths) => window.zcode.syncWindowTabs(paths),
     syncWindowUnreadCount: (count) => window.zcode.syncWindowUnreadCount(count),
