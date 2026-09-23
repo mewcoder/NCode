@@ -150,7 +150,8 @@ const armsRumEnv = mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv);
 // ensureDesktopDeviceMidSync 幂等且不重复写盘）。
 // 注意：渲染进程事件经 ArmsEventBridge 转发到主进程后，由主进程 client 用「主进程 config」
 // 重新打包上报，故只需在主进程 init 设置一次，即可覆盖主进程 + 渲染进程的全部上报。
-const armsDeviceMid = ensureDesktopDeviceMidSync();
+const armsDeviceMid =
+  ZCODE_TELEMETRY_ENABLED && ZCODE_ARMS_RUM_ENDPOINT ? ensureDesktopDeviceMidSync() : "";
 
 // 原因：armsRum.init() 返回 Promise；若不 await，web-contents-created / 渲染进程注入可能晚于首窗 dom-ready，导致零上报。
 // 须在 app.whenReady() 创建 BrowserWindow 之前 await armsInitPromise（见 index.ts）。

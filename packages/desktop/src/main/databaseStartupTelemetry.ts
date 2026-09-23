@@ -1,5 +1,7 @@
 import armsRum from "@arms/rum-electron";
 import {
+  ZCODE_ARMS_RUM_ENDPOINT,
+  ZCODE_TELEMETRY_ENABLED,
   ZCODE_VERSION,
   type DatabaseStartupState,
   type ArmsCustomEventPayload,
@@ -8,7 +10,8 @@ import { ensureDesktopDeviceMidSync } from "./desktopDeviceMid.js";
 import { buildFinalArmsCustomEventPayload } from "./desktopArmsCustomEvent.js";
 import { logger } from "./logger.js";
 
-const deviceMid = ensureDesktopDeviceMidSync();
+const telemetryEnabled = ZCODE_TELEMETRY_ENABLED && Boolean(ZCODE_ARMS_RUM_ENDPOINT);
+const deviceMid = telemetryEnabled ? ensureDesktopDeviceMidSync() : "";
 type Attempt = { lastStage: string; stageAt: number; databaseFinished: boolean; terminal: boolean };
 const attempts = new Map<string, Attempt>();
 
@@ -18,6 +21,7 @@ function send(
   value: number,
   properties: ArmsCustomEventPayload["properties"] = {},
 ) {
+  if (!telemetryEnabled) return;
   const eventId = `${state.attemptId}:${name}:${properties?.scope_id ?? properties?.database_id ?? state.sequence}`;
   try {
     const payload = buildFinalArmsCustomEventPayload({
@@ -51,6 +55,7 @@ function send(
 
 /** 输入是 Host 聚合镜像；不访问数据库/故障磁盘、不写逐样本日志。 */
 export function reportDatabaseStartupState(state: DatabaseStartupState): void {
+  if (!telemetryEnabled) return;
   let attempt = attempts.get(state.attemptId);
   if (!attempt) {
     if (attempts.size >= 128) attempts.delete(attempts.keys().next().value!);

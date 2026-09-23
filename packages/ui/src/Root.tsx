@@ -4,6 +4,7 @@ import { LucideProvider, RefreshCw } from "lucide-react";
 import {
   APP_RUNTIME_PREFERENCES_CHANGED_BROADCAST_CHANNEL,
   DesktopCommandIds,
+  ZCODE_TELEMETRY_ENABLED,
   appRuntimePreferencesChangedBroadcastPayloadSchema,
   type RemoteTarget,
 } from "@zcode/shared";
@@ -162,10 +163,10 @@ function RootInner({
   useEffect(() => {
     setMcpStorePlatform(platform);
     // 对话 UI perf 只属于 desktop-continuous；Web/mobile 即使能看到权威状态也不装 reporter。
-    setUiPerfArmsReporter(isDesktop ? platform : null);
-    setSessionOpenArmsReporter(isDesktop ? platform : null);
+    setUiPerfArmsReporter(isDesktop && ZCODE_TELEMETRY_ENABLED ? platform : null);
+    setSessionOpenArmsReporter(isDesktop && ZCODE_TELEMETRY_ENABLED ? platform : null);
     // 发送漏斗同理：只在 Electron 桌面端上报，Web/mobile 的 reportArmsCustomEvent 是空实现。
-    setSendFunnelArmsReporter(isDesktop ? platform : null);
+    setSendFunnelArmsReporter(isDesktop && ZCODE_TELEMETRY_ENABLED ? platform : null);
     return () => {
       setMcpStorePlatform(null);
       setUiPerfArmsReporter(null);

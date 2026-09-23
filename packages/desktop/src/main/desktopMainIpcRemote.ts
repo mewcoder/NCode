@@ -13,6 +13,8 @@ import {
   PlatformChannels,
   remoteTargetSchema,
   rendererTelemetryEventPayloadSchema,
+  ZCODE_ARMS_RUM_ENDPOINT,
+  ZCODE_TELEMETRY_ENABLED,
   type ArmsRumEnv,
   type RemoteTarget,
   type TelemetryEventPayload,
@@ -34,6 +36,8 @@ import {
   type RemoteConnectionStats,
 } from "./desktopRemoteUsageArmsTelemetry.js";
 import { openPathInDefaultApp } from "./desktopMainIpcHelpers.js";
+
+const desktopArmsTelemetryEnabled = ZCODE_TELEMETRY_ENABLED && Boolean(ZCODE_ARMS_RUM_ENDPOINT);
 
 function isAllowedExternalOpenUrl(value: string): boolean {
   try {
@@ -198,6 +202,7 @@ export function registerRemoteIpcHandlers(options: {
   listSSHConfigAliases: () => Promise<unknown[]>;
 }) {
   function reportRemoteUsageEvent(rendererId: number, event: TelemetryEventPayload): void {
+    if (!ZCODE_TELEMETRY_ENABLED) return;
     try {
       options.reportRemoteUsageEvent(rendererId, event);
     } catch (error) {
@@ -213,14 +218,16 @@ export function registerRemoteIpcHandlers(options: {
     ? enableSharedFinalArmsCustomEventE2EController()
     : null;
 
-  configureRemoteUsageArmsTelemetry({
-    armsCustomContext: options.armsCustomContext,
-    getRemoteConnectionStats: options.getRemoteConnectionStats,
-    sendCustom: (payload) =>
-      armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]),
-    e2eController: finalArmsCustomEventE2E,
-    logger: options.logger,
-  });
+  if (desktopArmsTelemetryEnabled) {
+    configureRemoteUsageArmsTelemetry({
+      armsCustomContext: options.armsCustomContext,
+      getRemoteConnectionStats: options.getRemoteConnectionStats,
+      sendCustom: (payload) =>
+        armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]),
+      e2eController: finalArmsCustomEventE2E,
+      logger: options.logger,
+    });
+  }
 
   function reportRemoteConnectResultToArmsSafely(
     params: Parameters<typeof reportRemoteConnectResultToArms>[0],
@@ -319,6 +326,7 @@ export function registerRemoteIpcHandlers(options: {
   });
 
   ipcMain.on(PlatformChannels.SyncTelemetryContext, (event, context) => {
+    if (!ZCODE_TELEMETRY_ENABLED) return;
     options.appTelemetryRuntime.syncRendererContext({
       rendererId: event.sender.id,
       context,
@@ -326,6 +334,7 @@ export function registerRemoteIpcHandlers(options: {
   });
 
   ipcMain.handle(PlatformChannels.ReportTelemetryEvent, async (_event, payload: unknown) => {
+    if (!ZCODE_TELEMETRY_ENABLED) return;
     const result = rendererTelemetryEventPayloadSchema.safeParse(payload);
     if (!result.success) {
       options.logger.warn(
@@ -339,6 +348,7 @@ export function registerRemoteIpcHandlers(options: {
   });
 
   ipcMain.handle(PlatformChannels.ReportArmsCustomEvent, async (event, payload: unknown) => {
+    if (!desktopArmsTelemetryEnabled && !finalArmsCustomEventE2E) return;
     const result = armsCustomEventPayloadSchema.safeParse(payload);
     if (!result.success) {
       options.logger.warn(
@@ -358,8 +368,10 @@ export function registerRemoteIpcHandlers(options: {
         e2eController: finalArmsCustomEventE2E,
         // FinalArmsCustomEventPayload 是 SDK RumCustomEvent 的收窄子集；SDK 额外要求
         // BaseObject 索引签名，但这里不会动态追加未声明字段。
-        sendCustom: (payload) =>
-          armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]),
+        sendCustom: (payload) => {
+          if (!desktopArmsTelemetryEnabled) return;
+          armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]);
+        },
       });
     } catch (error) {
       options.logger.warn(
@@ -370,6 +382,7 @@ export function registerRemoteIpcHandlers(options: {
   });
 
   ipcMain.on(PlatformChannels.OAuthCallbackHandled, (event) => {
+    if (!ZCODE_TELEMETRY_ENABLED) return;
     options.appTelemetryRuntime.onOAuthCallbackHandled({ rendererId: event.sender.id });
     options.onOAuthCallbackHandledSideEffect?.();
   });

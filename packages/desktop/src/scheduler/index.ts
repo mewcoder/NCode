@@ -16,6 +16,7 @@ import {
 } from "@zcode/services/node";
 import {
   resolveWorkspaceKey,
+  ZCODE_TELEMETRY_ENABLED,
   type ZCodeAutomation,
   type ZCodeAutomationTrigger,
   type ZCodeAutomationRun,
@@ -431,10 +432,12 @@ async function main(): Promise<void> {
   log("info", "cron scheduler started");
   requestTick();
   pollTimer = setInterval(requestTick, POLL_INTERVAL_MS);
-  // 资源遥测：60 秒自采一次 CPU / 内存发给 main（heap 只有本进程读得到）。
-  resourceTelemetry = startSchedulerResourceTelemetry({
-    postMessage: (message) => parentPort?.postMessage(message),
-  });
+  if (ZCODE_TELEMETRY_ENABLED) {
+    // 资源遥测关闭时不启动额外的 60 秒采样定时器。
+    resourceTelemetry = startSchedulerResourceTelemetry({
+      postMessage: (message) => parentPort?.postMessage(message),
+    });
+  }
 }
 
 void main().catch((error) => {
