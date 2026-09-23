@@ -3,8 +3,10 @@ import type { PluginStoreOrder } from "@zcode/shared";
 import { useServices } from "@/hooks/useServices.js";
 import { logger } from "@/logger.js";
 
-/** 只持有当前页面投影；请求合并与 TTL 统一归 Host 配置服务管理。 */
-export function usePluginStoreOrder(enabled = true) {
+const LOCAL_PLUGIN_STORE_ORDER: PluginStoreOrder = { code: {}, work: {} };
+
+/** NCode 默认采用本地排序；远端读取实现保留，供需要时对照和恢复。 */
+export function usePluginStoreOrder(enabled = false) {
   const { clientConfigService: service } = useServices();
   const [snapshot, setSnapshot] = useState<{
     service: typeof service;
@@ -13,6 +15,7 @@ export function usePluginStoreOrder(enabled = true) {
   const generation = useRef(0);
   const refresh = useCallback(
     async (forceRefresh = false) => {
+      if (!enabled) return;
       const current = ++generation.current;
       try {
         const { pluginStoreOrder: order } = await service.getSnapshot({ forceRefresh });
@@ -23,7 +26,7 @@ export function usePluginStoreOrder(enabled = true) {
         }
       }
     },
-    [service],
+    [enabled, service],
   );
 
   useEffect(() => {
@@ -33,5 +36,12 @@ export function usePluginStoreOrder(enabled = true) {
     };
   }, [enabled, refresh]);
 
-  return { order: snapshot?.service === service ? snapshot.order : null, refresh };
+  return {
+    order: enabled
+      ? snapshot?.service === service
+        ? snapshot.order
+        : null
+      : LOCAL_PLUGIN_STORE_ORDER,
+    refresh,
+  };
 }

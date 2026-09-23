@@ -476,6 +476,10 @@ function shouldRestoreQueuedComposerFromAck(status: CommandAck["status"]): boole
   return status === "accepted" || status === "duplicate";
 }
 
+const EMPTY_SHARE_RENDER_UNITS: ReturnType<typeof buildConversationTurnRenderUnits> = [];
+const EMPTY_SHARE_NAVIGATOR_ITEMS: ReturnType<typeof buildConversationTurnNavigatorItems> = [];
+const EMPTY_SHARE_PRODUCT_TURN_IDS: string[] = [];
+
 /**
  * 单 pane 竖切：订阅 → 渲染 rows → composer 发送 / stop。
  *
@@ -646,24 +650,30 @@ export function SessionPane({
     enabled: shareSelectionPanelVisible,
     onDismiss: dismissShareSelectionPanel,
   });
+  const shareProjectionRows = shareActive ? snapshot?.rows.window : undefined;
   const shareRenderUnits = useMemo(
-    () => buildConversationTurnRenderUnits(snapshot?.rows.window ?? []),
-    [snapshot?.rows.window],
+    () =>
+      shareActive
+        ? buildConversationTurnRenderUnits(shareProjectionRows ?? [])
+        : EMPTY_SHARE_RENDER_UNITS,
+    [shareActive, shareProjectionRows],
   );
   const shareItems = useMemo(
     () =>
-      buildConversationTurnNavigatorItems(shareRenderUnits, {
-        assistantEmptyPreview: intl.formatMessage({
-          id: "chat.turnNavigator.emptyAssistant",
-        }),
-        assistantRunningPreview: intl.formatMessage({
-          id: "chat.turnNavigator.runningAssistant",
-        }),
-        userFallbackPreview: intl.formatMessage({
-          id: "chat.turnNavigator.userFallback",
-        }),
-      }),
-    [intl, shareRenderUnits],
+      shareActive
+        ? buildConversationTurnNavigatorItems(shareRenderUnits, {
+            assistantEmptyPreview: intl.formatMessage({
+              id: "chat.turnNavigator.emptyAssistant",
+            }),
+            assistantRunningPreview: intl.formatMessage({
+              id: "chat.turnNavigator.runningAssistant",
+            }),
+            userFallbackPreview: intl.formatMessage({
+              id: "chat.turnNavigator.userFallback",
+            }),
+          })
+        : EMPTY_SHARE_NAVIGATOR_ITEMS,
+    [intl, shareActive, shareRenderUnits],
   );
   const eligibleShareItems = useMemo(
     () => shareItems.filter((item) => !item.isRunning),
@@ -751,7 +761,8 @@ export function SessionPane({
     ],
   );
   const eligibleShareProductTurnIds = useMemo(() => {
-    const rowsById = new Map((snapshot?.rows.window ?? []).map((row) => [row.rowId, row]));
+    if (!shareActive) return EMPTY_SHARE_PRODUCT_TURN_IDS;
+    const rowsById = new Map((shareProjectionRows ?? []).map((row) => [row.rowId, row]));
     const seen = new Set<string>();
     return eligibleShareItems.flatMap((item) => {
       const productTurnId = rowsById.get(item.rowId)?.productTurnId;
@@ -759,7 +770,7 @@ export function SessionPane({
       seen.add(productTurnId);
       return [productTurnId];
     });
-  }, [eligibleShareItems, snapshot?.rows.window]);
+  }, [eligibleShareItems, shareActive, shareProjectionRows]);
   const sharePreflightCacheRef = useRef(new Map<string, ConversationShareTurnPreflightResult>());
   // 传输类失败会被按 turn 缓存成阻断项，仅靠选择变化无法再次触发 RPC；
   // 重试 token 变化时清缓存并重新发起，避免一次网络抖动把用户卡死在选择阶段。
@@ -822,6 +833,7 @@ export function SessionPane({
   ]);
 
   useEffect(() => {
+    if (!shareActive) return;
     if (sharePreflightScopeKeyRef.current === sharePreflightScopeKey) return;
     sharePreflightScopeKeyRef.current = sharePreflightScopeKey;
     sharePreflightCacheRef.current.clear();
@@ -832,7 +844,7 @@ export function SessionPane({
       supportedArtifactTypes: [],
     };
     setSharePreflightVersion((version) => version + 1);
-  }, [sharePreflightScopeKey]);
+  }, [shareActive, sharePreflightScopeKey]);
 
   useEffect(() => {
     if (shareActive && sessionId) return;
@@ -843,8 +855,7 @@ export function SessionPane({
       capabilitiesFingerprint: "",
       supportedArtifactTypes: [],
     };
-    setSharePreflightVersion((version) => version + 1);
-  }, [sessionId, shareActive]);
+  }, [shareActive, sessionId]);
 
   useEffect(() => {
     // 预检结果按 turn 缓存：选择/取消只重新聚合当前选中项，只有首次加入或 turn fingerprint
@@ -3799,11 +3810,13 @@ export function SessionPane({
     workspaceIdentity,
     workspacePath,
   ]);
+  /* 分享页打开入口已隐藏，保留原处理以便恢复。
   const handleOpenImportedShareUrl = useCallback(() => {
     if (!shareHandoverContext || !onOpenBrowserUrl) return;
     // 持久化的是规范 /cn/share/ 路径；展示/打开时才按界面语言本地化。
     onOpenBrowserUrl(localizeConversationShareUrl(shareHandoverContext.shareUrl, locale));
   }, [locale, onOpenBrowserUrl, shareHandoverContext]);
+  */
   const initialDraftConfigForDiagnostics = isDraft ? resolveInitialDraftConfig() : undefined;
   // CLI V4 projection 是 running/count/manifest 的唯一权威；renderer 不再在 spawn
   // 事件后另发查询拼接第二份状态，避免并发 child 的 in-flight refresh 丢更新。
@@ -4777,7 +4790,6 @@ export function SessionPane({
                     locale={locale}
                     theme={theme}
                     codePreviewSettings={codePreviewSettings}
-                    onOpenShareUrl={onOpenBrowserUrl ? handleOpenImportedShareUrl : undefined}
                     onOpenFileLink={onOpenFileLink}
                     onOpenCodeViewer={onOpenCodeViewer}
                   />

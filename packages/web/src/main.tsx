@@ -115,6 +115,12 @@ function renderWebAuthCallbackPage(): void {
 }
 
 async function renderConversationSharePage(): Promise<void> {
+  if (isConversationSharePath(window.location.pathname)) {
+    // 暂时隐藏分享网页；旧页面实现保留，访问旧链接时返回应用首页。
+    window.location.replace("/");
+    return;
+  }
+
   // 页面语言跟随路径前缀：/cn/share 中文，裸 /share 英文。
   const routeLocale = resolveConversationShareRouteLocale(window.location.pathname);
   // index.html 固定 lang="en"；不同步会让中文分享页对无障碍与浏览器翻译都报错语言。
@@ -357,6 +363,11 @@ function resolveDefaultWsOrigin(): string {
 
 async function resolveWebBootstrap(): Promise<WebBootstrapResult> {
   const params = new URLSearchParams(window.location.search);
+  if (params.has("remote")) {
+    throw new Error("APP remote control is disabled");
+  }
+
+  /* 暂时关闭官方 App 远控查询参数；需要恢复时还原此分支。
   const remoteId = params.get("remote");
   const wsUrl = remoteId
     ? `${resolveDefaultWsOrigin()}/ws/remote/${remoteId}`
@@ -365,6 +376,9 @@ async function resolveWebBootstrap(): Promise<WebBootstrapResult> {
   if (remoteId) {
     return { wsUrl };
   }
+  */
+
+  const wsUrl = `${resolveDefaultWsOrigin()}/ws`;
 
   try {
     const response = await fetch("/api/server-info", {
