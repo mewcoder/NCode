@@ -56,10 +56,9 @@ const acknowledgedPostUpdateReleaseNotesVersions = new Set<string>();
 const cancelledDownloadTokens = new WeakSet<CancellationToken>();
 let pendingCancelledDownloadErrorCount = 0;
 let autoUpdaterSettingService: SettingServiceLike | undefined;
-// initAutoUpdater({ enabled: false }) 只清轮询并 return，electron-updater 实例保持未配置
-// （占位 feed、autoDownload 默认值）。任何漏改成按身份判断的入口若仍调用手动检查，
-// 都会对占位 feed 发真实请求。这里记住“本 flavor 已禁用”，让手动检查在模块内部 fail-closed。
-let autoUpdaterDisabledForProductFlavor = false;
+// initAutoUpdater({ enabled: false }) 保持 electron-updater 未配置，并关闭自动下载/退出安装。
+// 这里也记住“本 flavor 已禁用”，让手动检查和设置刷新在模块内部 fail-closed。
+let autoUpdaterDisabledForProductFlavor = true;
 
 type SettingServiceLike = Pick<ISettingService, "get" | "update">;
 
@@ -1355,6 +1354,11 @@ export function refreshAutoUpdaterReleaseChannel(
 ) {
   const nextChannel: ElectronReleaseChannel = receivePreviewUpdates ? "preview" : "stable";
 
+  if (autoUpdaterDisabledForProductFlavor) {
+    logger.info(`[auto-update] skip ${reason}: updater disabled for this product`);
+    return;
+  }
+
   if (!canUseAutoUpdaterInCurrentRuntime()) {
     logger.info(`[auto-update] skip ${reason}: not packaged`);
     return;
@@ -1462,6 +1466,8 @@ export async function acknowledgePostUpdateReleaseNotes(
 export async function initAutoUpdater(options: InitAutoUpdaterOptions = {}): Promise<void> {
   if (options.enabled === false) {
     autoUpdaterDisabledForProductFlavor = true;
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
     if (autoUpdatePollTimer) {
       clearInterval(autoUpdatePollTimer);
       autoUpdatePollTimer = null;

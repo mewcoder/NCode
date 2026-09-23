@@ -3,6 +3,7 @@ import type { DesktopWindowChromeState, IPlatformService, UpdateStatePayload } f
 import { logger } from "@/logger.js";
 import { toast } from "@/components/ui/toast.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import { shouldShowDesktopUpdateEntry } from "@/lib/desktopUpdateMenu.js";
 
 const MACOS_WINDOW_CONTROLS_DEFAULT_LEFT_PADDING_PX = 96;
 const WINDOWS_WINDOW_CONTROLS_DEFAULT_RIGHT_PADDING_PX = 136;
@@ -171,7 +172,7 @@ export function useAppChromeState({
   }, [isDesktop, isMacDesktop, isWindowsDesktop, platform]);
 
   useEffect(() => {
-    if (!platform.onUpdateReady) {
+    if (!shouldShowDesktopUpdateEntry() || !platform.onUpdateReady) {
       return;
     }
 
@@ -198,6 +199,10 @@ export function useAppChromeState({
   }, [platform, workspaceAbsPath, isWindowsDesktop, intl]);
 
   useEffect(() => {
+    if (!shouldShowDesktopUpdateEntry()) {
+      return;
+    }
+
     let cancelled = false;
 
     if (platform.getUpdateState) {
