@@ -1,14 +1,8 @@
-import {
-  ZCODE_PRODUCT_FLAVOR,
-  type ZCodeProductFlavor,
-  type UpdateStatePayload,
-} from "@zcode/shared";
+import type { ZCodeProductFlavor, UpdateStatePayload } from "@zcode/shared";
 
-// 更新入口跟随产品身份而不是后端环境：Preview 身份（含生产后端的 Preview）禁用更新器。
-export function shouldShowDesktopUpdateEntry(
-  flavor: ZCodeProductFlavor = ZCODE_PRODUCT_FLAVOR,
-): boolean {
-  return flavor === "production";
+// NCode 通过本地编译和打包更新，不提供应用内更新入口。
+export function shouldShowDesktopUpdateEntry(_flavor: ZCodeProductFlavor = "production"): boolean {
+  return false;
 }
 
 export function getUpdateMenuLabelId(state: UpdateStatePayload | null) {
