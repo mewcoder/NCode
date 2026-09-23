@@ -101,12 +101,7 @@ async function tick(): Promise<void> {
         for (const manualRun of manualRuns) {
           await handleClaimedManual(manualRun.automation, manualRun.run);
         }
-        const offPeakClaimed = await offPeakRepo.claimDue(now);
-        for (const task of offPeakClaimed) {
-          await handleOffPeakClaimed(task, now);
-        }
-        // keep-awake：上报执行中计数，main 据此 + 设置决定 powerSaveBlocker。
-        await reportOffPeakActiveCount();
+        // Off-Peak is disabled; keep the existing implementation below for future upstream comparison.
       } catch (error) {
         log("error", `tick failed: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -217,6 +212,7 @@ async function handleClaimedManual(
 
 /** 执行中计数上报（keep-awake）：仅在值变化时发消息，减噪。 */
 let lastOffPeakActiveCount = -1;
+// eslint-disable-next-line no-unused-vars -- Disabled entry point kept for future upstream comparison.
 async function reportOffPeakActiveCount(): Promise<void> {
   try {
     const count = await offPeakRepo.countActive();
@@ -238,6 +234,7 @@ async function reportOffPeakActiveCount(): Promise<void> {
  * 认领后派发闲时任务。退避中的任务立即释放认领等下轮（进程内退避表；每轮 claim+release
  * 两次写，任务数小、WAL 下开销可忽略——若退避任务成规模再把退避下沉进 claimDue）。
  */
+// eslint-disable-next-line no-unused-vars -- Disabled entry point kept for future upstream comparison.
 async function handleOffPeakClaimed(task: ZCodeOffPeakTask, now: number): Promise<void> {
   const retryAt = offPeakRetryAt.get(task.offPeakTaskId) ?? 0;
   if (retryAt > now) {
@@ -415,19 +412,7 @@ parentPort?.on("message", (event: Electron.MessageEvent) => {
 
 async function main(): Promise<void> {
   await repo.ensureReady();
-  // 闲时任务中断恢复：scheduler 是 app 单例、先于任何派发启动——此刻 DB 里的
-  // running 必属上一个 app 实例残留，安全置回 queued（session 保留供 resume 续跑）。
-  try {
-    const recovered = await offPeakRepo.recoverInterrupted(Date.now());
-    if (recovered > 0) {
-      log("info", `off-peak recovered ${recovered} interrupted task(s) back to queued`);
-    }
-  } catch (error) {
-    log(
-      "error",
-      `off-peak recoverInterrupted failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  // Off-Peak recovery is disabled with dispatch.
   schedulerReady = true;
   log("info", "cron scheduler started");
   requestTick();
