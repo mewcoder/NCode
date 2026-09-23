@@ -132,7 +132,9 @@ export function RemoteConnectionConnectingStep({
           >
             <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
             <span className="min-w-0 flex-1">{errorMessage}</span>
+            {/* NCode 暂时隐藏远程连接错误中的提交反馈入口，保留原按钮处理函数。 */}
             <Button
+              hidden
               type="button"
               variant="outline"
               size="sm"

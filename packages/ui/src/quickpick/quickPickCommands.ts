@@ -289,10 +289,13 @@ export function createQuickPickCommands({
     });
   }
 
+  // NCode 暂时隐藏官方反馈和产品文档命令，保留命令实现与调用处理函数。
   return commands.filter(
     (command) =>
       (supportsTerminal ||
         (command.id !== "toggle-terminal" && command.id !== "add-terminal-tab")) &&
-      (supportsReview || command.id !== "add-review-tab"),
+      (supportsReview || command.id !== "add-review-tab") &&
+      command.id !== "feedback" &&
+      command.id !== "product-docs",
   );
 }

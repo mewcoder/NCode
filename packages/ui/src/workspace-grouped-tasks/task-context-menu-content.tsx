@@ -173,8 +173,9 @@ export function GroupedTaskContextMenuContent({
       >
         {intl.formatMessage({ id: "appHeader.copySessionId" })}
       </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={onOpenTaskFeedback}>
+      {/* NCode 暂时隐藏分组任务菜单的提交反馈入口，保留处理函数。 */}
+      <ContextMenuSeparator hidden />
+      <ContextMenuItem hidden onSelect={onOpenTaskFeedback}>
         {intl.formatMessage({ id: "taskList.feedback" })}
       </ContextMenuItem>
     </ContextMenuContent>

@@ -1475,8 +1475,9 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
                                         id: "workspace.openFolder",
                                       })}
                                     </DropdownMenuItem>
+                                    {/* NCode 暂时隐藏远程工作区入口，保留连接处理。 */}
                                     {onOpenRemoteWorkspace ? (
-                                      <DropdownMenuItem onSelect={onOpenRemoteWorkspace}>
+                                      <DropdownMenuItem hidden onSelect={onOpenRemoteWorkspace}>
                                         <Cloud className="size-4" />
                                         {intl.formatMessage({
                                           id: "remote.trigger",
