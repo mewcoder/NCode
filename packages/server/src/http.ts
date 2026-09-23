@@ -19,23 +19,16 @@ import {
   ServiceCollection,
   IZCodeAgentService,
   createZCodeAgentConnectionScope,
-  IFileService,
-  IGitService,
-  ISystemService,
-  ITerminalService,
   IProviderProvisioningTargetService,
 } from "@zcode/services";
 import {
   formatLogPrefix,
-  formatZodError,
-  remoteTargetSchema,
   SERVER_REMOTE_PROTOCOL_VERSION,
   ZCODE_RPC_HOST_CAPABILITY_HEADER,
   ZCODE_VERSION,
   type ServerRemoteInfo,
   type ServerRemoteWorkspaceInfo,
 } from "@zcode/shared";
-import { connectRemote, createRemoteBackend, type RemoteConnection } from "./remote/index.js";
 import { createHostCapabilityStore } from "./hostCapability.js";
 
 function wrapWebSocket(ws: WebSocket): ISocket {
@@ -121,12 +114,13 @@ function setupChannelServer(
   });
 }
 
-/** 存储 web 模式下的远程连接，key 为随机 ID */
-const remoteConnections = new Map<string, RemoteConnection>();
-
-function generateId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
+// 暂时关闭官方 App 远控连接缓存；需要恢复时取消这些注释。
+// /** 存储 web 模式下的远程连接，key 为随机 ID */
+// const remoteConnections = new Map<string, RemoteConnection>();
+//
+// function generateId(): string {
+//   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+// }
 
 interface HttpServerOptions {
   serverId?: string;
@@ -342,6 +336,11 @@ export function createHttpServer(
   });
   app.get("/ws/host", upgradeTrustedHostWebSocket);
 
+  // 官方 App 远控 relay 已关闭；配置鉴权时仍先由上方中间件校验，通过后返回 404。
+  app.post("/api/connect-remote", (c) => c.notFound());
+  app.get("/ws/remote/:id", (c) => c.notFound());
+
+  /* 暂时停用官方 App 远控路由实现，保留代码以便后续恢复。
   // Web 模式下发起远程连接
   app.post("/api/connect-remote", async (c) => {
     const rawBody = await c.req.json();
@@ -395,6 +394,8 @@ export function createHttpServer(
       };
     }),
   );
+
+  */
 
   if (options.staticRoot?.trim()) {
     const staticRoot = options.staticRoot.trim();

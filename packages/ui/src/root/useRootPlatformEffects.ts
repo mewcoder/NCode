@@ -13,8 +13,6 @@ import { isRendererReloadNavigation } from "@/lib/rendererNavigation.js";
 import { useOptionalBaseWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { shouldPublishCompleteWorkspaceSnapshot } from "@/root/rootPlatformWorkspaceSync.js";
 import {
-  createShareImportIntent,
-  isShareImportIntentSame,
   resolveShareImportFailurePresentation,
   type ShareImportIntent,
 } from "@/root/shareImportIntent.js";
@@ -171,6 +169,7 @@ export function useRootPlatformEffects({
           openWorkspacePath(path);
         })
       : () => {};
+    /* 暂时停用原分享导入处理；需要恢复时还原此订阅回调。
     const disposeShareImport = platform.onShareImport
       ? platform.onShareImport((payload) => {
           const current = pendingShareImportRef.current ?? activeShareImportRef.current;
@@ -202,6 +201,7 @@ export function useRootPlatformEffects({
           });
         })
       : () => {};
+    */
     const disposeNotificationClick = platform.onTaskNotificationClick((taskId: string) => {
       logger.info("[Root] onTaskNotificationClick:", taskId);
       // 遍历所有 workspace 找到 taskId 所属的 workspace，然后激活对应 tab 并切换任务
@@ -277,7 +277,6 @@ export function useRootPlatformEffects({
       disposeNewTask();
       disposeOpenWorkspace();
       disposeOpenWorkspacePath();
-      disposeShareImport();
       disposeNotificationClick();
       disposeUpdateCheckResult();
     };
