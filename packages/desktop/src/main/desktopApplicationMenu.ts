@@ -5,6 +5,7 @@ import {
   getDesktopMenuMessage,
   isValidShortcutBinding,
   ZCODE_ENV,
+  ZCODE_PRODUCT_FLAVOR,
   type DesktopCommandId,
   type Locale,
 } from "@zcode/shared";
@@ -20,6 +21,8 @@ import {
 } from "./desktopCommandHandlers.js";
 
 const HELP_ZCODE_ENDPOINT_PRODUCTION_MENU_ID = "help.zcode-endpoint.production";
+const DESKTOP_DISPLAY_NAME =
+  app.isPackaged && ZCODE_PRODUCT_FLAVOR === "preview" ? "NCode Preview" : "NCode";
 
 export function getDesktopMenuLabel(
   locale: Locale,
@@ -93,7 +96,7 @@ function buildApplicationMenuTemplate(options: {
   const getLabel = (id: (typeof desktopMenuMessageIds)[keyof typeof desktopMenuMessageIds]) =>
     getDesktopMenuLabel(options.currentApplicationLocale, id);
   const getAppLabel = (id: (typeof desktopMenuMessageIds)[keyof typeof desktopMenuMessageIds]) =>
-    getLabel(id).replaceAll("{appName}", app.name);
+    getLabel(id).replaceAll("{appName}", DESKTOP_DISPLAY_NAME);
   const stdioTapState = readZCodeStdioTapDevState();
   const isLocalDevelopmentRuntime = !app.isPackaged;
   const currentZoomLevel = clampDesktopZoomLevel(options.currentZoomLevel ?? 0);
@@ -109,7 +112,7 @@ function buildApplicationMenuTemplate(options: {
     ...(process.platform === "darwin"
       ? [
           {
-            label: app.name,
+            label: DESKTOP_DISPLAY_NAME,
             submenu: [
               {
                 label: getLabel(desktopMenuMessageIds.helpAbout),

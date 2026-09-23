@@ -2,21 +2,25 @@
 
 set -euo pipefail
 
-APP_PATH="${1:-${ZCODE_MACOS_RELEASE_APP_PATH:-/Applications/ZCode.app}}"
-# 安装包身份与后端环境分轴：ZCODE_PREVIEW_IDENTITY=1 让生产后端的构建仍是 ZCode Preview。
-# 只认 "1"，与 CI workflow / release 门的精确比较同一套语义（其它拼写一律视为未开启）。
-is_preview_identity_requested() {
-  [[ "${ZCODE_PREVIEW_IDENTITY:-}" = "1" ]]
-}
+PREVIEW_IDENTITY="${ZCODE_PREVIEW_IDENTITY:-}"
+case "$PREVIEW_IDENTITY" in
+  ""|0) DEFAULT_APP_PATH="/Applications/NCode.app" ;;
+  1) DEFAULT_APP_PATH="/Applications/NCode Preview.app" ;;
+  *)
+    echo "[macos-release-doctor] invalid ZCODE_PREVIEW_IDENTITY=$PREVIEW_IDENTITY; expected 1 or 0" >&2
+    exit 1
+    ;;
+esac
+
+APP_PATH="${1:-${ZCODE_MACOS_RELEASE_APP_PATH:-$DEFAULT_APP_PATH}}"
 APP_BUNDLE_NAME="$(basename "$APP_PATH")"
-APP_DISPLAY_NAME="${APP_BUNDLE_NAME%.app}"
-APP_EXECUTABLE_NAME="${ZCODE_APP_EXECUTABLE_NAME:-$APP_DISPLAY_NAME}"
 
 if [ "${APP_PATH:-}" = "--help" ] || [ "${APP_PATH:-}" = "-h" ]; then
   cat <<'USAGE'
 Usage:
-  bash scripts/doctor-macos-release-app.sh /Applications/ZCode.app
-  ZCODE_MACOS_RELEASE_APP_PATH=/Applications/ZCode.app pnpm run doctor:macos-release
+  bash scripts/doctor-macos-release-app.sh /Applications/NCode.app
+  ZCODE_MACOS_RELEASE_APP_PATH=/Applications/NCode.app pnpm run doctor:macos-release
+  ZCODE_PREVIEW_IDENTITY=1 pnpm run doctor:macos-release
 
 Always validates the installed macOS release app with:
   codesign --verify --deep --strict <app>
@@ -103,12 +107,16 @@ validate_release_bundle() {
 }
 
 require_command codesign
+require_command plutil
 require_command spctl
 
 # 过去 release/notarization 成功只说明 DMG 通过了 gate，不能证明安装后的主 app
 # 能被 Gatekeeper 以 exec 类型放行。这里先 fail-closed 检查 bundle 结构和主可执行
 # 文件，再跑 codesign/spctl，避免安装不完整或签名损坏时误报发布成功。
 assert_bundle_dir "$APP_BUNDLE_NAME" "$APP_PATH"
+APP_EXECUTABLE_NAME="${ZCODE_APP_EXECUTABLE_NAME:-$(
+  plutil -extract CFBundleExecutable raw "$APP_PATH/Contents/Info.plist"
+)}"
 assert_executable "$APP_BUNDLE_NAME" "$APP_PATH/Contents/MacOS/$APP_EXECUTABLE_NAME"
 validate_release_bundle "$APP_BUNDLE_NAME" "$APP_PATH"
 

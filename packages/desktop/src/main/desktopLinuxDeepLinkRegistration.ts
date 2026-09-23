@@ -10,8 +10,11 @@ import {
 
 const LINUX_DEEP_LINK_DESKTOP_FILE = "zcode.desktop";
 const LINUX_DEEP_LINK_MIME_TYPE = "x-scheme-handler/zcode";
-// 归属标记：用于识别用户级 zcode.desktop 是否由本应用写入（历史所有版本都带这行 Comment）。
-const LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER = "Comment=ZCode Desktop App";
+// 保留旧标记以便识别并清理已有的用户级 zcode.desktop。
+const LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKERS = new Set([
+  "Comment=NCode Desktop App",
+  "Comment=ZCode Desktop App",
+]);
 
 type LinuxDesktopEnv = {
   APPIMAGE?: string;
@@ -23,6 +26,7 @@ interface RegisterLinuxDeepLinkProtocolOptions {
   executablePath: string;
   homeDir: string;
   productName?: string;
+  startupWMClass?: string;
   iconSourcePath?: string;
   env?: LinuxDesktopEnv;
   argv?: string[];
@@ -107,9 +111,11 @@ function createLinuxDeepLinkDesktopEntry(params: {
   executablePath: string;
   args?: string[];
   productName?: string;
+  startupWMClass?: string;
   iconName?: string;
 }): string {
-  const productName = params.productName ?? "ZCode";
+  const productName = params.productName ?? "NCode";
+  const startupWMClass = params.startupWMClass ?? productName;
   const iconName = params.iconName ?? "zcode";
   const command = {
     executablePath: params.executablePath,
@@ -118,14 +124,14 @@ function createLinuxDeepLinkDesktopEntry(params: {
   return [
     "[Desktop Entry]",
     `Name=${productName}`,
-    LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER,
+    "Comment=NCode Desktop App",
     `Exec=${formatDesktopExec(command)}`,
     "Terminal=false",
     "Type=Application",
     `Icon=${iconName}`,
     "Categories=Development;",
     `MimeType=${LINUX_DEEP_LINK_MIME_TYPE};`,
-    `StartupWMClass=${productName}`,
+    `StartupWMClass=${startupWMClass}`,
     "",
   ].join("\n");
 }
@@ -174,7 +180,7 @@ function isOwnedDesktopEntry(path: string): boolean {
     // 避免可清理的遗留条目被误判为用户自定义条目而永久残留。
     return content
       .split("\n")
-      .some((line) => line.replaceAll("\r", "").trim() === LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER);
+      .some((line) => LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKERS.has(line.replaceAll("\r", "").trim()));
   } catch {
     return false;
   }
@@ -229,6 +235,7 @@ export function registerLinuxDeepLinkProtocol(options: RegisterLinuxDeepLinkProt
   const desktopEntry = createLinuxDeepLinkDesktopEntry({
     ...command,
     productName: options.productName,
+    startupWMClass: options.startupWMClass,
   });
   let protocolRegistered = false;
   const runCommand = options.runCommand ?? runXdgCommand;

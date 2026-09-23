@@ -1813,7 +1813,10 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
   return win;
 }
 
-registerDeepLinkProtocol(logger, { iconPath: linuxDesktopIntegrationIconPath });
+registerDeepLinkProtocol(logger, {
+  iconPath: linuxDesktopIntegrationIconPath,
+  productName: ZCODE_PRODUCT_FLAVOR === "preview" ? "NCode Preview" : "NCode",
+});
 app.on("open-url", (event, url) => {
   event.preventDefault();
   const workspacePath = extractOpenWorkspacePathFromDeepLinkUrl(url);
