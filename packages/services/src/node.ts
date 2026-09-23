@@ -2475,7 +2475,7 @@ export function createLocalServices(options: {
             void originResolver.close().catch(() => undefined);
           },
         });
-        offPeakTaskService.startSync();
+        // Off-Peak is disabled; do not start its background polling and settlement loop.
         // 回写前向引用，供 zcodeAgentService 的 offPeak/create、offPeak/list 协议 handler 调用。
         offPeakTaskServiceForAgent = offPeakTaskService;
         return offPeakTaskService;

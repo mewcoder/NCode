@@ -3230,15 +3230,13 @@ export function createZCodeAgentService(
     runtimeLifecycleDisposable.dispose();
   }
 
-  // 3.12.2：远端灰度读取不能放进客户端就绪与创建命令：失败时串行重试会阻塞普通聊天。
-  // 注册只判断本地支持能力；灰度、套餐与模型准入仍由 offPeak/create handler 在取号前校验。
-  function isOffPeakToolSupported(params: {
+  // NCode 已关闭 Off-Peak 工具注册，避免同步无用的 CLI 策略请求。
+  function isOffPeakToolSupported(_params: {
     workspaceIdentity?: string;
     remoteSessionId?: string;
   }): boolean {
-    if (!options?.resolveOffPeakClientConfig || !options.resolveOffPeakTaskService) return false;
-    if (params.remoteSessionId) return false;
-    return !params.workspaceIdentity || !isRemoteWorkspaceIdentity(params.workspaceIdentity);
+    // Off-Peak is disabled on NCode; keep session creation off the tool-policy request path.
+    return false;
   }
 
   /**

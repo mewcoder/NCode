@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ComponentType,
   type SVGProps,
@@ -50,7 +49,6 @@ import {
   type OffPeakCreateBlockReason,
 } from "@/settings/offPeakUiPresentation.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
-import { useOffPeakEligibility } from "@/hooks/useOffPeakEligibility.js";
 import { useSettings } from "@/hooks/useSettingService.js";
 import { logger } from "@/logger.js";
 import {
@@ -364,25 +362,6 @@ function isOffPeakDetailNavigationId(automationId: string | null | undefined): b
   return Boolean(automationId?.trim().startsWith("offpeak-"));
 }
 
-/** 闲时轮尾卡跳转的并行解析路径；与 cron 的 resolveAutomationDetailNavigation 对称。 */
-function resolveOffPeakDetailNavigation(
-  tasks: readonly ZCodeOffPeakTask[],
-  offPeakTaskId: string | null | undefined,
-  listReady: boolean,
-  listError: string | null = null,
-):
-  | { status: "pending" }
-  | { status: "unavailable" }
-  | { status: "missing" }
-  | { status: "found"; target: ZCodeOffPeakTask } {
-  const targetId = offPeakTaskId?.trim();
-  if (!targetId || !listReady) return { status: "pending" };
-  // review：store.refresh 吞错保留旧列表；列表不可信时不能做 found/missing 终审。
-  if (listError) return { status: "unavailable" };
-  const target = tasks.find((task) => task.offPeakTaskId === targetId) ?? null;
-  return target ? { status: "found", target } : { status: "missing" };
-}
-
 interface AutomationActionsMenuProps {
   automation: ZCodeAutomation;
   busy: boolean;
@@ -535,7 +514,7 @@ export function AutomationsSection({
     providerSettingsRead.state.status === "ready" ? providerSettingsRead.state.view : null;
   const { status: entryStatus, label: entryLabel, retry: retryEntry } = useCodingPlanEntryGate();
   const { settings: sharedSettings, update: updateSharedSettings } = useSettings();
-  useOffPeakEligibility(sharedSettings, providerSettingsView?.revision);
+  // Off-Peak entries stay hidden without loading their config or task list.
 
   const automations = useAutomationManagementStore((state) => state.automations);
   const automationCreateLimitReached = automations.length >= AUTOMATION_CREATE_LIMIT;
@@ -565,13 +544,6 @@ export function AutomationsSection({
     (state) => state.takeNumberAvailabilityStatus,
   );
   const offPeakOperationId = useOffPeakTaskStore((state) => state.operationId);
-  const offPeakRefresh = useOffPeakTaskStore((state) => state.refresh);
-  const offPeakRefreshCodingPlanSupport = useOffPeakTaskStore(
-    (state) => state.refreshCodingPlanSupport,
-  );
-  const offPeakRefreshTakeNumberAvailability = useOffPeakTaskStore(
-    (state) => state.refreshTakeNumberAvailability,
-  );
   const offPeakCreate = useOffPeakTaskStore((state) => state.createTask);
   const offPeakUpdate = useOffPeakTaskStore((state) => state.updateTask);
   const offPeakPause = useOffPeakTaskStore((state) => state.pauseTask);
@@ -734,8 +706,7 @@ export function AutomationsSection({
       onOpenAutomationConsumed?.();
       return;
     }
-    // 闲时详情导航由下方 offpeak 分支统一 setTab("idle") + 消费；这里若先按
-    // 当前（可能尚未加载的）可见 tab 回退到 scheduled 并消费，会把 pending 的详情导航一并清掉。
+    // Off-Peak 深链由下方关闭分支消费。
     if (isOffPeakDetailNavigationId(openAutomationId)) return;
     const currentWorkspaceKey = workspacePath
       ? resolveWorkspaceKey({ workspacePath, workspaceIdentity })
@@ -766,60 +737,15 @@ export function AutomationsSection({
     workspacePath,
   ]);
 
-  // 服务端给出准确恢复时间；到点后重查。刷新期间及失败后继续禁入，直到成功返回 true。
-  useEffect(() => {
-    const nextTakeAt = offPeakTakeNumberAvailability?.nextTakeAt;
-    if (offPeakTakeNumberAvailability?.canTakeNumber !== false || nextTakeAt === undefined) return;
-    const delay = Math.max(0, nextTakeAt - Date.now()) + 100;
-    const timer = setTimeout(() => {
-      setNow(Date.now());
-      void offPeakRefreshTakeNumberAvailability(offPeakTaskService);
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [offPeakRefreshTakeNumberAvailability, offPeakTaskService, offPeakTakeNumberAvailability]);
-
-  // 额度 Tooltip 曾改成不会递减的绝对日期；按远端实现推进分钟边界，保持剩余时长准确。
-  useEffect(() => {
-    const nextTakeAt = offPeakTakeNumberAvailability?.nextTakeAt;
-    if (offPeakTakeNumberAvailability?.canTakeNumber !== false || nextTakeAt === undefined) return;
-    const remainingMs = nextTakeAt - Date.now();
-    if (remainingMs <= 0) return;
-    const minuteMs = 60_000;
-    const remainderMs = remainingMs % minuteMs;
-    const delay = (remainderMs === 0 ? minuteMs : remainderMs) + 50;
-    const timer = setTimeout(() => setNow(Date.now()), delay);
-    return () => clearTimeout(timer);
-  }, [now, offPeakTakeNumberAvailability]);
-
-  // 位次/状态轮询刷新（host offPeakTaskSync 写库，renderer 每 10s 读快照；无任务不轮）。
-  useEffect(() => {
-    if (view.mode !== "list" || offPeakTasks.length === 0) return;
-    const timer = setInterval(() => {
-      void offPeakRefresh(offPeakTaskService);
-    }, 10_000);
-    return () => clearInterval(timer);
-  }, [view.mode, offPeakTasks.length, offPeakRefresh, offPeakTaskService]);
-
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        refresh(zcodeAgentService),
-        offPeakRefresh(offPeakTaskService),
-        ...(offPeakGrayEnabled ? [offPeakRefreshCodingPlanSupport(offPeakTaskService)] : []),
-      ]);
+      await refresh(zcodeAgentService);
       setNow(Date.now());
     } finally {
       setRefreshing(false);
     }
-  }, [
-    offPeakGrayEnabled,
-    offPeakRefresh,
-    offPeakRefreshCodingPlanSupport,
-    offPeakTaskService,
-    refresh,
-    zcodeAgentService,
-  ]);
+  }, [refresh, zcodeAgentService]);
 
   // New task 页模板卡跳转过来：消费预填草稿 → 切 idle tab + 打开创建表单预填。
   useEffect(() => {
@@ -883,50 +809,8 @@ export function AutomationsSection({
     );
   }, [intl]);
 
-  // 会话内 OffPeakCreate 由 agent 直接落库，不经过 UI store；store 的 loading 初值也
-  // 是 false（"未加载"与"已加载"不可分）。因此每次 offpeak 导航都强制刷新列表，并以
-  // 「本次导航 id 的刷新已完成」作为唯一就绪信号，避免拿陈旧/空列表误判 targetNotFound。
-  const [offPeakNavRefreshed, setOffPeakNavRefreshed] = useState<{
-    id: string | null;
-    error: string | null;
-  }>({ id: null, error: null });
   useEffect(() => {
-    if (!isOffPeakDetailNavigationId(openAutomationId)) return;
-    let disposed = false;
-    void offPeakRefresh(offPeakTaskService).finally(() => {
-      if (disposed) return;
-      // review：refresh 不 reject，失败只写 store.error；把它随就绪信号一起带出。
-      setOffPeakNavRefreshed({
-        id: openAutomationId ?? null,
-        error: useOffPeakTaskStore.getState().error ?? null,
-      });
-    });
-    return () => {
-      disposed = true;
-    };
-  }, [openAutomationId, offPeakRefresh, offPeakTaskService]);
-
-  useEffect(() => {
-    // 闲时轮尾卡携带 offpeak- 前缀 id，从并行路径解析进 offpeak-edit 视图；
-    // 不能落进 cron 解析（必然 missing 并误报 targetNotFound）。
     if (isOffPeakDetailNavigationId(openAutomationId)) {
-      const result = resolveOffPeakDetailNavigation(
-        offPeakTasks,
-        openAutomationId,
-        offPeakNavRefreshed.id === openAutomationId,
-        offPeakNavRefreshed.error,
-      );
-      if (result.status === "pending") return;
-      if (result.status === "found") {
-        setTab("idle");
-        setView({ mode: "offpeak-edit", task: result.target });
-      } else if (result.status === "unavailable") {
-        // 列表刷新失败：落到闲时 tab 并提示加载失败，不误报"任务不存在"。
-        setTab("idle");
-        toast(intl.formatMessage({ id: "offPeak.nav.listUnavailable" }));
-      } else {
-        toast(intl.formatMessage({ id: "automations.error.targetNotFound" }));
-      }
       onOpenAutomationConsumed?.();
       return;
     }
@@ -950,8 +834,6 @@ export function AutomationsSection({
     automations,
     intl,
     loadedWorkspaceKey,
-    offPeakNavRefreshed,
-    offPeakTasks,
     onOpenAutomationConsumed,
     openAutomationId,
     workspaceIdentity,
