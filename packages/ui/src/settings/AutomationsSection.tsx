@@ -866,13 +866,8 @@ export function AutomationsSection({
       durationMs: 8000,
       position: "top-center",
       variant: "info",
-      actionLabel:
-        entryStatus === "loading"
-          ? undefined
-          : (entryLabel ??
-            intl.formatMessage({
-              id: "settings.modelProvider.codingPlan.upgrade",
-            })),
+      // 隐藏官方套餐升级动作，仅在查询失败时保留重试入口。
+      actionLabel: entryStatus === "error" ? entryLabel : undefined,
       onAction: entryStatus === "error" ? retryEntry : handleOpenCodingPlanUpgrade,
       dismissible: true,
       dismissLabel: intl.formatMessage({ id: "common.close" }),

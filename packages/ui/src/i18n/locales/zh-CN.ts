@@ -550,7 +550,7 @@ const zhCN: Record<string, string> = {
   "logout.confirm.descriptionDefault": "断开连接后会重启 App，之后需要重新连接账号。",
   "logout.confirm.ok": "断开连接并重启",
   "logout.confirm.cancel": "取消",
-  "sidebar.profile.notLoggedIn": "连接使用",
+  "sidebar.profile.notLoggedIn": "NCode",
   "app.selectFile": "选择文件以开始",
   "app.workspace": "工作区",
   "browser.title": "浏览器",

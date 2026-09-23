@@ -331,6 +331,8 @@ export function CodingPlanStatusPanel({
   const startPlanPreview = useStartPlanPreview({
     enabled: startPlanCardVisible,
   });
+  // 官方账号注册入口暂停；恢复时将此值改为 true。
+  const registrationHintVisible = false;
   const shouldShowBigModelRegistrationHint =
     isChecking &&
     providerIcon === BIGMODEL_PROVIDER_ID &&
@@ -482,7 +484,7 @@ export function CodingPlanStatusPanel({
         }
         onUnlink={canDisconnectProvider ? onDisconnect : undefined}
       />
-    ) : shouldShowBigModelRegistrationHint ? (
+    ) : registrationHintVisible && shouldShowBigModelRegistrationHint ? (
       <BigModelRegistrationHint onOpenRegistration={onOpenRegistration} />
     ) : inlineDisconnectVisible ? (
       <CodingPlanStatusMeta

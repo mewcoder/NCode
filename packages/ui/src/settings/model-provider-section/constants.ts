@@ -32,16 +32,17 @@ export interface PresetProviderSpec {
 }
 
 export const PRESET_PROVIDER_SPECS: PresetProviderSpec[] = [
-  {
-    id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    displayName: "Z.ai",
-    oauthProviderId: ZAI_PROVIDER_ID,
-  },
-  {
-    id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-    displayName: "BigModel",
-    oauthProviderId: BIGMODEL_PROVIDER_ID,
-  },
+  // 暂时隐藏内置官方订阅入口；保留定义，便于后续按需恢复。
+  // {
+  //   id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
+  //   displayName: "Z.ai",
+  //   oauthProviderId: ZAI_PROVIDER_ID,
+  // },
+  // {
+  //   id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
+  //   displayName: "BigModel",
+  //   oauthProviderId: BIGMODEL_PROVIDER_ID,
+  // },
 ];
 
 export const PRESET_PROVIDER_SPEC_BY_ID = new Map<BuiltinModelProviderId, PresetProviderSpec>(

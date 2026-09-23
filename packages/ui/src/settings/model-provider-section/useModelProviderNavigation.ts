@@ -92,6 +92,8 @@ export function useModelProviderNavigation({
   const codingPlanItems = useMemo(
     () =>
       CODING_PLAN_PROVIDER_SPECS.filter((spec) =>
+        // 隐藏模型设置中的官方 Start Plan 入口，保留其连接状态处理。
+        !isStartPlanModelProviderId(spec.id) &&
         shouldShowCodingPlanForProviderFamilyDomain(spec.oauthProviderId, providerFamilyDomain),
       ).map((spec) => {
         const provider = modelProviders.find((item) => item.providerId === spec.id) ?? null;
@@ -299,9 +301,10 @@ export function useModelProviderNavigation({
         ),
       ));
 
+  // 回退只指向当前可见的侧栏节点，避免隐藏的 Start Plan 节点让详情一直加载。
   const fallbackNodeKey = resolveFallbackModelProviderNodeKey({
     selectedNodeKey,
-    selectableNavigationItems,
+    selectableSideNavigationItems,
   });
   useEffect(() => {
     const hasSelectedNode = selectedNodeKey ? sideNavigationItemByKey.has(selectedNodeKey) : false;
@@ -372,14 +375,14 @@ function resolvePresetFamilyStatusProvider({
 
 function resolveFallbackModelProviderNodeKey({
   selectedNodeKey,
-  selectableNavigationItems,
+  selectableSideNavigationItems,
 }: {
   selectedNodeKey: string | null;
-  selectableNavigationItems: Array<
+  selectableSideNavigationItems: Array<
     Exclude<ModelProviderNavGroup["items"][number], { type: "codingPlanLoading" }>
   >;
 }): string | null {
-  const initialConnectionItem = pickInitialConnectionNavigationItem(selectableNavigationItems);
+  const initialConnectionItem = pickInitialConnectionNavigationItem(selectableSideNavigationItems);
   const initialSideNodeKey = initialConnectionItem
     ? resolveSideNavigationNodeKeyForConnectionItem(initialConnectionItem)
     : null;
@@ -392,7 +395,7 @@ function resolveFallbackModelProviderNodeKey({
   // 初始化只在没有有效选中项时发生；如果当前用户选择仍有效，上层 effect 不会调用 fallback 抢焦点。
   return (
     initialSideNodeKey ??
-    resolveSideNavigationNodeKeyForConnectionItem(selectableNavigationItems[0] ?? null)
+    resolveSideNavigationNodeKeyForConnectionItem(selectableSideNavigationItems[0] ?? null)
   );
 }
 

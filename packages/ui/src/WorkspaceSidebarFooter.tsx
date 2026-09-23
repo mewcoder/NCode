@@ -32,9 +32,9 @@ import {
   LogInIcon,
   LogOut,
   Maximize,
+  Monitor,
   Palette,
   Settings,
-  User,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -155,7 +155,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
               <span className="sr-only">{intl.formatMessage({ id: "common.loading" })}</span>
             </>
           ) : (
-            <User className="size-4" />
+            <Monitor className="size-4" />
           )}
         </AvatarFallback>
       </Avatar>

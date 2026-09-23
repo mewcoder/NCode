@@ -27,7 +27,7 @@ import { reportUiLaunchToInput } from "@/lib/uiPerfArmsTelemetry.js";
 import { countAllUnreadTasks } from "@/lib/unreadTaskCount.js";
 import {
   isProviderStartupSyncPending,
-  shouldEnableProviderAvailabilityLoginEntryGuard,
+  // shouldEnableProviderAvailabilityLoginEntryGuard,
   shouldResolveProviderStartupState,
   shouldBlockRootRender,
   shouldShowRootStartupLoading,
@@ -49,8 +49,8 @@ import { useRemoteWorkspaceTabLifecycle } from "@/root/useRemoteWorkspaceTabLife
 import { useRootProviderStateRefresh } from "@/root/useRootProviderStateRefresh.js";
 import { useModelSelectionServiceView } from "@/hooks/useModelSelectionView.js";
 import { useRootProviderSettingsSnapshot } from "@/root/useRootProviderSettingsSnapshot.js";
-import { useRootOAuthEffects } from "@/root/useRootOAuthEffects.js";
-import { consumeZcodeJwtInvalidRestartMarker } from "@/root/zcodeJwtInvalidRestartMarker.js";
+// import { useRootOAuthEffects } from "@/root/useRootOAuthEffects.js";
+// import { consumeZcodeJwtInvalidRestartMarker } from "@/root/zcodeJwtInvalidRestartMarker.js";
 import { useDesktopNativeThemeSync } from "@/root/useDesktopNativeThemeSync.js";
 import { useRootPlatformEffects } from "@/root/useRootPlatformEffects.js";
 import { useRootWorkspaceActions } from "@/root/useRootWorkspaceActions.js";
@@ -73,7 +73,7 @@ import { setSessionOpenArmsReporter } from "@/lib/sessionOpenArmsTelemetry.js";
 import { setSendFunnelArmsReporter } from "@/lib/sendFunnelArmsTelemetry.js";
 import { RootStartupLoading } from "@/root/RootStartupLoading.js";
 import { resolveProviderAvailabilityState } from "@/lib/modelProviderAvailability.js";
-import { useProviderAvailabilityLoginEntryGuard } from "@/root/useProviderAvailabilityLoginEntryGuard.js";
+// import { useProviderAvailabilityLoginEntryGuard } from "@/root/useProviderAvailabilityLoginEntryGuard.js";
 import { ensureProviderFamilyDomainMigration } from "@/lib/providerFamilyDomainMigration.js";
 import { useSettings } from "@/hooks/useSettingService.js";
 import { CLOSE_ACTIVE_CONTEXT_REQUEST_EVENT } from "@/lib/closeActiveContext.js";
@@ -119,7 +119,7 @@ export function Root(props: RootProps) {
           <PlatformProvider platform={props.platform}>
             <StoreProvider
               broadcastService={props.services.broadcastService}
-              initialIsRestoringOAuthSession
+              /* initialIsRestoringOAuthSession */
             >
               <TabStoreProvider>
                 <DiffsWorkerPoolProvider>
@@ -188,26 +188,28 @@ function RootInner({
 
   const { intl, locale } = useZCodeIntl();
   const theme = useZCodeStore((state) => state.theme);
-  const user = useZCodeStore((state) => state.user);
+  // const user = useZCodeStore((state) => state.user);
   const isRestoringOAuthSession = useZCodeStore((state) => state.isRestoringOAuthSession);
   const setUser = useZCodeStore((state) => state.setUser);
-  const setIsRestoringOAuthSession = useZCodeStore((state) => state.setIsRestoringOAuthSession);
+  // const setIsRestoringOAuthSession = useZCodeStore((state) => state.setIsRestoringOAuthSession);
   const setOAuthError = useZCodeStore((state) => state.setOAuthError);
-  const oauthPollingActive = useZCodeStore((state) => state.oauthPollingActive);
-  const setOAuthPollingActive = useZCodeStore((state) => state.setOAuthPollingActive);
-  const markOAuthSuccess = useZCodeStore((state) => state.markOAuthSuccess);
+  // const oauthPollingActive = useZCodeStore((state) => state.oauthPollingActive);
+  // const setOAuthPollingActive = useZCodeStore((state) => state.setOAuthPollingActive);
+  // const markOAuthSuccess = useZCodeStore((state) => state.markOAuthSuccess);
   const {
     settings: appSettings,
     refresh: refreshAppSettings,
     update: updateAppSettings,
   } = useSettings();
   const [welcomeScreenOpenReason, setWelcomeScreenOpenReason] =
-    useState<WelcomeScreenOpenReason | null>(() =>
-      consumeZcodeJwtInvalidRestartMarker() ? "session-expired" : null,
+    useState<WelcomeScreenOpenReason | null>(
+      // 官方登录暂停；恢复 JWT 过期登录页时取消注释此初始值：
+      // consumeZcodeJwtInvalidRestartMarker() ? "session-expired" : null,
+      null,
     );
   const [providerFamilyDomainMigrationComplete, setProviderFamilyDomainMigrationComplete] =
     useState(false);
-  const loginEntryRequest = useZCodeStore((state) => state.loginEntryRequest);
+  // const loginEntryRequest = useZCodeStore((state) => state.loginEntryRequest);
   const rootModelSelectionRead = useModelSelectionServiceView(services.modelSelectionService);
   const rootModelSelectionView =
     rootModelSelectionRead.state.status === "ready" ? rootModelSelectionRead.state.view : null;
@@ -223,10 +225,12 @@ function RootInner({
         </Button>
       </div>
     ) : null;
+  /* 官方登录门禁已暂停；保留读取器供恢复原门禁时使用。
   const readRootModelSelectionView = useCallback(
     () => services.modelSelectionService.getView(),
     [services.modelSelectionService],
   );
+  */
   const [remoteConnectionDialogOpen, setRemoteConnectionDialogOpen] = useState(false);
   const [remoteConnectionOpenPreference, setRemoteConnectionOpenPreference] =
     useState<RemoteConnectionOpenPreference | null>(null);
@@ -409,6 +413,7 @@ function RootInner({
     modelSelectionViewHydrated:
       rootProviderAvailability.hydrated || rootModelSelectionRead.state.status === "error",
   });
+  /* 官方账号登录门禁已暂停；保留原实现，恢复时取消注释。
   const providerAvailabilityLoginEntryGuardEnabled =
     shouldEnableProviderAvailabilityLoginEntryGuard();
   const { startupCheckCompleted: providerAvailabilityStartupCheckCompleted } =
@@ -436,6 +441,8 @@ function RootInner({
         });
       },
     });
+  */
+  const providerAvailabilityStartupCheckCompleted = true;
   const isResolvingProviderStartupState = shouldResolveProviderStartupState({
     providerStartupSyncPending,
     providerAvailabilityStartupCheckCompleted,
@@ -462,14 +469,16 @@ function RootInner({
   const handleOpenDirectoryBrowser = useCallback(() => {
     setDirectoryBrowserOpen(true);
   }, []);
+  /* 官方账号 OAuth 已暂停；保留重新认证回调供恢复时使用。
   const handleReauthenticationRequired = useCallback(() => {
     setWelcomeScreenOpenReason("session-expired");
   }, []);
+  */
   const {
     setWorkspaceActionError,
     startDraftInWorkspace,
     startNewTaskFromActiveWorkspace,
-    handleLogout,
+    // handleLogout,
     handleSelectProject,
     handleSelectConversationWorkspace,
     handleResolveConversationWorkspace,
@@ -496,10 +505,10 @@ function RootInner({
     updateAppSettings,
     setOAuthError,
     setUser,
-    onProviderFamilyDomainClearedAfterLogout: () => {
+    /* onProviderFamilyDomainClearedAfterLogout: () => {
       setWelcomeScreenOpenReason("logout-provider-required");
     },
-    userId: user?.id,
+    userId: user?.id, */
     onOpenRemoteConnection: allowRemoteWorkspace ? handleOpenRemoteConnection : undefined,
   });
   const handleRemoteWorkspaceActivated = useCallback(
@@ -673,6 +682,7 @@ function RootInner({
     });
   }, [platform]);
 
+  /* 官方账号 OAuth session 恢复和轮询已暂停；保留原接入点供上游适配。
   useRootOAuthEffects({
     accountIntentKey: JSON.stringify([
       user?.id,
@@ -691,6 +701,15 @@ function RootInner({
     markOAuthSuccess,
     onReauthenticationRequired: handleReauthenticationRequired,
   });
+  */
+  useEffect(() => {
+    const disposeOAuthCallback = platform.onOAuthCallback(() => {
+      // 官方账号登录已停用；消费排队回调并忽略，避免 Desktop 启动门禁等待 OAuth 处理完成。
+    });
+    // 保留 RendererReady，确保主进程仍投递 workspace deep link 等通用启动事件。
+    platform.notifyRendererReady();
+    return disposeOAuthCallback;
+  }, [platform]);
 
   useEffect(
     () =>
@@ -837,6 +856,7 @@ function RootInner({
     );
   }, [isSettingsTabActive, workspaceShellPath]);
 
+  /* 官方登录请求不再打开 WelcomeScreen；保留原请求处理供恢复时使用。
   useEffect(() => {
     if (!loginEntryRequest) {
       return;
@@ -849,6 +869,7 @@ function RootInner({
   const handleOpenLoginEntry = () => {
     setWelcomeScreenOpenReason("manual-login");
   };
+  */
   const handleWelcomeScreenComplete = useCallback(
     async (reason: LoginCompleteReason) => {
       await refreshAppSettings();
@@ -938,9 +959,9 @@ function RootInner({
     onCreateTask: handleCreateTask,
     onOpenWorkspace: handleOpenWorkspace,
     allowOpenWorkspace,
-    onLogin: !user ? handleOpenLoginEntry : undefined,
-    onLogout: user ? handleLogout : undefined,
-    user,
+    onLogin: undefined, // !user ? handleOpenLoginEntry : undefined,
+    onLogout: undefined, // user ? handleLogout : undefined,
+    user: null, // user,
   };
 
   if (isStartupRenderBlocked) {
@@ -1035,9 +1056,9 @@ function RootInner({
             remoteWorkspaceSessions={remoteWorkspaceSessions}
             allowRemoteWorkspace={allowRemoteWorkspace}
             handleBackFromSettings={handleBackFromSettings}
-            handleLogout={user ? handleLogout : undefined}
-            onLogin={!user ? handleOpenLoginEntry : undefined}
-            user={user}
+            handleLogout={undefined /* user ? handleLogout : undefined */}
+            onLogin={undefined /* !user ? handleOpenLoginEntry : undefined */}
+            user={null /* user */}
             reconnectingRemoteWorkspaceKeys={reconnectingRemoteWorkspaceKeys}
             remoteWorkspaceErrorByWorkspaceKey={remoteWorkspaceErrorByWorkspaceKey}
             reconnectingRemoteWorkspaceLogsByWorkspaceKey={

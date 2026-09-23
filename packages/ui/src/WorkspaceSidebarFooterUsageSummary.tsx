@@ -450,9 +450,10 @@ export function WorkspaceSidebarFooterUsageSummaryContent({
         <BarChart3Icon className="size-4" />
         {intl.formatMessage({ id: "sidebar.usage.plan.openStats" })}
       </DropdownMenuItem>
-      {/* 产品要求：升级入口始终显示；未解析出当前套餐时由当前 provider family 决定品牌。 */}
+      {/* 检查失败时保留重试；套餐状态正常时隐藏官方升级入口。 */}
       <DropdownMenuItem
         data-testid={TID_SIDEBAR_CODING_PLAN_UPGRADE_BUTTON}
+        hidden={entryGate.status === "ready"}
         disabled={entryGate.status === "loading"}
         aria-busy={entryGate.status === "loading"}
         onSelect={() => {

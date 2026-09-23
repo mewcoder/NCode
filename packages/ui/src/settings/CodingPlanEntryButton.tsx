@@ -26,9 +26,11 @@ export function CodingPlanEntryButton({
 }: ComponentProps<typeof Button> & { bypassGate?: boolean }) {
   const gate = useCodingPlanEntryGate();
   const status = bypassGate ? "ready" : gate.status;
+  // 隐藏官方套餐购买与升级入口；加载反馈和失败后的重试仍保留。
   return (
     <Button
       {...props}
+      hidden={status === "ready"}
       disabled={disabled || status === "loading"}
       aria-label={status === "ready" ? props["aria-label"] : gate.label}
       aria-busy={status === "loading"}

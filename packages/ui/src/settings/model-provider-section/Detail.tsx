@@ -244,7 +244,6 @@ export function ModelProviderSectionDetail({
   onDelete,
   onReorderProviderModels,
   onTestModel,
-  onCodingPlanLogin,
   onRetryCodingPlan,
   onCodingPlanDisconnect,
   onOpenApiKeyUrl,
@@ -391,7 +390,16 @@ export function ModelProviderSectionDetail({
   }, [selectedItemKey]);
 
   if (!selectedNavItem) {
-    return <ModelProviderLoadingCard loadingLabel={loadingLabel} />;
+    return presetLoading ? (
+      <ModelProviderLoadingCard loadingLabel={loadingLabel} />
+    ) : (
+      <div
+        role="status"
+        className="rounded-xl border border-border bg-surface p-4 text-ui-base text-foreground-subtle"
+      >
+        {intl.formatMessage({ id: "settings.modelProvider.empty" })}
+      </div>
+    );
   }
 
   if (selectedNavItem.type === "preset") {
@@ -518,28 +526,27 @@ export function ModelProviderSectionDetail({
     const handleUpgradePlansVisibleChange = (visible: boolean) => {
       setUpgradePlansVisibleProviderId(visible ? selectedNavItem.presetId : null);
     };
+    /* 官方套餐购买入口暂停；恢复时重新启用此判断。
     const purchaseChoiceBannersVisible =
       statusPanelViewState.displayStatus === "notPurchased" &&
       (selectedNavItem.oauthProviderId === ZAI_PROVIDER_ID ||
         (selectedNavItem.oauthProviderId === BIGMODEL_PROVIDER_ID &&
           codingPlanPurchaseTokenAuthenticated));
+    */
+    const purchaseChoiceBannersVisible = false;
+    /* 官方套餐 OAuth 登录停用；恢复时可重新启用未连接状态下的套餐入口。
     const anonymousPurchaseChoiceBannersVisible =
       (selectedNavItem.oauthProviderId === BIGMODEL_PROVIDER_ID ||
         selectedNavItem.oauthProviderId === ZAI_PROVIDER_ID) &&
       statusPanelViewState.displayStatus === "disconnected";
+    */
+    const anonymousPurchaseChoiceBannersVisible = false;
     const handlePurchaseChoiceSelect = (
       audience: PurchaseAudience,
       options: { initialTeamPlanKey?: string; eventText?: string } = {},
     ) => {
       if (resolvePurchaseChoiceSelectionIntent(statusPanelViewState.displayStatus) === "login") {
-        // 未登录时个人/团队套餐必须先建立对应 provider 的 OAuth 身份。
-        // 直接打开购买面板会绕过账号态，导致后续价格/订单接口只能再报 oauth_required。
-        onCodingPlanLogin(
-          selectedNavItem.presetId,
-          selectedNavItem.oauthProviderId,
-          selectedNavItem.providerName,
-          selectedNavItem.status,
-        );
+        // 官方套餐 OAuth 登录已停用，不再从购买入口发起登录。
         return;
       }
       const nextFunnelContext = createCodingPlanFunnelContext({
@@ -601,6 +608,7 @@ export function ModelProviderSectionDetail({
       ) : null;
 
     if (shouldShowDedicatedProviderDetail && dedicatedProvider) {
+      // 官方套餐 OAuth 登录入口已停用，保留状态展示及已连接账号管理。
       const statusPanel = (
         <CodingPlanStatusPanel
           providerId={selectedNavItem.presetId}
@@ -650,11 +658,9 @@ export function ModelProviderSectionDetail({
               : undefined
           }
           disconnectLoading={codingPlanDisconnectProviderId === selectedNavItem.presetId}
-          // Plan Card 在未登录/登录失效时仍然是用户当前选中的入口。
-          // 之前详情页没有打开状态卡内置登录动作，导致用户能进入 Coding tab 却只能看到“未连接”文案。
-          loginActionVisible
+          loginActionVisible={false}
           loginActionPlacement="trailing"
-          reloginOnFailure={!upgradePlansVisible && reloginOnFailure}
+          reloginOnFailure={false}
           onRetry={
             retryTeamPlan ??
             (!upgradePlansVisible &&
@@ -668,17 +674,7 @@ export function ModelProviderSectionDetail({
               ? onRetryCodingPlan
               : undefined)
           }
-          onLogin={(options) => {
-            return onCodingPlanLogin(
-              selectedNavItem.presetId,
-              selectedNavItem.oauthProviderId,
-              selectedNavItem.providerName,
-              // 查看套餐接口要求业务 OAuth 仍有效；已购买状态下的“重新链接”不能只静默刷新 key，
-              // 否则 OAuth 过期时点击没有可见反馈。升级态的重连强制走重新登录路径。
-              upgradePlansVisible ? "unavailable" : selectedNavItem.status,
-              options,
-            );
-          }}
+          onLogin={undefined}
           onOpenUpgradePlans={(options) => {
             openCodingPlanUpgrade({
               providerId: selectedNavItem.presetId,
@@ -719,6 +715,7 @@ export function ModelProviderSectionDetail({
       );
     }
 
+    // 官方套餐 OAuth 登录入口已停用，保留状态展示及已连接账号管理。
     return (
       <ProviderFamilyDetailShell header={codingPlanFamilyHeader}>
         <div className="space-y-3">
@@ -727,9 +724,7 @@ export function ModelProviderSectionDetail({
             providerName={selectedNavItem.providerName}
             status={selectedNavItem.status}
             viewState={statusPanelViewState}
-            // 未登录状态下右侧只渲染 Plan Card，不再回退到 API Key 表单。
-            // 因此登录入口必须留在 Plan Card 本身，否则用户进入 Coding tab 后没有下一步动作。
-            loginActionVisible
+            loginActionVisible={false}
             loginActionPlacement="trailing"
             purchaseUrl={selectedNavItem.purchaseUrl}
             planLevel={selectedNavItem.planLevel}
@@ -759,16 +754,8 @@ export function ModelProviderSectionDetail({
             mcpQuotaLimit={selectedNavItem.mcpQuotaLimit ?? null}
             authError={codingPlanAuthError}
             onOpenRegistration={onOpenBigModelRegistration}
-            onLogin={(options) => {
-              return onCodingPlanLogin(
-                selectedNavItem.presetId,
-                selectedNavItem.oauthProviderId,
-                selectedNavItem.providerName,
-                selectedNavItem.status,
-                options,
-              );
-            }}
-            reloginOnFailure={!upgradePlansVisible && reloginOnFailure}
+            onLogin={undefined}
+            reloginOnFailure={false}
             onRetry={
               retryTeamPlan ??
               (!upgradePlansVisible &&
