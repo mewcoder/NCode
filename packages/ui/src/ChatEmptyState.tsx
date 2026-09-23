@@ -397,8 +397,10 @@ export function ChatEmptyWorkspacePreviewMenu({
               <span>{intl.formatMessage({ id: "workspace.openFolder" })}</span>
             </DropdownMenuItem>
           ) : null}
+          {/* NCode 暂时隐藏远程工作区入口，保留菜单项与连接实现。 */}
           {canUseRemoteWorkspace ? (
             <DropdownMenuItem
+              hidden
               data-testid={TID_COMPOSER_REMOTE_CONNECTION}
               onSelect={() => {
                 // 打开远程弹窗时必须让 DropdownMenu 执行默认关闭流程。

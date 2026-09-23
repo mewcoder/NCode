@@ -71,6 +71,7 @@ export function WorkspaceHelpMenuButton({
             type="button"
             variant="ghost"
             size="icon-md"
+            hidden={!isDesktop}
             // Settings 页会把帮助按钮绝对定位在 Electron 顶部拖拽区上方。
             // 只依赖外层容器 no-drag 时，真实 trigger 仍可能被标题栏 drag 区吞掉点击。
             className={cn(
@@ -88,19 +89,20 @@ export function WorkspaceHelpMenuButton({
         align="end"
         className="min-w-0 w-max [&_[data-slot=dropdown-menu-item]]:pr-6"
       >
-        <DropdownMenuItem onSelect={helpMenuActions.openProductDocs}>
+        {/* NCode 暂时隐藏官方文档、社区、反馈和功能建议入口；保留处理函数供后续适配上游。 */}
+        <DropdownMenuItem hidden onSelect={helpMenuActions.openProductDocs}>
           <BookOpenIcon className="size-4" />
           {intl.formatMessage({ id: "workspaceHeader.help.docs" })}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={handleOpenCommunity}>
+        <DropdownMenuItem hidden onSelect={handleOpenCommunity}>
           <UsersIcon className="size-4" />
           {intl.formatMessage({ id: "workspaceHeader.help.community" })}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={helpMenuActions.openIssueReport}>
+        <DropdownMenuItem hidden onSelect={helpMenuActions.openIssueReport}>
           <MessageSquareIcon className="size-4" />
           {intl.formatMessage({ id: "workspaceHeader.help.issueReport" })}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={openFeatureRequest}>
+        <DropdownMenuItem hidden onSelect={openFeatureRequest}>
           <LightbulbIcon className="size-4" />
           {intl.formatMessage({ id: "workspaceHeader.help.productRequest" })}
         </DropdownMenuItem>
@@ -108,7 +110,7 @@ export function WorkspaceHelpMenuButton({
             资源管理器只能从这里进；Web 端没有该窗口，不渲染。 */}
         {isDesktop ? (
           <>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator hidden />
             <DropdownMenuItem
               data-testid={TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER}
               onSelect={handleOpenResourceManager}

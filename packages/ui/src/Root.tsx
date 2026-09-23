@@ -509,7 +509,8 @@ function RootInner({
       setWelcomeScreenOpenReason("logout-provider-required");
     },
     userId: user?.id, */
-    onOpenRemoteConnection: allowRemoteWorkspace ? handleOpenRemoteConnection : undefined,
+    // NCode 暂时隐藏 WSL UNC 路径转入远程连接的入口；继续按普通路径打开。
+    onOpenRemoteConnection: undefined,
   });
   const handleRemoteWorkspaceActivated = useCallback(
     ({

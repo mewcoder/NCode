@@ -288,8 +288,10 @@ export function ChatErrorBanner({
 
         {/* 错误横幅本身就是异常态，不能再经过 Radix Tooltip 的 Popper/Slot 状态链。
             这里改成普通 Button，避免无可用模型等错误触发横幅时发生 Maximum update depth 循环。 */}
+        {/* NCode 暂时隐藏错误横幅中的提交反馈入口，保留原按钮处理函数。 */}
         {!modelConfigMissing ? (
           <Button
+            hidden
             type="button"
             variant="outline"
             size="sm"

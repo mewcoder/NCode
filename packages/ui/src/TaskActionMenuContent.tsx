@@ -4,11 +4,13 @@ interface TaskActionMenuItemProps {
   children: React.ReactNode;
   "data-testid"?: string;
   disabled?: boolean;
+  hidden?: boolean;
   onSelect?: () => void;
   title?: string;
 }
 
 interface TaskActionMenuSeparatorProps {
+  hidden?: boolean;
   key?: string;
 }
 
@@ -196,10 +198,11 @@ export function TaskActionMenuContent({
           </Item>
         </>
       ) : null}
+      {/* NCode 暂时隐藏任务菜单的提交反馈入口，保留原菜单项和处理函数。 */}
       {onOpenTaskFeedback ? (
         <>
-          <Separator />
-          <Item disabled={taskTargetActionsDisabled} onSelect={onOpenTaskFeedback}>
+          <Separator hidden />
+          <Item hidden onSelect={onOpenTaskFeedback}>
             {/* 任务菜单之前只有复制日志/路径，用户遇到任务问题时还要手动回到反馈中心。
                 “反馈问题”不是任务管理动作，单独放在菜单底部更符合兜底求助入口的层级。 */}
             {intl.formatMessage({ id: "taskList.feedback" })}

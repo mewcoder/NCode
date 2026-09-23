@@ -248,6 +248,7 @@ async function openFeedback(
   targetWindow?: BrowserWindow | null,
   fetchRemoteConfig?: () => Promise<unknown>,
 ) {
+  return; // NCode disables feedback before requesting official configuration.
   let remoteConfig: unknown;
   let localConfig: unknown;
   try {

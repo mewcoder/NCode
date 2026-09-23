@@ -335,6 +335,8 @@ function buildApplicationMenuTemplate(options: {
         { type: "separator" as const },
         {
           label: getLabel(desktopMenuMessageIds.helpFeedback),
+          // NCode 暂时隐藏原生菜单中的问题上报入口；保留命令处理实现。
+          visible: false,
           click: () => void options.executeDesktopCommand(DesktopCommandIds.OpenFeedback),
         },
         {
