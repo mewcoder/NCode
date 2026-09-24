@@ -875,20 +875,21 @@ export function GeneralSectionContent({
           }
         />
       </SettingsGroupCard>
-
-      <SettingsGroupCard>
-        <SettingsRow
-          label={intl.formatMessage({ id: "settings.onboarding" })}
-          description={intl.formatMessage({
-            id: "settings.onboardingDescription",
-          })}
-          control={
-            <Button type="button" size="lg" variant="outline" onClick={onOpenOnboardingDialog}>
-              {intl.formatMessage({ id: "settings.onboardingOpen" })}
-            </Button>
-          }
-        />
-      </SettingsGroupCard>
+      <div hidden>
+        <SettingsGroupCard>
+          <SettingsRow
+            label={intl.formatMessage({ id: "settings.onboarding" })}
+            description={intl.formatMessage({
+              id: "settings.onboardingDescription",
+            })}
+            control={
+              <Button type="button" size="lg" variant="outline" onClick={onOpenOnboardingDialog}>
+                {intl.formatMessage({ id: "settings.onboardingOpen" })}
+              </Button>
+            }
+          />
+        </SettingsGroupCard>
+      </div>
     </div>
   );
 }

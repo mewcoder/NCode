@@ -539,6 +539,7 @@ const zhCN: Record<string, string> = {
   "settings.onboardingDescription":
     "重新选择职业、界面模式和使用偏好。数据迁移可在迁移设置中操作。",
   "settings.onboardingOpen": "打开引导",
+  "settings.dataImport": "数据导入",
 
   // 应用头部
   "app.currentTheme": "当前: {theme}",

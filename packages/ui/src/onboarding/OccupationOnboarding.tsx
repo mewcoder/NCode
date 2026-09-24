@@ -34,12 +34,14 @@ async function appendOnboardingRecord(
 
 export function OccupationOnboarding({
   children,
+  onboardingEnabled = true,
   showWindowControls = false,
   showChildrenWhileLoading = false,
   isMacDesktop,
   isWindowsDesktop,
 }: {
   children: ReactNode;
+  onboardingEnabled?: boolean;
   /** Windows/Linux 自绘窗控：引导全屏覆盖主界面（含标题栏），需在此补最小化/最大化/关闭。 */
   showWindowControls?: boolean;
   /** 独立设置页不依赖引导设置加载，避免应用级引导外层遮住设置内容。 */
@@ -81,7 +83,8 @@ export function OccupationOnboarding({
     loadDeviceMid,
     update,
   });
-  const onboardingVisible = requested || (needsOnboarding === true && !dismissed);
+  const onboardingVisible =
+    onboardingEnabled && (requested || (needsOnboarding === true && !dismissed));
   const captureEnd = useOnboardingTelemetry({
     platform,
     visible:
@@ -134,6 +137,7 @@ export function OccupationOnboarding({
         return;
       }
       if (
+        !onboardingEnabled ||
         !shortcutBindings.openOnboarding.some((binding) => matchesShortcutBinding(event, binding))
       )
         return;
@@ -151,6 +155,7 @@ export function OccupationOnboarding({
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [
     closeOnboarding,
+    onboardingEnabled,
     shortcutBindings,
     setRequested,
     onboardingVisible,
@@ -211,11 +216,12 @@ export function OccupationOnboarding({
     applyLatestEntry();
     // eslint-disable-line react-hooks/exhaustive-deps
   }, [latestEntry]);
-  if (!settings) return showChildrenWhileLoading ? <>{children}</> : null;
+  if (!settings) return !onboardingEnabled || showChildrenWhileLoading ? <>{children}</> : null;
   // 判定进行中先不渲染，避免引导闪现后立即消失（判定为需引导）或先闪引导再进主界面。
   // 只有疑似首跑（settings 里也没有职业）才等待记录判定；存量用户（已有
   // onboardingOccupation）不等 RPC 直接进主界面，杜绝黑屏。
-  if (!requested && needsOnboarding === null && !settings.onboardingOccupation) return null;
+  if (onboardingEnabled && !requested && needsOnboarding === null && !settings.onboardingOccupation)
+    return null;
   if (!onboardingVisible) return <>{children}</>;
   const save = async (skip = false) => {
     if (savingRef.current) return;

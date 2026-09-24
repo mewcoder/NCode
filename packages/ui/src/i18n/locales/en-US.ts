@@ -592,6 +592,7 @@ const enUS: Record<string, string> = {
   "settings.onboardingDescription":
     "Choose your role, interface mode, and preferences again. Use Migration settings to import data.",
   "settings.onboardingOpen": "Open onboarding",
+  "settings.dataImport": "Data import",
 
   // App header
   "app.currentTheme": "Current: {theme}",
