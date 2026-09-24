@@ -5766,6 +5766,11 @@ const zhCN: Record<string, string> = {
   // Automations 同时包含定时任务和闲时任务，顶层入口不能误用其中一个子类型的名称。
   "workspace.openScheduledSettings": "自动化",
   "settings.automations.title": "自动化",
+  "settings.dynamicWorkflows.betaBadge": "Beta",
+  "settings.dynamicWorkflows.enabled": "动态工作流",
+  "settings.dynamicWorkflows.description":
+    "工作流安排子智能体的分工、执行顺序和结果汇总。",
+  "settings.dynamicWorkflows.updateFailed": "动态工作流设置保存失败",
   "automations.breadcrumbLabel": "自动化路径",
   "settings.automations.betaBadge": "Beta",
   "automations.noWorkspace": "打开一个工作区以管理它的定时任务。",

@@ -3328,14 +3328,14 @@ async function createRecord(
       modelSelection: "model" in params ? toRuntimeModelSelection(initialModel) : undefined,
       parentSessionId,
       taskType,
-      // 动态工作流灰度门：与 offPeakPort
-      // 同一套读法——本次 create/resume 参数优先，缺席时读 Host 同步到进程的 workspace 级
-      // 结论；两者都没有就是 false（fail-closed）。这里**必须写出显式布尔**，不能省成
-      // undefined：core 把「缺席」定义为「不参与灰度、保留全部工具」（TUI / headless /
+      // 动态工作流开关：本次 create/resume 参数优先，缺席时读 Host 同步到进程的用户设置；
+      // 两者都没有就是 false（fail-closed）。这里必须写出显式布尔，不能省成 undefined：
+      // core 把「缺席」定义为「不参与准入限制、保留全部工具」（TUI / headless /
       // workflow_child 的语义），受信 Host 创建的会话不能落进那条豁免。
       dynamicWorkflowEnabled:
-        ("dynamicWorkflowEnabled" in params && params.dynamicWorkflowEnabled === true) ||
-        context.appRuntimePreferences.dynamicWorkflowEnabled === true,
+        "dynamicWorkflowEnabled" in params && typeof params.dynamicWorkflowEnabled === "boolean"
+          ? params.dynamicWorkflowEnabled
+          : context.appRuntimePreferences.dynamicWorkflowEnabled === true,
       // 协议侧的工具允许/拒绝列表是 session 级安全边界，必须进入 runtimeConfig，
       // 不能只依赖 prompt 文本约束，否则内置工具和动态 MCP 工具仍可能越过调用面。
       toolAllowlist: "toolAllowlist" in params ? params.toolAllowlist : undefined,
