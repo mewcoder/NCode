@@ -33,29 +33,41 @@ export function useCodingPlanEntryPlanList(): CodingPlanEntryInventory {
   const [teams, setTeams] = useState<{
     user: typeof user;
     view: typeof providerSettingsView;
-    sources: { token: string | null; products: EnterpriseCodingPlanPricingProduct[] | null }[];
+    sources: {
+      family: "bigmodel" | "zai";
+      token: string | null;
+      products: EnterpriseCodingPlanPricingProduct[] | null;
+    }[];
     generation: number;
   } | null>(null);
   useEffect(() => {
     if (!providerSettingsView) return;
     let cancelled = false;
+    const eligibleTeamFamilies = (["bigmodel", "zai"] as const).filter((family) =>
+      resolveAccountProviderInspectionAccess(
+        providerSettingsView,
+        family === "bigmodel"
+          ? BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan
+          : BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan,
+      ),
+    );
     // 团队订阅以 authenticated pricing 为准，不用静态商品目录推断已购套餐。
     void Promise.all([
       refresh({ force: true, silent: true }),
       Promise.all(
-        (["bigmodel", "zai"] as const).map(async (family) => {
+        eligibleTeamFamilies.map(async (family) => {
           let token: string | null = null;
           try {
             token = (await credentialService.load(`oauth:${family}:access_token`))?.trim() || null;
-            if (!token) return { token, products: [] };
+            if (!token) return { family, token, products: [] };
             const result = await codingPlanSubscriptionService.getEnterprisePricing({
               authenticated: true,
               family,
             });
-            return { token, products: result.productList };
+            return { family, token, products: result.productList };
           } catch (error) {
             logger.warn("[purchaseTelemetry] 读取团队套餐失败", { family, error });
-            return { token, products: null };
+            return { family, token, products: null };
           }
         }),
       ),
@@ -65,9 +77,9 @@ export function useCodingPlanEntryPlanList(): CodingPlanEntryInventory {
           user,
           view: providerSettingsView,
           generation,
-          sources: sources.map((source, index) => {
+          sources: sources.map((source) => {
             // 刷新失败不等于未购；仅在账号、family 和凭据一致时复用成功结果。
-            const cached = previous?.sources[index];
+            const cached = previous?.sources.find((item) => item.family === source.family);
             return source.products === null &&
               source.token &&
               previous?.user === user &&

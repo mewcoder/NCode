@@ -54,6 +54,13 @@ export class EmptyAccountProviderConfigSource implements ProviderSource<AccountP
     return createFailClosedAccountProviderConfigSnapshot(await this.configSource.read());
   }
 
+  /** Account Provider 已关闭时，刷新仍需重算当前 Built-in revision 对齐的 fail-closed Overlay。 */
+  refresh(_reason?: string): Promise<AccountProviderConfigSnapshot> {
+    return this.read();
+  }
+
+  dispose(): void {}
+
   onDidChange(): () => void {
     return () => {};
   }

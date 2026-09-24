@@ -188,8 +188,10 @@ function resolveTeamScopedPlanNavItem(
 
 function resolveTeamPlanInspectionAccess(
   item: Extract<ModelProviderNavItem, { type: "teamPlan" }>,
+  view: ProviderSettingsView | null | undefined,
 ) {
-  // 不可用套餐仍需查询失效原因；组织/项目身份来自团队导航，不能被执行可用性门禁清空。
+  if (!resolveAccountProviderInspectionAccess(view, item.presetId)) return undefined;
+  // 团队组织/项目身份来自导航项，但只在 Account Provider inspection access 有效时查询。
   const family = resolveModelProviderFamilySpecByProviderId(item.presetId)?.id;
   const productId = item.currentProductId?.trim();
   const organizationId = item.organizationId?.trim();
@@ -322,7 +324,7 @@ export function ModelProviderSectionDetail({
   const selectedPlanAccess = useMemo(() => {
     if (!isPlanNavItem(selectedNavItem)) return undefined;
     if (selectedNavItem.type === "teamPlan")
-      return resolveTeamPlanInspectionAccess(selectedNavItem);
+      return resolveTeamPlanInspectionAccess(selectedNavItem, providerSettingsView);
     const access = resolveAccountProviderInspectionAccess(
       providerSettingsView,
       selectedNavItem.presetId,
@@ -349,7 +351,7 @@ export function ModelProviderSectionDetail({
     [selectedNavItem],
   );
   const selectedTeamPlanEntitlement = useUsageEntitlement({
-    enabled: Boolean(selectedTeamPlanContext),
+    enabled: Boolean(selectedTeamPlanContext && selectedPlanAccess),
     includeSubscription: true,
     preferredProviderId:
       selectedNavItem?.type === "teamPlan" ? selectedNavItem.presetId : undefined,
@@ -363,14 +365,14 @@ export function ModelProviderSectionDetail({
     refreshOnMount: false,
   });
   useEffect(() => {
-    if (!selectedTeamPlanContext) {
+    if (!selectedTeamPlanContext || !selectedPlanAccess) {
       return;
     }
     void selectedTeamPlanEntitlement.refresh({
       silent: true,
       reason: "access",
     });
-  }, [selectedTeamPlanContext, selectedTeamPlanEntitlement.refresh]);
+  }, [selectedPlanAccess, selectedTeamPlanContext, selectedTeamPlanEntitlement.refresh]);
   const effectiveSelectedPlanNavItem = isPlanNavItem(selectedNavItem)
     ? resolveTeamScopedPlanNavItem(selectedNavItem, selectedTeamPlanEntitlement)
     : null;

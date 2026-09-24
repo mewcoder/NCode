@@ -24,7 +24,10 @@ import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { Button } from "@/components/ui/button.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useModelProviders } from "@/hooks/useModelProviders.js";
-import { resolveEntitledAccountProviderAccess } from "@/lib/accountProviderAccess.js";
+import {
+  resolveAccountProviderInspectionAccess,
+  resolveEntitledAccountProviderAccess,
+} from "@/lib/accountProviderAccess.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { useServices } from "@/hooks/useServices.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
@@ -393,11 +396,27 @@ export function ModelProviderSection({
     error: sharedSettingsError,
     update: updateSharedSettings,
   } = useSettings();
+  const bigmodelTeamQueryEligible =
+    codingPlanPurchaseTokenAuthenticatedByProviderId[
+      BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan
+    ] === true &&
+    Boolean(
+      resolveAccountProviderInspectionAccess(
+        providerSettingsView,
+        BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
+      ),
+    );
+  const zaiTeamQueryEligible =
+    codingPlanPurchaseTokenAuthenticatedByProviderId[BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan] ===
+      true &&
+    Boolean(
+      resolveAccountProviderInspectionAccess(
+        providerSettingsView,
+        BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan,
+      ),
+    );
   const authenticatedEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      codingPlanPurchaseTokenAuthenticatedByProviderId[
-        BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan
-      ] === true,
+    enabled: bigmodelTeamQueryEligible,
     authenticated: true,
     family: "bigmodel",
   });
@@ -405,10 +424,7 @@ export function ModelProviderSection({
   // zai 团队订阅永远拉不到、也无法展示对应团队。
   // zai 独立调 hook（zai family 走 zai provider），下游合并两 family 的订阅产品。
   const authenticatedZaiEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      codingPlanPurchaseTokenAuthenticatedByProviderId[
-        BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan
-      ] === true,
+    enabled: zaiTeamQueryEligible,
     authenticated: true,
     family: "zai",
   });
@@ -420,15 +436,21 @@ export function ModelProviderSection({
   }, [authenticatedEnterpriseProducts, authenticatedZaiEnterpriseProducts]);
   const subscribedTeamProducts = useMemo(
     () => [
-      ...(authenticatedEnterpriseProducts.snapshot?.productList.filter(
-        (product) => product.subscribed === true,
-      ) ?? []),
-      ...(authenticatedZaiEnterpriseProducts.snapshot?.productList.filter(
-        (product) => product.subscribed === true,
-      ) ?? []),
+      ...(bigmodelTeamQueryEligible
+        ? authenticatedEnterpriseProducts.snapshot?.productList.filter(
+            (product) => product.subscribed === true,
+          ) ?? []
+        : []),
+      ...(zaiTeamQueryEligible
+        ? authenticatedZaiEnterpriseProducts.snapshot?.productList.filter(
+            (product) => product.subscribed === true,
+          ) ?? []
+        : []),
     ],
     [
+      bigmodelTeamQueryEligible,
       authenticatedEnterpriseProducts.snapshot?.productList,
+      zaiTeamQueryEligible,
       authenticatedZaiEnterpriseProducts.snapshot?.productList,
     ],
   );

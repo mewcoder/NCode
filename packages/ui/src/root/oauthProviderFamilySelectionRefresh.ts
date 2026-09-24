@@ -125,6 +125,8 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
     reason: "oauth-login-entitlement",
   });
   if (!refreshed) return null;
+  // NCode 的 Account Provider 为 fail-closed；无可用账号访问时不再额外查套餐余额或团队目录。
+  if (accesses.size === 0) return null;
   // 登录后的刷新也可能仍在等待旧 Team 补组织；未知不是可按排序重选的首次连接。
   if (
     !currentSettings.providerFamilyConnectionSelections?.[domain] &&
