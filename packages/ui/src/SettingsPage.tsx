@@ -26,6 +26,7 @@ import {
   testId,
 } from "@zcode/shared";
 import { Button } from "@/components/ui/button.js";
+import { SettingsFormTextarea } from "@/settings/SettingsFormTextarea.js";
 import { toast } from "@/components/ui/toast.js";
 import { DesktopWindowFrame } from "@/DesktopWindowFrame.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
@@ -33,6 +34,7 @@ import { usePlatform } from "@/hooks/usePlatform.js";
 import { getPathLeaf } from "@/lib/path.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
 import { useUsageEntitlement } from "@/hooks/useUsageEntitlement.js";
+import { logger } from "@/logger.js";
 import {
   addPendingSettingsSectionListener,
   clearPendingSettingsPluginOrigin,
@@ -74,7 +76,10 @@ import { BrowserSettingsSection } from "@/settings/BrowserSettingsSection.js";
 import { ComputerUseSection } from "@/settings/ComputerUseSection.js";
 import { ShortcutSettingsSection } from "@/settings/ShortcutSettingsSection.js";
 import { MigrationSection } from "@/settings/MigrationSection.js";
-import { SETTINGS_FRAME_CONTENT_CLASSNAME } from "@/settings/SettingsPageParts.js";
+import {
+  SETTINGS_FRAME_CONTENT_CLASSNAME,
+  SettingsGroupCard,
+} from "@/settings/SettingsPageParts.js";
 import {
   SettingsBreadcrumbProvider,
   SettingsHeaderBreadcrumb,
@@ -682,6 +687,39 @@ export function SettingsPage({
   const nativeSearchEnhancementsEnabled = sharedSettings?.nativeSearchEnhancementsEnabled !== false;
   const askUserQuestionAutoResolutionEnabled =
     sharedSettings?.askUserQuestionAutoResolutionEnabled !== false;
+  const [globalAgentsInstructions, setGlobalAgentsInstructions] = useState("");
+  const [globalAgentsInstructionsDraft, setGlobalAgentsInstructionsDraft] = useState("");
+  const [globalAgentsInstructionsLoading, setGlobalAgentsInstructionsLoading] = useState(false);
+  const [globalAgentsInstructionsSaving, setGlobalAgentsInstructionsSaving] = useState(false);
+  const [globalAgentsInstructionsLoadFailed, setGlobalAgentsInstructionsLoadFailed] =
+    useState(false);
+  useEffect(() => {
+    if (activeSection !== "personalization") return;
+
+    let cancelled = false;
+    setGlobalAgentsInstructionsLoading(true);
+    setGlobalAgentsInstructionsLoadFailed(false);
+    void localHostServices.settingsSyncService
+      .readGlobalAgentsInstructions()
+      .then((content) => {
+        if (cancelled) return;
+        setGlobalAgentsInstructions(content);
+        setGlobalAgentsInstructionsDraft(content);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        logger.warn("[settings] Failed to load global AGENTS.md", error);
+        setGlobalAgentsInstructionsLoadFailed(true);
+        toast(intl.formatMessage({ id: "settings.customInstructionsLoadFailed" }));
+      })
+      .finally(() => {
+        if (!cancelled) setGlobalAgentsInstructionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSection, intl, localHostServices.settingsSyncService]);
   const modelIoFullRetentionEnabled = sharedSettings?.modelIoFullRetentionEnabled === true;
   const [dataBaseDir, setDataBaseDir] = useState("");
   const [terminalInheritSystemProfile, setTerminalInheritSystemProfile] = useState(true);
@@ -1781,6 +1819,88 @@ export function SettingsPage({
                               })
                             }
                           />
+                        ) : activeSection === "personalization" ? (
+                          <SettingsGroupCard>
+                            <div className="space-y-3 p-4">
+                              <div className="space-y-1">
+                                <label
+                                  htmlFor="global-agents-instructions"
+                                  className="text-ui-base font-medium text-foreground"
+                                >
+                                  {intl.formatMessage({ id: "settings.customInstructions" })}
+                                </label>
+                                <p className="text-ui-base leading-6 text-foreground-subtle">
+                                  {intl.formatMessage({
+                                    id: "settings.customInstructionsFilePath",
+                                  })}
+                                </p>
+                              </div>
+                              <SettingsFormTextarea
+                                id="global-agents-instructions"
+                                aria-label={intl.formatMessage({
+                                  id: "settings.customInstructions",
+                                })}
+                                className="field-sizing-fixed min-h-40 resize-y"
+                                rows={7}
+                                disabled={
+                                  globalAgentsInstructionsLoading ||
+                                  globalAgentsInstructionsSaving ||
+                                  globalAgentsInstructionsLoadFailed
+                                }
+                                placeholder={intl.formatMessage({
+                                  id: "settings.customInstructionsPlaceholder",
+                                })}
+                                value={globalAgentsInstructionsDraft}
+                                onChange={(event) =>
+                                  setGlobalAgentsInstructionsDraft(event.target.value)
+                                }
+                              />
+                              <div className="flex justify-end">
+                                <Button
+                                  type="button"
+                                  size="lg"
+                                  disabled={
+                                    globalAgentsInstructionsLoading ||
+                                    globalAgentsInstructionsSaving ||
+                                    globalAgentsInstructionsLoadFailed ||
+                                    globalAgentsInstructionsDraft === globalAgentsInstructions
+                                  }
+                                  onClick={async () => {
+                                    setGlobalAgentsInstructionsSaving(true);
+                                    try {
+                                      await localHostServices.settingsSyncService.writeGlobalAgentsInstructions(
+                                        globalAgentsInstructionsDraft,
+                                      );
+                                      setGlobalAgentsInstructions(globalAgentsInstructionsDraft);
+                                      toast(
+                                        intl.formatMessage({
+                                          id: "settings.customInstructionsSaved",
+                                        }),
+                                      );
+                                    } catch (error) {
+                                      logger.warn(
+                                        "[settings] Failed to save global AGENTS.md",
+                                        error,
+                                      );
+                                      toast(
+                                        intl.formatMessage({
+                                          id: "settings.customInstructionsSaveFailed",
+                                        }),
+                                      );
+                                    } finally {
+                                      setGlobalAgentsInstructionsSaving(false);
+                                    }
+                                  }}
+                                >
+                                  {intl.formatMessage({
+                                    id: globalAgentsInstructionsSaving
+                                      ? "common.saving"
+                                      : "common.save",
+                                  })}
+                                </Button>
+                              </div>
+                            </div>
+                          </SettingsGroupCard>
                         ) : activeSection === "appearance" ? (
                           <AppearanceSectionContent
                             codePreviewSettings={codePreviewSettings}

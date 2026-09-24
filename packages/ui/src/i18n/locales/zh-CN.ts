@@ -1820,6 +1820,14 @@ const zhCN: Record<string, string> = {
   "settings.askUserQuestionAutoResolution": "提问自动继续",
   "settings.askUserQuestionAutoResolutionDescription":
     "开启后，Agent 提问 5 分钟未回答会自动继续；关闭后，当前和后续提问会一直等待你的回答。",
+  "settings.personalizationTitle": "个性化",
+  "settings.customInstructions": "全局指令",
+  "settings.customInstructionsFilePath": "文件位置：~/.zcode/AGENTS.md",
+  "settings.customInstructionsPlaceholder":
+    "例如：不主动进入 Plan 模式，除非我明确要求。",
+  "settings.customInstructionsSaved": "全局指令已保存。",
+  "settings.customInstructionsLoadFailed": "读取全局指令失败。",
+  "settings.customInstructionsSaveFailed": "保存全局指令失败。",
   "settings.modelIoFullRetention": "完整保留模型 I/O",
   "settings.modelIoFullRetentionDescription":
     "保留完整的模型请求和响应，不自动压缩、限制大小或删除旧记录。",
