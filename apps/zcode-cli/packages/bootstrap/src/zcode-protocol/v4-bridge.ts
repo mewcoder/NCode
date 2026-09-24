@@ -1126,10 +1126,9 @@ export function createConversationV4Gateway(
         mcpServers,
         // Off-Peak 工具面 flag 同为 runtime 创建期配置，必须随 create 进入 record。
         ...(offPeakToolEnabled === true ? { offPeakToolEnabled: true } : {}),
-        // 动态工作流灰度门同为 runtime 创建期配置：
-        // v4 createSession 必须与 legacy session/create 等价透传，否则无界面创建的会话
-        // 会绕过 Host 的灰度判定，只剩进程级缺省。
-        ...(dynamicWorkflowEnabled === true ? { dynamicWorkflowEnabled: true } : {}),
+        // 动态工作流门同为 runtime 创建期配置：显式 false 覆盖 workspace 缓存的开启状态；
+        // 未指定仍沿用 Host 已同步的 workspace 策略。
+        ...(typeof dynamicWorkflowEnabled === "boolean" ? { dynamicWorkflowEnabled } : {}),
       });
       return { sessionId: created.sessionId };
     },

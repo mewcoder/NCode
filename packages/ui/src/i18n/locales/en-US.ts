@@ -6030,6 +6030,11 @@ const enUS: Record<string, string> = {
   "taskGroup.cronGroupName": "Scheduled tasks",
   "workspace.openScheduledSettings": "Automations",
   "settings.automations.title": "Automations",
+  "settings.dynamicWorkflows.betaBadge": "Beta",
+  "settings.dynamicWorkflows.enabled": "Dynamic workflows",
+  "settings.dynamicWorkflows.description":
+    "Workflows define how subagents divide work, in what order they run, and how results are combined.",
+  "settings.dynamicWorkflows.updateFailed": "Failed to save the dynamic workflow setting",
   "automations.breadcrumbLabel": "Automation path",
   "settings.automations.betaBadge": "Beta",
   "automations.noWorkspace": "Open a workspace to manage its scheduled tasks.",

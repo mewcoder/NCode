@@ -168,6 +168,9 @@ export function useSettings() {
           throw syncError;
         }
       }
+      if (typeof patch.dynamicWorkflowEnabled === "boolean") {
+        await zcodeAgentService.syncDynamicWorkflowPreference(patch.dynamicWorkflowEnabled);
+      }
     },
     [broadcastService, settingService, settingsStore, zcodeAgentService, platform, refresh],
   );
