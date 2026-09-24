@@ -11,6 +11,8 @@ import { ServiceChannels } from "@zcode/shared";
 import { createServiceDescriptor } from "../descriptors.js";
 
 export interface ISettingsSyncService {
+  readGlobalAgentsInstructions(): Promise<string>;
+  writeGlobalAgentsInstructions(content: string): Promise<void>;
   getClaudeAgentsFileMigrationStatus(request: {
     workspacePath?: string;
     workspaceIdentity?: string;

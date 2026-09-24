@@ -2218,6 +2218,17 @@ async function getClaudeAgentsFileMigrationStatus(): Promise<SettingsSyncClaudeA
   };
 }
 
+async function readGlobalAgentsInstructions(): Promise<string> {
+  const filePath = getUserZcodeAgentsFilePath();
+  return (await pathExists(filePath)) ? readFile(filePath, "utf8") : "";
+}
+
+async function writeGlobalAgentsInstructions(content: string): Promise<void> {
+  const filePath = getUserZcodeAgentsFilePath();
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, "utf8");
+}
+
 async function copyClaudeAgentsFileToZcodeAgentsFile(params: {
   overwrite?: boolean;
 }): Promise<SettingsSyncClaudeAgentsFileCopyResult> {
@@ -2267,6 +2278,8 @@ export function createSettingsSyncService(
   }
 
   return {
+    readGlobalAgentsInstructions,
+    writeGlobalAgentsInstructions,
     async getClaudeAgentsFileMigrationStatus(
       request,
     ): Promise<SettingsSyncClaudeAgentsFileMigrationStatus> {

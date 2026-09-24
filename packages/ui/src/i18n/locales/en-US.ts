@@ -1930,6 +1930,14 @@ const enUS: Record<string, string> = {
   "settings.askUserQuestionAutoResolution": "Automatically continue questions",
   "settings.askUserQuestionAutoResolutionDescription":
     "When enabled, Agent questions automatically continue after 5 minutes without an answer. When disabled, current and future questions wait for your response.",
+  "settings.personalizationTitle": "Personalization",
+  "settings.customInstructions": "Global instructions",
+  "settings.customInstructionsFilePath": "File location: ~/.zcode/AGENTS.md",
+  "settings.customInstructionsPlaceholder":
+    "For example: Don't enter plan mode unless I explicitly ask.",
+  "settings.customInstructionsSaved": "Global instructions saved.",
+  "settings.customInstructionsLoadFailed": "Could not load global instructions.",
+  "settings.customInstructionsSaveFailed": "Could not save global instructions.",
   "settings.modelIoFullRetention": "Keep complete model I/O",
   "settings.modelIoFullRetentionDescription":
     "Keep complete model requests and responses without compression, size limits, or automatic deletion.",
