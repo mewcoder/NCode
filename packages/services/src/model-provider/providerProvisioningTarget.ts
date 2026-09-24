@@ -2,6 +2,7 @@
 import { readFile } from "node:fs/promises";
 import { atomicWritePrivateTextFile, withFileLock } from "@zcode/shared/node";
 import {
+  type AccountProviderConfigSnapshot,
   type PersonalProviderConfigRepository,
   type ProviderConfigLayerUpdate,
 } from "@zcode/provider";
@@ -16,7 +17,6 @@ import {
 import type { ICredentialService } from "../credential/credential.js";
 import type { ISettingService } from "../setting/setting.js";
 import type { ProviderRuntime } from "./providerRuntime.js";
-import type { AccountProviderService } from "@zcode/provider";
 import type { IProviderProvisioningTargetService } from "./providerProvisioning.js";
 import {
   PROVIDER_PROVISIONING_OAUTH_CREDENTIAL_KEYS,
@@ -30,7 +30,9 @@ const OAUTH_CREDENTIAL_KEYS = new Set<string>(PROVIDER_PROVISIONING_OAUTH_CREDEN
 export interface ProviderProvisioningTargetOptions {
   readonly providerRuntime: ProviderRuntime;
   readonly personalRepository: PersonalProviderConfigRepository;
-  readonly accountProviderSource: AccountProviderService;
+  readonly accountProviderSource: {
+    refresh(reason?: string): Promise<AccountProviderConfigSnapshot>;
+  };
   readonly credentialService: ICredentialService;
   readonly settingService: ISettingService;
   readonly personalConfigFilePath: string;
