@@ -19,6 +19,7 @@ import {
   Keyboard,
   FileSearch,
   UserRoundCog,
+  Import as ImportIcon,
 } from "lucide-react";
 import { isSettingsSectionEnabled, type SettingsSectionId } from "@/lib/settingsNavigation.js";
 import type { Theme } from "@/useTheme.js";
@@ -161,6 +162,12 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     id: "usage",
     icon: BarChart3,
     titleId: "settings.usageTitle",
+    groupId: "dataAndStats",
+  },
+  {
+    id: "migration",
+    icon: ImportIcon,
+    titleId: "settings.dataImport",
     groupId: "dataAndStats",
   },
 ];

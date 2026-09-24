@@ -596,6 +596,8 @@ export function SettingsPage({
   }, [selectedUsageCodingPlanSource, usageActiveTab, usageCodingPlanSources]);
   const setNewUserOnboardingOpen = useZCodeStore((state) => state.setNewUserOnboardingOpen);
   const requestOnboardingDialog = () => setNewUserOnboardingOpen(true);
+  const requestDataImport = useZCodeStore((state) => state.requestOnboardingDialog);
+  const openDataImport = () => requestDataImport("migration");
   const setActiveSettingsSection = useCallback(
     (section: SettingsSectionId, fallbackSection: SettingsSectionId = activeSection) => {
       const resolvedSection = resolveSettingsSection(section, fallbackSection);
@@ -1543,28 +1545,29 @@ export function SettingsPage({
                     );
                   })}
                 </div>
-
-                <SettingsSidebarButton
-                  icon={Rocket}
-                  label={intl.formatMessage({ id: "settings.onboarding" })}
-                  className="mt-4 border border-dashed border-border hover:border-border-hover"
-                  onClick={() => {
-                    runUserAction({
-                      input: {
-                        featureId: "settings.navigation",
-                        action: "open_onboarding",
-                        trigger: "button",
-                      },
-                      operation: requestOnboardingDialog,
-                      completed: { resultSource: "local_commit" },
-                      failureStage: "dialog_open",
-                    });
-                  }}
-                >
-                  <span className="text-ui-base text-foreground">
-                    {intl.formatMessage({ id: "settings.onboarding" })}
-                  </span>
-                </SettingsSidebarButton>
+                <div hidden>
+                  <SettingsSidebarButton
+                    icon={Rocket}
+                    label={intl.formatMessage({ id: "settings.onboarding" })}
+                    className="mt-4 border border-dashed border-border hover:border-border-hover"
+                    onClick={() => {
+                      runUserAction({
+                        input: {
+                          featureId: "settings.navigation",
+                          action: "open_onboarding",
+                          trigger: "button",
+                        },
+                        operation: requestOnboardingDialog,
+                        completed: { resultSource: "local_commit" },
+                        failureStage: "dialog_open",
+                      });
+                    }}
+                  >
+                    <span className="text-ui-base text-foreground">
+                      {intl.formatMessage({ id: "settings.onboarding" })}
+                    </span>
+                  </SettingsSidebarButton>
+                </div>
               </nav>
 
               <div className="max-lg:hidden">
@@ -1998,9 +2001,18 @@ export function SettingsPage({
                           />
                         ) : activeSection === "migration" ? (
                           <MigrationSection
-                            workspacePath={activeWorkspacePath}
-                            workspaceIdentity={activeWorkspaceIdentity}
-                            isDesktop={isDesktop}
+                            onImport={() =>
+                              runUserAction({
+                                input: {
+                                  featureId: "settings.navigation",
+                                  action: "open_data_import",
+                                  trigger: "button",
+                                },
+                                operation: openDataImport,
+                                completed: { resultSource: "local_commit" },
+                                failureStage: "dialog_open",
+                              })
+                            }
                           />
                         ) : activeSection === "usage" ? (
                           <UsageStatsSection
