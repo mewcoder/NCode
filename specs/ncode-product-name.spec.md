@@ -5,6 +5,7 @@
 - 按仓库当前项目身份，用户看到的产品名为 `NCode`；NCode 基于 ZCode，且不是 ZCode 官方发行版。
 - 仅修改产品显示层和必须配套的发行身份；`ZCode` 上游/技术名称及代码内部 `zcode` 标识按本 spec 保留。
 - 不把内部 `zcode` 命名直接扩散到产品显示层；若产品身份规则以后变更，再单独调整本节和验收范围。
+- 关于窗口在同一行展示 ZCode 上游仓库和 NCode 仓库链接（分别为 `https://github.com/zai-org/ZCode`、`https://github.com/mewcoder/NCode`），点击后由系统默认浏览器打开。
 
 实现者只需要本 spec 与当前 `ncode` 源码；不需要检出或读取其他分支。
 
@@ -49,6 +50,7 @@
 - Desktop 正式版显示名为 `NCode`，Preview 为 `NCode Preview`；本地构建的安装器、应用显示名和产物文件名跟随对应显示名。
 - Windows 正式版 AppId 为 `dev.ncode.app`，Preview 为 `dev.ncode.app.preview`。打包配置与运行时 `app.setAppUserModelId` 必须使用同一值。
 - macOS 的 `.app` 与主可执行文件名改为 `NCode` / `NCode Preview`，既有 bundle ID 保持不变；Linux 的既有 AppId、可执行文件名、包名和开发态身份保持不变，launcher 的底层 `zcode` 标识保持不变，显示名称跟随 NCode/NCode Preview。
+- macOS 本地开发 Electron 启动副本的 Dock 显示名为 `NCode Dev`；这只改开发 `.app` bundle 的显示身份，不改 `runtimeApplicationName`、`app.setName`、`process.title`、bundle ID、协议 scheme 或 userData/sessionData 路径。开发数据目录仍使用 `ZCode Dev`，继续读取原有数据。
 - `runtimeApplicationName`、`app.setName`、`process.title` 和既有 userData/sessionData 路径保持不变，尤其不得把 `.zcode` 数据迁到新目录。macOS 可见应用菜单单独使用 NCode 显示名，不得借修改 `app.setName` 改变数据位置。
 - 保持 updater 实现代码不动，只确保用户入口和运行路径处于停用状态；不删除或重构 updater 模块，不新增更新检查、下载、安装、启动请求、轮询、定时器、配置开关或其他运行时开销。
 - 安装后，Windows 旧 ZCode 固定项可能仍显示旧图标；用户需取消固定旧项，再固定 NCode。应用数据不迁移。
@@ -72,8 +74,9 @@
 6. 欢迎/引导页、系统托盘、Windows 文件夹菜单、深链确认和电脑控制权限提示窗都显示正确的应用名；已停用的分享链接仍重定向到首页。应用内没有更新检查、下载或安装入口及运行路径。
 7. `README.md` 以中文说明 NCode 基于 ZCode、不是官方发行版，并记录已完成的功能精简；CLI 命令仍为 `zcode`。
 8. 既有命令、环境变量、深链 scheme、协议和用户数据目录不变；原有数据无需迁移。
-9. NCode 发布主页指向本仓库，不出现被误认为 NCode 联系方式的 Z.ai 地址。
-10. 本地构建的安装包仍可按 NCode 名称产出；NCode 不提供应用下载和更新服务，品牌调整不引入新的运行时工作或网络活动。
+9. macOS 本地开发启动后的 Dock 显示 `NCode Dev`，开发运行时名和现有开发数据目录仍为 `ZCode Dev`。
+10. NCode 发布主页指向本仓库，不出现被误认为 NCode 联系方式的 Z.ai 地址。
+11. 本地构建的安装包仍可按 NCode 名称产出；NCode 不提供应用下载和更新服务，品牌调整不引入新的运行时工作或网络活动。
 
 ## 实现验证
 

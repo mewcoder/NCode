@@ -1,7 +1,10 @@
 interface CustomAboutDialogHtmlInput {
   applicationName: string;
   appVersion: string;
-  copyright: string;
+  sourceDescription: string;
+  sourceRepositoryUrl: string;
+  projectRepositoryLabel: string;
+  projectRepositoryUrl: string;
   optimizationLine: string;
   versionLabel: string;
   okButtonLabel: string;
@@ -17,6 +20,10 @@ function escapeHtml(value: string): string {
 }
 
 export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): string {
+  const sourceDescription = escapeHtml(input.sourceDescription).replace(
+    "ZCode",
+    `<a class="repository-link" href="${escapeHtml(input.sourceRepositoryUrl)}" target="_blank" rel="noopener noreferrer">ZCode</a>`,
+  );
   return `<!doctype html>
 <html>
   <head>
@@ -127,6 +134,19 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
         color: #303033;
       }
 
+      .repository-link {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+
+      .source-links {
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
 
       .ok-button {
         width: 100%;
@@ -199,7 +219,15 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
           </h1>
           <div class="meta">
             ${input.optimizationLine ? `<div>${escapeHtml(input.optimizationLine)}</div>` : ""}
-            <div>${escapeHtml(input.copyright)}</div>
+            <div class="source-links">
+              <a
+                class="repository-link"
+                href="${escapeHtml(input.projectRepositoryUrl)}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >${escapeHtml(input.projectRepositoryLabel)}</a>
+              <span aria-hidden="true"> · </span>${sourceDescription}
+            </div>
           </div>
         </div>
         <div class="spacer"></div>

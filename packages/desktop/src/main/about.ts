@@ -53,6 +53,12 @@ interface AboutSnapshotOptions {
 }
 
 const ABOUT_APPLICATION_NAME = "NCode Desktop App";
+const ABOUT_ZCODE_REPOSITORY_URL = "https://github.com/zai-org/ZCode";
+const ABOUT_NCODE_REPOSITORY_URL = "https://github.com/mewcoder/NCode";
+const ABOUT_REPOSITORY_URLS = new Set([
+  ABOUT_ZCODE_REPOSITORY_URL,
+  ABOUT_NCODE_REPOSITORY_URL,
+]);
 // 自定义 About 内容本体是 256x280；原生窗口如果同尺寸会让内容贴满透明窗口边界。
 // 这里给 BrowserWindow 额外留出背景呼吸空间，避免正式 About 看起来比 demo 更局促。
 const ABOUT_WINDOW_WIDTH = 256;
@@ -64,7 +70,8 @@ const ABOUT_MESSAGES: Record<
     versionLabel: string;
     okButtonLabel: string;
     optimizedForAppleSilicon: string;
-    copyright: (year: number) => string;
+    sourceDescription: string;
+    projectRepositoryLabel: string;
   }
 > = {
   "zh-CN": {
@@ -72,14 +79,16 @@ const ABOUT_MESSAGES: Record<
     versionLabel: "版本",
     okButtonLabel: "确定",
     optimizedForAppleSilicon: "已针对 Apple Silicon 优化。",
-    copyright: (year) => `版权所有 © ${year} ZCode。`,
+    sourceDescription: "基于 ZCode 源码开发",
+    projectRepositoryLabel: "NCode",
   },
   "en-US": {
     aboutTitle: "About NCode",
     versionLabel: "version",
     okButtonLabel: "OK",
     optimizedForAppleSilicon: "Optimized for Apple Silicon.",
-    copyright: (year) => `Copyright © ${year} ZCode.`,
+    sourceDescription: "Based on ZCode",
+    projectRepositoryLabel: "NCode",
   },
 };
 
@@ -190,13 +199,6 @@ export function formatAboutDetail(snapshot: AboutSnapshot): string {
   ].join("\n");
 }
 
-function formatAboutCopyright(
-  year = new Date().getFullYear(),
-  locale: Locale = DEFAULT_LOCALE,
-): string {
-  return getAboutMessages(locale).copyright(year);
-}
-
 function formatAboutOptimizationLine(
   snapshot: Pick<AboutSnapshot, "osPlatform" | "osArch">,
   locale: Locale = DEFAULT_LOCALE,
@@ -218,7 +220,7 @@ export async function showAboutDialog(
   parentWindow?: BrowserWindow,
   locale: Locale = DEFAULT_LOCALE,
 ): Promise<MessageBoxReturnValue> {
-  const { app, BrowserWindow } = await import("electron");
+  const { app, BrowserWindow, shell } = await import("electron");
   const snapshot = createAboutSnapshot({
     appVersion: app.getVersion(),
     buildMetadata: readBuildMetadata(),
@@ -249,6 +251,14 @@ export async function showAboutDialog(
     },
   });
   aboutWindow.setMenuBarVisibility(false);
+  aboutWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (ABOUT_REPOSITORY_URLS.has(url)) {
+      void shell.openExternal(url).catch((error: unknown) => {
+        console.error("[about] failed to open repository link", { url, error });
+      });
+    }
+    return { action: "deny" };
+  });
   aboutWindow.once("ready-to-show", () => {
     aboutWindow.show();
   });
@@ -257,7 +267,10 @@ export async function showAboutDialog(
       createCustomAboutDialogHtml({
         applicationName: ABOUT_APPLICATION_NAME,
         appVersion: snapshot.appVersion,
-        copyright: formatAboutCopyright(undefined, locale),
+        sourceDescription: aboutMessages.sourceDescription,
+        sourceRepositoryUrl: ABOUT_ZCODE_REPOSITORY_URL,
+        projectRepositoryLabel: aboutMessages.projectRepositoryLabel,
+        projectRepositoryUrl: ABOUT_NCODE_REPOSITORY_URL,
         optimizationLine: formatAboutOptimizationLine(snapshot, locale),
         versionLabel: aboutMessages.versionLabel,
         okButtonLabel: aboutMessages.okButtonLabel,

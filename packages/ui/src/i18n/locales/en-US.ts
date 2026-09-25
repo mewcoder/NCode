@@ -77,7 +77,7 @@ const enUS: Record<string, string> = {
   "startup.global.starting": "Preparing local data",
   "startup.global.preparing_host_storage": "Preparing task index",
   "startup.global.preparing_session_storage": "Preparing chat history",
-  "startup.global.starting_services": "Starting ZCode",
+  "startup.global.starting_services": "Starting NCode",
   "startup.global.ready": "Local data is ready",
   "startup.global.failed": "Startup preparation failed",
   "startup.global.help":
