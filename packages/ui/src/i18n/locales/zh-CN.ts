@@ -74,7 +74,7 @@ const zhCN: Record<string, string> = {
   "startup.global.starting": "正在准备本地数据",
   "startup.global.preparing_host_storage": "正在更新任务索引",
   "startup.global.preparing_session_storage": "正在更新聊天记录",
-  "startup.global.starting_services": "正在启动 ZCode",
+  "startup.global.starting_services": "正在启动 NCode",
   "startup.global.ready": "本地数据已就绪",
   "startup.global.failed": "无法完成启动准备",
   "startup.global.help":

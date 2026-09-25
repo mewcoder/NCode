@@ -137,7 +137,7 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       displayName_i18n: { "zh-CN": "浏览器操作" },
       icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/browser-use/icon.png`,
       description_i18n: {
-        "zh-CN": "操作 ZCode 内置浏览器，检查网页并验证交互。",
+        "zh-CN": "操作当前可用的浏览器，检查网页并验证交互。",
       },
     },
     name: OFFICIAL_BROWSER_USE_PLUGIN_NAME,
