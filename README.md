@@ -1,64 +1,63 @@
-# NCode
+<p align="center">
+  <img src="public/logo/icons/512x512.png" alt="NCode 图标" width="128" />
+</p>
 
-NCode 是基于上游 ZCode 源码二次开发的 AI 编程工作台，目标是精简不需要的官方功能，同时保留通用开发能力和上游兼容。项目由个人维护，不代表 ZCode 或 Z.ai 官方产品。
+<h1 align="center"><a href="https://github.com/mewcoder/NCode">NCode</a></h1>
 
-[NCode 源代码仓库](https://github.com/mewcoder/NCode)
+<p align="center">
+  NCode 是基于 ZCode 源码二次开发的 AI 编程工作台，目标是精简不需要的官方功能，同时保留通用开发能力和上游兼容。<br />
+  本项目独立维护，不代表 ZCode 或 Z.ai 官方产品。
+</p>
 
-本仓库不提供预编译安装包或应用内更新；请自行构建、打包和使用。
+## 功能差异
 
-## 已完成的精简
+- 精简官方登录、订阅等入口及相关权益查询。
+- 隐藏分享、社区、反馈等相关入口。
+- 停用遥测上报、应用内更新检查及更新入口。
+- 提供可单独开关的动态工作流，通过内置 `CreateWorkflow` 工具编排多个子代理。
 
-- 隐藏官方登录、账号、套餐和升级入口；不再用 OAuth 登录态查套餐权益或团队套餐价。API Key 和自定义 Provider 仍可用。
-- 隐藏分享、文档、社群、反馈、功能建议和手机远控入口。
-- 停用官方 MCP 授权与额度请求、Off-Peak 同步和任务排期。
-- 停用 ARMS、应用事件、资源指标和动作轨迹等监控/遥测上报。
-- 停用应用内更新检查与更新入口；不提供下载、安装或自动更新流程。
-- 使用随包 Provider 配置，停用 CLI 内置 Provider 远程刷新。
-- 应用名称和图标使用 NCode。
+## 动态工作流
+
+在请求中明确说明“用工作流”或“使用动态工作流”，模型会加载 `dynamic-workflows` 技能，并调用内置 `CreateWorkflow` 工具。它以 TypeScript 编排多个子代理，支持并行执行、条件和循环控制以及结果汇总。脚本通过类型检查并经你确认后，会在后台运行，完成时返回结果。
+
+可在“设置 > Agent 能力 > 子代理”中开关动态工作流，默认开启。开关对之后新建或恢复的会话生效；已经启动的工作流会继续运行。
 
 ## 保留能力
 
 - API Key、自定义 Provider 和本地 Automations/Cron。
-- 插件市场，包括官方源。
-- 通用 MCP OAuth。
+- 插件市场，包括官方源；通用 MCP OAuth。
 - SSH、WSL、Docker 远程工作区。
-- CLI 仍使用 `zcode` 命令。
+- CLI 命令仍为 `zcode`。
 
-## 开发
+## 快速上手
 
-准备 Git、Node.js 和 pnpm；版本以 [mise.toml](mise.toml) 为准。在仓库根目录初始化：
+需要 Git、Node.js 24.14.0 和 pnpm 10.33.2。在仓库根目录运行：
 
 ```bash
-pnpm bootstrap
+pnpm bootstrap  # 安装依赖并准备桌面运行资源
+pnpm dev:desktop  # 启动桌面版
 ```
-
-`pnpm bootstrap` 安装依赖并准备本地桌面运行资源。远程工作区需要额外资源时，运行 `pnpm bootstrap:with-remote`。
-
-| 用途                       | 命令                           |
-| -------------------------- | ------------------------------ |
-| 启动桌面版                 | `pnpm dev:desktop`             |
-| 使用测试服务配置启动桌面版 | `pnpm dev:desktop:test`        |
-| 启动 Web 与本地后端        | `pnpm dev:web`                 |
-| 开发 CLI 源码              | `pnpm --filter @zcode/cli dev` |
-
-`pnpm dev:desktop` 默认使用生产服务配置。Web 开发服务器默认地址为 `http://localhost:5173`；后端默认监听 `http://localhost:3030`。
 
 ## 本地打包
 
-```bash
-# 按当前主机的默认目标打包
-pnpm bundle:desktop
+macOS arm64：
 
-# 指定平台和架构
+```bash
+pnpm bundle:desktop -- --os mac --arch arm64
+```
+
+Windows x64：
+
+```bash
 pnpm bundle:desktop -- --os win --arch x64
 ```
 
-`--os` 支持 `mac`、`win`、`linux`；`--arch` 支持 `x64`、`arm64`。默认输出目录为 `packages/desktop/dist/`。签名使用本机配置；NCode 不提供应用内更新。
+安装包输出到 `packages/desktop/dist/`。
 
 ## 兼容说明
 
-为兼容上游和既有数据，内部包名、`zcode` 命令、`ZCODE_*` 环境变量、`.zcode` 数据目录及 `zcode://` 协议保持不变。CLI 源码位于 [apps/zcode-cli/](apps/zcode-cli/)，本项目尽量不修改该目录。
+为兼容上游和既有数据，内部包名、`zcode` 命令、`ZCODE_*` 环境变量、`.zcode` 数据目录及 `zcode://` 协议保持不变。NCode 不迁移既有 ZCode 数据。
 
 ## 来源与许可
 
-本项目基于 ZCode 上游源码二次开发。许可证、版权归属和第三方声明见 [LICENSE](LICENSE) 与 [NOTICE.md](NOTICE.md)。
+本项目基于 [ZCode 上游源码](https://github.com/zai-org/ZCode) 二次开发。许可证、版权归属和第三方声明见 [LICENSE](LICENSE) 与 [NOTICE.md](NOTICE.md)。
