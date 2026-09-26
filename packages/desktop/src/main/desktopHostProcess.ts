@@ -154,7 +154,7 @@ export function spawnHostProcess(
   initMessage: HostInitMessage,
   dependencies: {
     hostProcessLocalEnv: Record<string, string>;
-    /** Main 进程已完成服务端灰度裁决；Host 只消费这个快照，不自行请求或分桶。 */
+    /** Main 固定启用桌面提示规范；Host 只把结果传给子进程。 */
     desktopContextPromptEnabled?: () => boolean;
     logger: {
       info: (...args: unknown[]) => void;
