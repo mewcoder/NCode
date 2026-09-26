@@ -8,6 +8,7 @@ import { MultiFileDiff, PatchDiff } from "@pierre/diffs/react";
 
 import { cn } from "@/components/lib/utils.js";
 import { DIFFS_PREFERRED_HIGHLIGHTER } from "@/lib/diffsHighlighterEngine.js";
+import { DiffsWorkerPoolConsumer } from "@/root/DiffsWorkerPoolProvider.js";
 
 type DiffViewerStyle = CSSProperties & {
   "--diffs-bg"?: string;
@@ -132,7 +133,7 @@ function DiffViewerComponent(props: DiffViewerProps) {
       style={viewerStyle}
       {...divProps}
     >
-      {diffNode}
+      {disableWorkerPool ? diffNode : <DiffsWorkerPoolConsumer>{diffNode}</DiffsWorkerPoolConsumer>}
     </div>
   );
 }

@@ -1475,17 +1475,17 @@ function warmUpZCodeAgent(
   services: ServiceCollection,
   context: { workspacePath?: string; workspaceIdentity?: string },
   reason: string,
-): void {
+): Promise<void> {
   if (!context.workspacePath) {
-    return;
+    return Promise.resolve();
   }
   const workspacePath = context.workspacePath;
   const workspaceIdentity = context.workspaceIdentity;
   const zcodeSessionService = services.getOptional(IZCodeSessionService);
   if (!zcodeSessionService) {
-    return;
+    return Promise.resolve();
   }
-  void zcodeSessionService
+  return zcodeSessionService
     .initializeWorkspace({
       workspacePath,
       ...(workspaceIdentity ? { workspaceIdentity } : {}),
@@ -1513,6 +1513,34 @@ function warmUpZCodeAgent(
     .catch((error) => {
       logger.warn(`ZCode agent warmup failed (${reason}) workspace=${workspacePath}:`, error);
     });
+}
+
+function warmUpZCodeAgentsSequentially(
+  services: ServiceCollection,
+  targets: readonly { workspacePath?: string; workspaceIdentity?: string }[],
+  totalTargets: number,
+): void {
+  const warmNext = (index: number) => {
+    if (hasDisposedHostResources || activeServices !== services) return;
+    const target = targets[index];
+    if (!target) return;
+    // 非活动工作区逐个预热，并在目标间让出事件循环，避免连续启动占用 Host。
+    const reason = `local host post-ready (${index + 2}/${totalTargets})`;
+    void Promise.resolve()
+      .then(() => warmUpZCodeAgent(services, target, reason))
+      .catch((error) => {
+        logger.warn(
+          `ZCode agent warmup queue failed (${reason}) workspace=${target.workspacePath ?? "unknown"}:`,
+          error,
+        );
+      })
+      .finally(() => {
+        if (!hasDisposedHostResources && activeServices === services) {
+          setImmediate(() => warmNext(index + 1));
+        }
+      });
+  };
+  warmNext(0);
 }
 
 // 后台输出轮询仍需独立的 debug logger，不能随其他日志调用方移除而丢失工厂导入。
@@ -1567,6 +1595,7 @@ console.error = (...args: unknown[]) => {
 /** 当前 host 已注册的服务集合，进程退出时用于统一回收本地资源 */
 let databaseStartup: ReturnType<typeof createHostDatabaseStartup> | undefined;
 const pendingStartupAttachments = new Map<string, () => void>();
+let startDeferredAgentWarmups: (() => void) | undefined;
 let activeServices: ServiceCollection | null = null;
 let activeHostApiNetworkTransport: HostApiNetworkTransport | null = null;
 /** 本地 host services 的资源遥测订阅；远端连接的订阅由各自的 connection handle 持有。 */
@@ -2113,6 +2142,7 @@ function disposeAttachedServicePorts(): void {
 async function disposeHostResources(reason: string): Promise<HostShutdownResult> {
   databaseStartup?.dispose();
   pendingStartupAttachments.clear();
+  startDeferredAgentWarmups = undefined;
   if (hasDisposedHostResources) {
     return (
       (await disposeHostResourcesInFlight) ?? {
@@ -2195,6 +2225,7 @@ function disposeHostResourcesBestEffort(reason: string): void {
     return;
   }
   hasDisposedHostResources = true;
+  startDeferredAgentWarmups = undefined;
 
   logger.info(`disposing host resources, reason=${reason}`);
   stopHostNetworkTelemetry();
@@ -2770,8 +2801,11 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
     databaseStartup = createHostDatabaseStartup({
       startupId: msg.databaseStartupId,
       cwd: msg.agentSpawnFallbackCwd ?? process.cwd(),
+      // 首屏门只准备当前 active workspace（warmup 名单首项）。其余 warmup 目标的
+      // session 库由其 agent 进程自己的 openProtocolStartupStorage 准备，Host 不读库；
+      // 在门内再用一个 CLI bundle 进程预跑一遍只会按目标数成倍推迟 ready。
       workingDirectories:
-        msg.agentWarmupTargets?.map((target) => target.workspacePath) ??
+        msg.agentWarmupTargets?.slice(0, 1).map((target) => target.workspacePath) ??
         (msg.workspacePath ? [msg.workspacePath] : []),
       env: msg.runtimeProcessEnvPatch,
       publish: (state) => {
@@ -2785,6 +2819,12 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
             }
           }
           pendingStartupAttachments.clear();
+        }
+        if (state.phase === "ready" && startDeferredAgentWarmups) {
+          const start = startDeferredAgentWarmups;
+          startDeferredAgentWarmups = undefined;
+          // 先发布 ready 并让 Renderer 恢复，再启动非活动 Agent。
+          setImmediate(start);
         }
       },
       onFailure: (error) =>
@@ -2873,6 +2913,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
         wireLocalResourceTelemetry(services);
         hasDisposedHostResources = false;
         disposeHostResourcesInFlight = null;
+        startDeferredAgentWarmups = undefined;
         const agentWarmupTargets =
           msg.agentWarmupTargets && msg.agentWarmupTargets.length > 0
             ? msg.agentWarmupTargets
@@ -2886,13 +2927,22 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
               : [];
         // Main 已按最近使用顺序把启动预热限制为 3 个；Host 必须显式消费这份
         // 固定名单，不能让后续 task-list observer 再隐式扩大，也不能因单个失败扫描补位。
-        agentWarmupTargets.forEach((target, index) => {
-          warmUpZCodeAgent(
+        const [activeWorkspaceTarget, ...deferredWorkspaceTargets] = agentWarmupTargets;
+        if (activeWorkspaceTarget) {
+          void warmUpZCodeAgent(
             services,
-            target,
-            `local host init (${index + 1}/${agentWarmupTargets.length})`,
+            activeWorkspaceTarget,
+            `local host init (1/${agentWarmupTargets.length})`,
           );
-        });
+        }
+        if (deferredWorkspaceTargets.length > 0) {
+          startDeferredAgentWarmups = () =>
+            warmUpZCodeAgentsSequentially(
+              services,
+              deferredWorkspaceTargets,
+              agentWarmupTargets.length,
+            );
+        }
         logger.info("exposing services on ChannelServer...");
         if (!basePortClosed)
           windowHostAttachmentRegistry.attach({

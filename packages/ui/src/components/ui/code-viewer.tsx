@@ -9,7 +9,7 @@ import type {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Trash2Icon } from "lucide-react";
 import type { FileContents, LineAnnotation, SupportedLanguages } from "@pierre/diffs";
-import { File, type FileOptions } from "@pierre/diffs/react";
+import { File, type FileOptions, useWorkerPool } from "@pierre/diffs/react";
 import type { BundledTheme } from "shiki";
 
 import { cn } from "@/components/lib/utils.js";
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea.js";
 import type { CodeCommentPreview, CodeCommentRange } from "@/lib/codeCommentContext.js";
 import { isDarkCodePreviewTheme } from "@/lib/codePreviewPreferences.js";
 import { DIFFS_PREFERRED_HIGHLIGHTER } from "@/lib/diffsHighlighterEngine.js";
+import { DiffsWorkerPoolConsumer } from "@/root/DiffsWorkerPoolProvider.js";
 import {
   formatCommandShortcutLabel,
   isAppleKeyboardPlatform,
@@ -469,6 +470,7 @@ export function CodeViewer({
   ...props
 }: CodeViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const workerPool = useWorkerPool();
   const [activeDraftRange, setActiveDraftRange] = useState<CodeCommentRange | null>(null);
   const [draftText, setDraftText] = useState("");
   const canCreateComment = Boolean(onSubmitCodeComment);
@@ -674,7 +676,7 @@ export function CodeViewer({
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [file.cacheKey, firstLineNumber, focusedEndLine, focusedStartLine, focusRequestId]);
+  }, [file.cacheKey, firstLineNumber, focusedEndLine, focusedStartLine, focusRequestId, workerPool]);
   // 依赖是 CSS 字符串（内容）而不是数组引用：调用方每次渲染给一个新数组时，options 不该跟着换（File 会重排）。
   const markedLinesCss = codeViewerMarkedLinesCss(markedLines);
   const options = useMemo<FileOptions<CodeViewerAnnotationMetadata>>(
@@ -755,36 +757,38 @@ export function CodeViewer({
           showRange={topCommentShowRange}
         />
       ) : null}
-      <File
-        key={file.cacheKey}
-        file={file}
-        options={options}
-        lineAnnotations={lineAnnotations}
-        selectedLines={selectedLines}
-        className="min-h-full w-full"
-        style={viewerStyle}
-        renderAnnotation={(annotation) =>
-          annotation.metadata.kind === "draft" ? (
-            <CommentDraft
-              range={annotation.metadata.range}
-              labels={labels}
-              value={draftText}
-              onValueChange={setDraftText}
-              onSubmit={handleSubmitDraft}
-              onCancel={() => {
-                setActiveDraftRange(null);
-                setDraftText("");
-              }}
-            />
-          ) : (
-            <CodeCommentAnnotation
-              comment={annotation.metadata.comment}
-              labels={labels}
-              onDelete={onDeleteCodeComment}
-            />
-          )
-        }
-      />
+      <DiffsWorkerPoolConsumer>
+        <File
+          key={file.cacheKey}
+          file={file}
+          options={options}
+          lineAnnotations={lineAnnotations}
+          selectedLines={selectedLines}
+          className="min-h-full w-full"
+          style={viewerStyle}
+          renderAnnotation={(annotation) =>
+            annotation.metadata.kind === "draft" ? (
+              <CommentDraft
+                range={annotation.metadata.range}
+                labels={labels}
+                value={draftText}
+                onValueChange={setDraftText}
+                onSubmit={handleSubmitDraft}
+                onCancel={() => {
+                  setActiveDraftRange(null);
+                  setDraftText("");
+                }}
+              />
+            ) : (
+              <CodeCommentAnnotation
+                comment={annotation.metadata.comment}
+                labels={labels}
+                onDelete={onDeleteCodeComment}
+              />
+            )
+          }
+        />
+      </DiffsWorkerPoolConsumer>
     </div>
   );
 }
