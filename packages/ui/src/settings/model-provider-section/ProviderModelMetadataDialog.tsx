@@ -54,6 +54,7 @@ export function ProviderModelMetadataDialog({
   inheritedConfig,
   onOpenChange,
   onDraftChange,
+  onOpenConfigReuse,
   onRestore,
   onCommit,
   modelConfigResolutionPending = false,
@@ -72,6 +73,7 @@ export function ProviderModelMetadataDialog({
   inheritedConfig?: ModelConfigObject;
   onOpenChange: (open: boolean) => void;
   onDraftChange: (patch: Partial<ProviderModelDraftValues>) => void;
+  onOpenConfigReuse?: () => void;
   onRestore?: () => void;
   onCommit: () => boolean | Promise<boolean>;
   modelConfigResolutionPending?: boolean;
@@ -160,11 +162,13 @@ export function ProviderModelMetadataDialog({
               id: "settings.modelProvider.editModelDescription",
             })}
           </DialogDescription>
-          <ModelSmartConfigSwitch
-            disabled={saving}
-            checked={smart}
-            onChange={(useRecommendedConfigValue) => onDraftChange({ useRecommendedConfigValue })}
-          />
+          {mode === "edit" && (
+            <ModelSmartConfigSwitch
+              disabled={saving}
+              checked={smart}
+              onChange={(useRecommendedConfigValue) => onDraftChange({ useRecommendedConfigValue })}
+            />
+          )}
         </DialogHeader>
         {/* 保存期间锁定正文交互，不改变原有滚动容器；页脚单独显示提交状态。 */}
         <div
@@ -175,9 +179,23 @@ export function ProviderModelMetadataDialog({
           <ModelSettingsGroup group="basic">
             <div data-model-identity-row="true" className="flex flex-col gap-4">
               <div className="min-w-0 flex-1">
-                <label className="mb-1 block text-ui-base text-foreground-subtle">
-                  {intl.formatMessage({ id: "settings.modelProvider.modelId" })}
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="block text-ui-base text-foreground-subtle">
+                    {intl.formatMessage({ id: "settings.modelProvider.modelId" })}
+                  </label>
+                  {mode === "add" && onOpenConfigReuse ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0 px-2"
+                      disabled={saving}
+                      onClick={onOpenConfigReuse}
+                    >
+                      {intl.formatMessage({ id: "settings.modelProvider.reuseConfigButton" })}
+                    </Button>
+                  ) : null}
+                </div>
                 <Input
                   {...TECHNICAL_INPUT_ATTRIBUTES}
                   type="text"

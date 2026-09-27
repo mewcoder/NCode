@@ -49,6 +49,8 @@ export function ModelProviderSectionLayout({
     presetLoading,
     customLoading,
   });
+  const showNavigation =
+    presetLoading || customLoading || navigationGroups.some((group) => group.items.length > 0);
 
   return (
     <div className="space-y-4">
@@ -66,23 +68,29 @@ export function ModelProviderSectionLayout({
 
       <div className="overflow-clip rounded-xl border border-border bg-card">
         <div
-          className="grid min-h-[36rem] grid-cols-[56px_minmax(0,1fr)] gap-0 md:grid-cols-[224px_minmax(0,1fr)]"
+          className={
+            showNavigation
+              ? "grid min-h-[36rem] grid-cols-[56px_minmax(0,1fr)] gap-0 md:grid-cols-[224px_minmax(0,1fr)]"
+              : "grid min-h-[36rem] grid-cols-1"
+          }
           data-model-provider-split-panel="true"
         >
-          <div
-            className="min-w-0 border-r border-border"
-            data-model-provider-navigation-scroll="true"
-          >
-            <ModelProviderSectionNavigation
-              navigationGroups={navigationGroups}
-              selectedNodeKey={selectedNodeKey}
-              presetLoading={presetLoading}
-              customLoading={customLoading}
-              onSelectNavItem={onSelectNavItem}
-              onReorderProviderIds={onReorderProviderIds}
-              reorderableProviderIds={reorderableProviderIds}
-            />
-          </div>
+          {showNavigation ? (
+            <div
+              className="min-w-0 border-r border-border"
+              data-model-provider-navigation-scroll="true"
+            >
+              <ModelProviderSectionNavigation
+                navigationGroups={navigationGroups}
+                selectedNodeKey={selectedNodeKey}
+                presetLoading={presetLoading}
+                customLoading={customLoading}
+                onSelectNavItem={onSelectNavItem}
+                onReorderProviderIds={onReorderProviderIds}
+                reorderableProviderIds={reorderableProviderIds}
+              />
+            </div>
+          ) : null}
           <div
             className="relative min-w-0 p-4 pb-20 sm:p-6 sm:pb-24"
             data-model-provider-detail-scroll="true"

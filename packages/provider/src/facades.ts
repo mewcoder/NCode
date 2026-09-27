@@ -166,6 +166,13 @@ export interface ProviderSettingsTemplateView {
   readonly templateId: ProviderTemplateId;
   readonly templateNameMap: ProviderTemplateNameMap;
   readonly config: ProviderConfigObject;
+  /** Optional for compatibility while a running Host may still return the older view shape. */
+  readonly models?: readonly ProviderSettingsTemplateModelView[];
+}
+
+export interface ProviderSettingsTemplateModelView {
+  readonly modelId: ModelId;
+  readonly config: ModelConfigObject;
 }
 
 export interface ProviderSettingsView {
@@ -220,6 +227,7 @@ export class ProviderSettingsFacade {
       revision: snapshot.registry.revision,
       zcodeBuiltinProviders: snapshot.config.zcodeBuiltinProviders,
       zcodeBuiltinProviderTemplates: snapshot.config.zcodeBuiltinProviderTemplates,
+      zcodeBuiltinModelRules: snapshot.config.zcodeBuiltinModelRules,
       personalProviders: snapshot.config.personalProviders,
       personalModels: snapshot.config.personalModels,
       resolution: snapshot.resolution,
@@ -606,6 +614,7 @@ function createProviderSettingsView(input: {
   revision: number;
   zcodeBuiltinProviders: ProviderRegistryServiceSnapshot["config"]["zcodeBuiltinProviders"];
   zcodeBuiltinProviderTemplates: ProviderRegistryServiceSnapshot["config"]["zcodeBuiltinProviderTemplates"];
+  zcodeBuiltinModelRules: ProviderRegistryServiceSnapshot["config"]["zcodeBuiltinModelRules"];
   personalProviders: ProviderRegistryServiceSnapshot["config"]["personalProviders"];
   personalModels: ProviderRegistryServiceSnapshot["config"]["personalModels"];
   resolution: ProviderConfigResolution;
@@ -670,13 +679,30 @@ function createProviderSettingsView(input: {
     providerTemplates: Object.freeze(
       (input.zcodeBuiltinProviderTemplates ?? ProviderTemplateMap.empty())
         .entries()
-        .map(([templateId, template]) =>
-          Object.freeze({
+        .map(([templateId, template]) => {
+          const templateConfig = template.config;
+          const api = templateConfig.api;
+          const models = (templateConfig.builtinModelIds ?? []).map((modelId) =>
+            Object.freeze({
+              modelId,
+              config: input.zcodeBuiltinModelRules
+                .resolve({
+                  providerId: `template:${templateId}`,
+                  templateId,
+                  modelId,
+                  apiType: api?.type,
+                  baseUrl: api?.baseUrl,
+                })
+                .toJSON(),
+            }),
+          );
+          return Object.freeze({
             templateId,
             templateNameMap: template.templateNameMap,
-            config: template.config.toJSON(),
-          }),
-        ),
+            config: templateConfig.toJSON(),
+            models: Object.freeze(models),
+          });
+        }),
     ),
     providerOrder: Object.freeze(
       configuredProviders

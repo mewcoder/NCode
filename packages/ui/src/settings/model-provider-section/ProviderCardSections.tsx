@@ -1,6 +1,7 @@
 /* eslint-disable max-lines -- 模型供应商卡片仍在迁移期集中维护多个紧耦合区块，后续拆分时再移除。 */
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -12,7 +13,12 @@ import type {
   ProviderSettingsFormModel,
 } from "@/lib/providerSettingsFormTypes.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
-import type { ProviderApiType } from "@zcode/provider";
+import type { ProviderSettingsView } from "@zcode/services";
+import {
+  resolveProviderTemplateName,
+  type ModelConfigObject,
+  type ProviderApiType,
+} from "@zcode/provider";
 import {
   TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
   TID_MODEL_PROVIDER_BASE_URL_INPUT,
@@ -41,6 +47,11 @@ import { PresetProviderApiKeyBanner } from "./PresetProviderApiKeyBanner.js";
 import { type ProviderModelDraftValues } from "@/settings/model-provider-section/ProviderModelMetadata.js";
 import { ProviderModelMetadataDialog } from "@/settings/model-provider-section/ProviderModelMetadataDialog.js";
 import {
+  ProviderModelConfigReuseDialog,
+  type ProviderModelConfigReuseOption,
+  type ProviderModelConfigReuseSource,
+} from "@/settings/model-provider-section/ProviderModelConfigReuseDialog.js";
+import {
   ProviderApiFormatSelect,
   resolveProviderConnectionApiFormatDisplayLabel,
 } from "@/settings/model-provider-section/ProviderApiFormatSelect.js";
@@ -58,6 +69,38 @@ export {
 function shouldShowProviderApiFormat(
   _provider: Pick<ProviderSettingsFormProvider, "providerId">,
 ): boolean {
+  return true;
+}
+
+function normalizeReusableModelConfig(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(normalizeReusableModelConfig).filter((item) => item !== undefined);
+  }
+  if (value === null || typeof value !== "object") return value;
+  const entries = Object.entries(value)
+    .map(([key, child]) => [key, normalizeReusableModelConfig(child)] as const)
+    .filter((entry): entry is readonly [string, unknown] => entry[1] !== undefined)
+    .sort(([left], [right]) => left.localeCompare(right));
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function getReusableModelConfigKey(config: ModelConfigObject): string | null {
+  const comparable = { ...config };
+  // Reused drafts are always enabled, so the source model's enabled flag does not change parameters.
+  delete comparable.enabled;
+  const normalized = normalizeReusableModelConfig(comparable);
+  return normalized === undefined ? null : JSON.stringify(normalized);
+}
+
+function canReuseProviderModelConfigs(provider: ProviderSettingsFormProvider): boolean {
+  if (provider.config.group === "standard-personal") return false;
+  const access = provider.config.access;
+  if (access?.type === "zhipu-account") {
+    return provider.accountState?.availability === "available" && provider.accountState.entitled;
+  }
+  if (access?.type === "zhipu-coding-plan-api-key") {
+    return provider.enabled && provider.executable;
+  }
   return true;
 }
 
@@ -333,6 +376,7 @@ function createEmptyModel(): ProviderSettingsFormModel {
     modelId: "",
     builtin: false,
     personalConfig: {},
+    useRecommendedConfig: false,
     // 空 ID 尚未解析模型配置，硬编码档位会被误认为智能推荐。
     config: {
       properties: { supportsToolCall: true },
@@ -349,6 +393,8 @@ export function ProviderModelsSection({
   providerEnabled = true,
   providerAccess,
   models,
+  configReuseProviders = [],
+  configReuseTemplates = [],
   onTestModel,
   onModelCommit,
   onModelEnabledChange,
@@ -362,6 +408,8 @@ export function ProviderModelsSection({
   providerEnabled?: boolean;
   providerAccess?: ProviderConfigObject["access"];
   models: ProviderSettingsFormModel[];
+  configReuseProviders?: readonly ProviderSettingsFormProvider[];
+  configReuseTemplates?: ProviderSettingsView["providerTemplates"];
   onTestModel?: (model: string) => Promise<ModelConnectivityResult>;
   onModelCommit: (
     originalModelId: string,
@@ -374,9 +422,93 @@ export function ProviderModelsSection({
   onReorderModelIds?: (modelIds: string[]) => void;
   settingsRevision?: number;
 }) {
-  const { intl } = useZCodeIntl();
+  const { intl, locale } = useZCodeIntl();
   const { providerSettingsService } = useServices();
+  const configReuseOptions = useMemo(
+    () => {
+      const deduplicated = new Map<
+        string,
+        { key: string; config: ModelConfigObject; sources: ProviderModelConfigReuseSource[] }
+      >();
+      const addCandidate = (source: ProviderModelConfigReuseSource, config: ModelConfigObject) => {
+        const configKey = getReusableModelConfigKey(config);
+        if (!configKey) return;
+        // Keep model IDs distinct so searching and applying always refer to the visible ID.
+        const optionKey = JSON.stringify([source.modelId, configKey]);
+        const existing = deduplicated.get(optionKey);
+        if (existing) {
+          if (
+            !existing.sources.some(
+              (item) => item.providerId === source.providerId && item.modelId === source.modelId,
+            )
+          ) {
+            existing.sources.push(source);
+          }
+          return;
+        }
+        deduplicated.set(optionKey, {
+          key: optionKey,
+          config,
+          sources: [source],
+        });
+      };
+
+      for (const provider of configReuseProviders) {
+        if (!canReuseProviderModelConfigs(provider)) continue;
+        const providerName = provider.providerName?.trim() || provider.providerId;
+        for (const model of provider.models) {
+          if (model.modelId.trim().length === 0) continue;
+          addCandidate(
+            { providerId: provider.providerId, providerName, modelId: model.modelId },
+            model.config,
+          );
+        }
+      }
+
+      for (const template of configReuseTemplates) {
+        // Built-in templates are parameter references only; applying them never transfers plan access or credentials.
+        const providerName = resolveProviderTemplateName(template.templateId, template, locale);
+        for (const model of template.models ?? []) {
+          if (model.modelId.trim().length === 0) continue;
+          addCandidate(
+            {
+              providerId: `template:${template.templateId}`,
+              providerName,
+              modelId: model.modelId,
+            },
+            model.config,
+          );
+        }
+      }
+
+      return [...deduplicated.values()].map((option) => {
+        const primarySource = option.sources[0];
+        // A hover summary is scoped to this exact model ID; option sources already share its config key.
+        const matchingSources = primarySource
+          ? option.sources.filter((source) => source.modelId === primarySource.modelId)
+          : [];
+        const providers = [...new Set(matchingSources.map((source) => source.providerName))];
+        const firstProvider = providers[0] ?? "";
+        const providersLabel =
+          providers.length > 1
+            ? intl.formatMessage(
+                { id: "settings.modelProvider.reuseConfigOtherProviders" },
+                { provider: firstProvider },
+              )
+            : firstProvider;
+        return {
+          ...option,
+          providersLabel,
+          searchText: primarySource?.modelId ?? "",
+        };
+      });
+    },
+    [configReuseProviders, configReuseTemplates, intl, locale],
+  );
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [reuseConfigDialogOpen, setReuseConfigDialogOpen] = useState(false);
+  const [reuseConfigSource, setReuseConfigSource] =
+    useState<ProviderModelConfigReuseOption | null>(null);
   const [addSaving, setAddSaving] = useState(false);
   const addSavingRef = useRef(false);
   const [addCommitError, setAddCommitError] = useState<string | null>(null);
@@ -404,6 +536,8 @@ export function ProviderModelsSection({
 
   const openAddDialog = useCallback(() => {
     editor.reset(createEmptyModel());
+    setReuseConfigSource(null);
+    setReuseConfigDialogOpen(false);
     setAddDraftErrorField(null);
     setAddCommitError(null);
     setAddDialogOpen(true);
@@ -411,11 +545,30 @@ export function ProviderModelsSection({
 
   const updateAddDraft = (patch: Partial<ProviderModelDraftValues>) => {
     editor.change(patch);
+    if (patch.useRecommendedConfigValue === true) setReuseConfigSource(null);
     setAddDraftErrorField(null);
+  };
+
+  const reuseModelConfig = (option: ProviderModelConfigReuseOption) => {
+    const sourceConfig: ModelConfigObject = structuredClone(option.config);
+    editor.reset({
+      ...createEmptyModel(),
+      modelId: option.sources[0]?.modelId ?? addDraft.idValue,
+      config: { ...sourceConfig, enabled: true },
+      personalConfig: sourceConfig,
+      hasPersonalConfig: true,
+      useRecommendedConfig: false,
+    });
+    setReuseConfigSource(option);
+    setReuseConfigDialogOpen(false);
+    setAddDraftErrorField(null);
+    setAddCommitError(null);
   };
 
   const cancelAddDialog = () => {
     setAddDialogOpen(false);
+    setReuseConfigDialogOpen(false);
+    setReuseConfigSource(null);
     editor.reset(createEmptyModel());
     setAddDraftErrorField(null);
     editor.cancel();
@@ -551,19 +704,17 @@ export function ProviderModelsSection({
       <>
         <ProviderModelMetadataDialog
           onRestore={() => {
+            setReuseConfigSource(null);
             setAddDraftErrorField(null);
             setAddCommitError(null);
-            void editor
-              .restore()
-              .catch((error) =>
-                setAddCommitError(error instanceof Error ? error.message : String(error)),
-              );
+            editor.reset({ ...createEmptyModel(), modelId: addDraft.idValue });
           }}
           mode="add"
           open={addDialogOpen}
           draft={addDraft}
           draftErrorMessage={addCommitError ?? addDraftErrorMessage}
           draftErrorField={addDraftErrorField}
+          onOpenConfigReuse={() => setReuseConfigDialogOpen(true)}
           inheritedConfig={editor.inheritedConfig}
           overrideFields={editor.overrides}
           onOpenChange={handleAddDialogOpenChange}
@@ -575,6 +726,13 @@ export function ProviderModelsSection({
           onModelIdBlur={() => {
             void editor.flush().catch(() => undefined);
           }}
+        />
+        <ProviderModelConfigReuseDialog
+          open={reuseConfigDialogOpen}
+          options={configReuseOptions}
+          initialSelectedKey={reuseConfigSource?.key}
+          onOpenChange={setReuseConfigDialogOpen}
+          onApply={reuseModelConfig}
         />
       </>
     </div>

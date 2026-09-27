@@ -7,6 +7,7 @@ import {
   type ProviderSettingsFormModel,
 } from "@/lib/providerSettingsFormTypes.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
+import type { ProviderSettingsView } from "@zcode/services";
 import {
   isApiKeyAccess,
   type ProviderApiType,
@@ -138,6 +139,8 @@ function projectModelsToOrder(
 export function InlineEditableProviderCard({
   provider,
   onSave,
+  modelConfigReuseProviders,
+  modelConfigReuseTemplates,
   onAddPersonalModel,
   onSavePersonalModelDraft,
   onSetPersonalModelEnabled,
@@ -156,6 +159,8 @@ export function InlineEditableProviderCard({
 }: {
   provider: ProviderSettingsFormProvider;
   onSave: (config: ProviderSettingsFormProvider) => void | Promise<void>;
+  modelConfigReuseProviders?: readonly ProviderSettingsFormProvider[];
+  modelConfigReuseTemplates?: ProviderSettingsView["providerTemplates"];
   onAddPersonalModel?: (
     providerId: string,
     modelId: string,
@@ -847,6 +852,8 @@ export function InlineEditableProviderCard({
           providerEnabled={provider.enabled}
           providerAccess={provider.config.access}
           models={models}
+          configReuseProviders={modelConfigReuseProviders}
+          configReuseTemplates={modelConfigReuseTemplates}
           onTestModel={onTestModel ? handleTestModel : undefined}
           onModelCommit={handleModelCommit}
           onModelEnabledChange={handleModelEnabledChange}

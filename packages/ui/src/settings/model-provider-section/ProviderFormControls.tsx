@@ -3,7 +3,10 @@ import type { ProviderSettingsFormModel } from "@/lib/providerSettingsFormTypes.
 import type { ModelConnectivityResult } from "@zcode/shared";
 import { Loader2Icon, Trash2, Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
-import { ModelInputCapabilityBadge } from "@/components/ModelInputCapabilityBadge.js";
+import {
+  MODEL_CONTEXT_WINDOW_BADGE_CLASS_NAME,
+  ModelInputCapabilityBadge,
+} from "@/components/ModelInputCapabilityBadge.js";
 import { Switch } from "@/components/ui/switch.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useProviderModelDraft } from "@/settings/model-provider-section/useProviderModelDraft.js";
@@ -253,7 +256,7 @@ export function ModelRowInput({
             {model.modelId}
           </span>
           <span
-            className="inline-flex h-5 max-w-20 shrink-0 items-center truncate rounded-md border border-border bg-surface px-1.5 font-mono text-ui-sm text-foreground-subtle"
+            className={MODEL_CONTEXT_WINDOW_BADGE_CLASS_NAME}
             aria-label={contextWindowAccessibleLabel}
             title={contextWindowAccessibleLabel}
           >

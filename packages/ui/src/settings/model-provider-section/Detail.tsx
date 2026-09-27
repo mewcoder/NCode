@@ -313,8 +313,18 @@ export function ModelProviderSectionDetail({
   const rootProviderSettingsView =
     rootProviderSettingsRead.state.status === "ready" ? rootProviderSettingsRead.state.view : null;
   const providerSettingsView = providerSettingsViewOverride ?? rootProviderSettingsView;
+  const modelConfigReuseProviders = useMemo(
+    () =>
+      providerSettingsView
+        ? projectProviderSettingsViewToFormProviders(providerSettingsView)
+        : [],
+    [providerSettingsView],
+  );
+  const modelConfigReuseTemplates = providerSettingsView?.providerTemplates ?? [];
   // 账号分支曾漏传删除回调，出现只删 UI 不写盘。所有详情共用同一套模型操作装配。
   const modelEditingProps = {
+    modelConfigReuseProviders,
+    modelConfigReuseTemplates,
     onAddPersonalModel,
     onSavePersonalModelDraft,
     onSetPersonalModelEnabled,
