@@ -87,6 +87,20 @@ export function getApiCallResponseBody(error: unknown): unknown {
   return responseBody;
 }
 
+export function getApiCallResponseBodyText(error: unknown): string | undefined {
+  if (!APICallError.isInstance(error)) {
+    return undefined;
+  }
+
+  const responseBody = error.responseBody;
+  if (typeof responseBody !== "string") {
+    return undefined;
+  }
+
+  const trimmed = responseBody.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function getApiCallErrorData(error: unknown): unknown {
   return APICallError.isInstance(error) ? error.data : undefined;
 }

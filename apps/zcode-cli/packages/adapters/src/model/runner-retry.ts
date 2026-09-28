@@ -2,7 +2,7 @@ import { ModelErrorCode, ModelFailureReason, type Logger } from "@zcode/contract
 import { isProviderBusinessError } from "./model-execution.js";
 import { findProviderBusinessError, type ClassifiedModelFailure } from "./failure-classifier.js";
 import { readMappedAiSdkProviderBusinessError } from "./failure-ai-sdk-provider-error.js";
-import { unwrapRetryError } from "./failure-inspection.js";
+import { getApiCallResponseBodyText, unwrapRetryError } from "./failure-inspection.js";
 import {
   AiSdkModelAdapterError,
   ModelErrorSource,
@@ -149,7 +149,12 @@ export function toAdapterError(
     });
   }
 
-  return new AiSdkModelAdapterError(failure.code, failure.message, {
+  const responseBody = getApiCallResponseBodyText(unwrapped);
+  const message = responseBody
+    ? `${failure.message}\nProvider response: ${responseBody}`
+    : failure.message;
+
+  return new AiSdkModelAdapterError(failure.code, message, {
     cause: error,
     context: {
       ...normalizedContext,
