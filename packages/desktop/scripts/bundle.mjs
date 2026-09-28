@@ -259,6 +259,7 @@ function printHelp() {
 环境变量:
   ZCODE_TARGET_OS              与 --os 等价
   ZCODE_TARGET_ARCH            与 --arch 等价
+  ZCODE_SKIP_REMOTE_ASSETS      打包时默认跳过 remote mock-cdn 资源，设为 0 可准备
 `);
 }
 
@@ -715,6 +716,8 @@ async function main() {
   const buildEnv = {
     ZCODE_TARGET_OS: os,
     ZCODE_TARGET_ARCH: arch,
+    // 客户端打包默认不生成本地 remote mock-cdn 资产；需要这些资源的场景仍可显式覆盖。
+    ZCODE_SKIP_REMOTE_ASSETS: process.env.ZCODE_SKIP_REMOTE_ASSETS ?? "1",
     ...createElectronRuntimeMirrorEnv(resolveElectronMirror()),
     ...createElectronBuilderBinariesMirrorEnv(resolveElectronBuilderBinariesMirror()),
   };
