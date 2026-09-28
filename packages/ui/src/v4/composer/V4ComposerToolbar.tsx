@@ -533,14 +533,9 @@ function V4ComposerModelControlsImpl({
     ? contextStartPlanBalanceConfig
     : undefined;
 
-  // 原 hook 不传 family，默认只拉 bigmodel 企业 pricing，
-  // zai team plan 拿不到订阅产品，模型选择器里的 team 模型组建不出来。
-  // 按 contextPlanConnection.family 让 hook 拉对应 family 的 team products。
+  // NCode 不在会话加载时自动请求网页登录团队套餐定价；进入设置页仍可按需查询。
   const enterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      !providerSourcesLoading &&
-      contextPlanConnection.kind === "teamCoding" &&
-      Boolean(contextAccountProviderAccess),
+    enabled: false,
     authenticated: true,
     family: contextPlanConnection.kind === "teamCoding" ? contextPlanConnection.family : undefined,
   });

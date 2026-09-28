@@ -6,16 +6,12 @@ import {
   type ModelProviderFamilySpec,
   type ProviderFamilyConnectionSelection,
   type ProviderFamilyConnectionSelectionSettings,
-  type ZCodeAccountAccess,
-  type ZCodeProviderAccountAccess,
 } from "@zcode/shared";
 import {
   useUsageEntitlement,
   type UsageEntitlementRefreshOptions,
 } from "@/hooks/useUsageEntitlement.js";
 import type { CodingPlanEntitlementState } from "@/settings/model-provider-section/constants.js";
-import { buildUsageEntitlementCacheKey } from "@/lib/usageEntitlementCache.js";
-import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 
 function resolveCodingPlanProviderFingerprintAutoRefresh({
   loading,
@@ -59,42 +55,22 @@ function useProviderFamilyEntitlements(params: {
       ? params.familySpec.teamCodingPlanProviderId
       : params.familySpec.individualCodingPlanProviderId;
   const startPlanProviderId = params.familySpec.startPlanProviderId;
-  const accountAccess = resolveAccountProviderInspectionAccess(
-    params.providerSettingsView,
-    codingPlanProviderId,
-  );
   const startOptions = buildStartPlanEntitlementOptions(
     params.providerSettingsView,
     startPlanProviderId,
   );
-  const registryFingerprint = accountAccess
-    ? JSON.stringify([params.providerSettingsView?.revision, accountAccess])
-    : "";
   const startProviderFingerprint = startOptions.enabled ? (startOptions.cacheKey ?? "") : "";
-  const entitlementAccess = resolveEntitlementAccountAccess(
-    accountAccess?.access,
-    params.selection,
-  );
-  // Team 查询身份还包含 product/org/project。只使用 Registry 静态 Access
-  // 会让切换团队后复用上一项目的权益缓存，因此 cache identity 必须包含执行期账号上下文。
-  const codingFingerprint = registryFingerprint
-    ? JSON.stringify([registryFingerprint, entitlementAccess])
-    : "";
-  const codingEnabled = Boolean(codingFingerprint);
+  // NCode 保留专用 Coding Plan API Key 连接，不查询网页登录账号的个人/团队套餐权益。
+  const codingEnabled = false;
   const startEnabled = Boolean(startProviderFingerprint);
   const coding = useUsageEntitlement({
     enabled: codingEnabled,
     refreshOnMount: false,
     includeSubscription: true,
     preferredProviderId: codingPlanProviderId,
-    accountAccess: entitlementAccess,
     allowDisabledPreferredProvider: true,
     requirePreferredProvider: true,
     allowEnvApiKey: false,
-    cacheKey: buildUsageEntitlementCacheKey({
-      providerId: codingPlanProviderId,
-      providerFingerprint: codingFingerprint,
-    }),
   });
   const start = useUsageEntitlement(startOptions);
 
@@ -102,7 +78,6 @@ function useProviderFamilyEntitlements(params: {
     () => ({
       coding,
       codingEnabled,
-      codingFingerprint,
       codingPlanProviderId,
       start,
       startEnabled,
@@ -117,7 +92,6 @@ function useProviderFamilyEntitlements(params: {
       coding.refresh,
       coding.snapshot,
       codingEnabled,
-      codingFingerprint,
       codingPlanProviderId,
       start.error,
       start.loading,
@@ -128,26 +102,6 @@ function useProviderFamilyEntitlements(params: {
       startProviderFingerprint,
     ],
   );
-}
-
-function resolveEntitlementAccountAccess(
-  access: ZCodeProviderAccountAccess | undefined,
-  selection: ProviderFamilyConnectionSelection | undefined,
-): ZCodeProviderAccountAccess | ZCodeAccountAccess | undefined {
-  if (access?.mode !== "team-coding-plan" || selection?.kind !== "team-coding-plan") {
-    // 展示查询针对这个套餐自身，不让执行期的 current 解析器改成当前另一套餐。
-    return access && (access.mode === "start-plan" || access.mode === "individual-coding-plan")
-      ? { type: "zhipu-account", family: access.accountType, planKind: access.mode }
-      : access;
-  }
-  return {
-    type: "zhipu-account",
-    family: access.accountType,
-    planKind: "team-coding-plan",
-    productId: selection.productId,
-    organizationId: selection.organizationId,
-    projectId: selection.projectId,
-  };
 }
 
 export function useCodingPlanAccessRefresh({
@@ -228,18 +182,14 @@ export function useCodingPlanEntitlements({
   const providerFingerprint = useMemo(
     () =>
       [
-        zaiFamily.codingFingerprint,
         zaiFamily.startEnabled ? zaiFamily.startProviderFingerprint : "",
-        bigmodelFamily.codingFingerprint,
         bigmodelFamily.startEnabled ? bigmodelFamily.startProviderFingerprint : "",
       ]
         .filter(Boolean)
         .join("|"),
     [
-      bigmodelFamily.codingFingerprint,
       bigmodelFamily.startEnabled,
       bigmodelFamily.startProviderFingerprint,
-      zaiFamily.codingFingerprint,
       zaiFamily.startEnabled,
       zaiFamily.startProviderFingerprint,
     ],

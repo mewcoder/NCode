@@ -135,7 +135,8 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   const avatarKey = user?.avatarUrl ?? user?.id ?? "guest";
   const showAuthRestoreLoading = !user && isRestoringOAuthSession;
   const usageSummaryState = useWorkspaceSidebarFooterUsageSummaryState({
-    enabled: true,
+    // Sidebar is always mounted; keep it from querying official account usage automatically.
+    enabled: false,
     workspaceIdentity,
     workspacePath,
   });
