@@ -252,7 +252,7 @@ function printHelp() {
   --os, -o <mac|win|linux>     目标操作系统，默认 mac
   --arch, -a <x64|arm64>       目标 CPU 架构，默认 arm64
   --skip-prepare               跳过 prepare:runtime-assets
-  --skip-build                 跳过 pnpm build
+  --skip-build                 跳过桌面构建
   --dry-run                    只打印最终命令，不执行打包
   -h, --help                   查看帮助
 
@@ -732,7 +732,7 @@ async function main() {
   }
 
   if (!skipBuild) {
-    run(pnpmCommand, ["build"], buildEnv);
+    run(pnpmCommand, ["build:no-runtime-assets"], buildEnv);
   }
 
   await runTimedAsync("bundle:electron-builder", () =>

@@ -678,9 +678,6 @@ importers:
       '@zcode/shared':
         specifier: workspace:*
         version: link:../shared
-      '@zcode/ui':
-        specifier: workspace:*
-        version: link:../ui
       '@zcode/zcode-cua':
         specifier: workspace:*
         version: link:../zcode-cua
@@ -757,6 +754,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.1
         version: 6.0.1(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))
+      '@zcode/ui':
+        specifier: workspace:*
+        version: link:../ui
       electron:
         specifier: 41.0.3
         version: 41.0.3

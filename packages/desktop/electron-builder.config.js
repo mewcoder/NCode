@@ -101,7 +101,8 @@ const requireFromConfig = createRequire(import.meta.url);
 let nsisInstallSectionPatched = false;
 let nsisInstallSectionOriginalSource = null;
 let nsisInstallSectionPath = null;
-const desktopElectronVersion = requireFromConfig("./package.json").devDependencies.electron;
+const desktopPackageManifest = requireFromConfig("./package.json");
+const desktopElectronVersion = desktopPackageManifest.devDependencies.electron;
 const asarCliPath = resolve(
   dirname(requireFromConfig.resolve("@electron/asar/package.json")),
   "bin",
@@ -149,6 +150,22 @@ const REQUIRED_ASAR_RUNTIME_MODULES = [
   // 已在线上触发安装包启动即报 Cannot find module 'ms'（Require stack: debug/src/common.js），
   // 自动更新链路直接崩。ms 是叶子包，显式注入即可让 debug 在 app.asar 内稳定解析。
   "ms",
+];
+const desktopRuntimeModuleNames = new Set(
+  collectRuntimeModuleClosureEntries(
+    [...Object.keys(desktopPackageManifest.dependencies ?? {}), ...REQUIRED_ASAR_RUNTIME_MODULES],
+    runtimeModuleLookupRoots,
+  ).map(({ moduleName }) => moduleName),
+);
+// Vite bundles @zcode/ui into out/renderer. PNPM workspace's hoisted node_modules still makes
+// Electron Builder pick up those renderer-only dependencies, so exclude its closure except packages
+// also required by the desktop production runtime.
+const RENDERER_ONLY_PACKAGE_PRUNE_PATTERNS = [
+  ...new Set(
+    collectRuntimeModuleClosureEntries(["@zcode/ui"], runtimeModuleLookupRoots)
+      .filter(({ moduleName }) => !desktopRuntimeModuleNames.has(moduleName))
+      .map(({ moduleName }) => `!node_modules/${moduleName}/**`),
+  ),
 ];
 // pacman 依赖必须使用 Arch 官方仓库中的包名。electron-builder 的历史默认集合包含
 // 已移除的 libappindicator-gtk3/http-parser，且缺少 Electron 实际需要的运行库；显式
@@ -489,6 +506,7 @@ export default {
     // app.asar 会把桌面端运行时 node_modules 一并打进去，依赖包自带的 .map / README
     // 默认也会原样进入安装包。这里统一在主包层做一次裁剪，只移除非运行时文件，LICENSE 继续保留。
     ...PACKAGING_PRUNE_PATTERNS,
+    ...RENDERER_ONLY_PACKAGE_PRUNE_PATTERNS,
     ...createDesktopNativePackagePrunePatterns(targetPlatform.key),
     "!node_modules/@zcode/**",
     "!node_modules/react/**",
