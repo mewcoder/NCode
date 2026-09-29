@@ -82,6 +82,7 @@ export function resolveDesktopTsupBundleSecurityOptions(
 }
 
 type DesktopTsupEsbuildOptions = {
+  alias?: Record<string, string>;
   chunkNames?: string;
   legalComments?: "none" | "inline" | "eof" | "linked" | "external";
 };
@@ -93,6 +94,10 @@ export function applyDesktopTsupEsbuildSecurityOptions(options: DesktopTsupEsbui
 }
 
 const desktopTsupBundleSecurityOptions = resolveDesktopTsupBundleSecurityOptions();
+const disabledTelemetryModule = resolve(
+  import.meta.dirname,
+  "scripts/disabledTelemetryModules.ts",
+);
 
 function createSharedDefines() {
   return {
@@ -173,6 +178,15 @@ export default defineConfig([
     // 这里按目标分目录输出 chunk，确保并发构建下产物隔离。
     esbuildOptions(options) {
       applyDesktopTsupEsbuildSecurityOptions(options);
+      options.alias = {
+        ...options.alias,
+        "@arms/rum-electron": disabledTelemetryModule,
+        "@opentelemetry/api": disabledTelemetryModule,
+        "@opentelemetry/resources": disabledTelemetryModule,
+        "@opentelemetry/exporter-metrics-otlp-proto": disabledTelemetryModule,
+        "@opentelemetry/exporter-trace-otlp-proto": disabledTelemetryModule,
+        "@opentelemetry/sdk-metrics": disabledTelemetryModule,
+      };
       options.chunkNames = "main/chunk-[hash]";
     },
     onSuccess: createDevReadyMarkerHook("main"),
