@@ -409,6 +409,10 @@ function V4ComposerModelControlsImpl({
   const openSettingsTab = useTabStore((state) => state.openSettingsTab);
   const modelTriggerRef = useRef<HTMLSpanElement | null>(null);
   const thoughtTriggerRef = useRef<HTMLSpanElement | null>(null);
+  const lastReadyModelSelectionViewRef = useRef<ModelSelectionView | null>(null);
+  useEffect(() => {
+    if (modelSelectionView) lastReadyModelSelectionViewRef.current = modelSelectionView;
+  }, [modelSelectionView]);
   // Ctrl+M 热键：递增 openRequestKey 请求 ModelConfigSelect 打开菜单（旧 handleOpenModelMenuShortcut 语义）。
   const [modelMenuOpenRequestKey, setModelMenuOpenRequestKey] = useState(0);
   const [recoveryPending, setRecoveryPending] = useState(false);
@@ -444,6 +448,21 @@ function V4ComposerModelControlsImpl({
   const effectiveConfig = useMemo<SessionConfigState | null>(() => {
     return resolveDraftDisplayedConfig(draftConfig ?? {});
   }, [draftConfig]);
+  const previousModelSelectionView = lastReadyModelSelectionViewRef.current;
+  const previousEffectiveSelection = previousModelSelectionView?.effectiveSelection;
+  const previousViewMatchesCurrentModel =
+    previousEffectiveSelection?.providerId === effectiveConfig?.provider &&
+    previousEffectiveSelection?.modelId === effectiveConfig?.model;
+  const isReasoningLevelRefresh =
+    modelSelectionState.status === "loading" &&
+    previousViewMatchesCurrentModel &&
+    (previousEffectiveSelection?.options?.reasoningLevel ?? "") !==
+      (effectiveConfig?.thought ?? "");
+  const pickerModelSelectionView =
+    modelSelectionView ??
+    (modelSelectionState.status === "loading" && previousViewMatchesCurrentModel
+      ? previousModelSelectionView
+      : null);
 
   const handleOpenStartPlanUpgrade = useCallback(
     (providerId: string) => {
@@ -725,8 +744,8 @@ function V4ComposerModelControlsImpl({
   }, [draftMode, effectiveConfig, modelSelectionView?.revision]);
 
   const modelSelectGroups = useMemo<ModelSelectGroup[]>(() => {
-    if (!modelSelectionView) return [];
-    return buildRegistryModelSelectGroups(displayProvider, modelSelectionView, {
+    if (!pickerModelSelectionView) return [];
+    return buildRegistryModelSelectGroups(displayProvider, pickerModelSelectionView, {
       apiKeyLabel: intl.formatMessage({ id: "settings.modelProvider.apiKey" }),
       apiKeyBadgeLabel: intl.formatMessage({
         id: "settings.modelProvider.connectionMode.apiKeyBadge",
@@ -750,7 +769,7 @@ function V4ComposerModelControlsImpl({
         id: "settings.modelProvider.connectionMode.teamPlan",
       }),
     });
-  }, [displayProvider, intl, modelSelectionView]);
+  }, [displayProvider, intl, pickerModelSelectionView]);
 
   // 修复：恢复「管理模型」入口（老版 onManageModels = 打开设置页并定位模型供应商区）。
   const handleOpenModelProviderSettings = useCallback(() => {
@@ -765,14 +784,14 @@ function V4ComposerModelControlsImpl({
   // 当前投影模型的编码值：provider 命中目录则按自定义模型编码，否则回落裸 model id。
   const rawModelValue = useMemo(() => {
     if (!effectiveConfig || !effectiveConfig.model) return "";
-    const providerExists = modelSelectionView?.providers.some(
+    const providerExists = pickerModelSelectionView?.providers.some(
       (candidate) => candidate.providerId === effectiveConfig.provider,
     );
     if (providerExists) {
       return encodeCustomModelValue(effectiveConfig.provider, effectiveConfig.model);
     }
     return effectiveConfig.model;
-  }, [effectiveConfig, modelSelectionView]);
+  }, [effectiveConfig, pickerModelSelectionView]);
 
   // 触发器显示兜底——`<synthetic>`（Claude SDK 恢复合成模型）或当前模型
   // 不在可选组（失效/下线/退登）→ 回落占位/默认「选择模型」，不直显协议内部占位符或失效
@@ -794,7 +813,7 @@ function V4ComposerModelControlsImpl({
     const fallbackLabel =
       triggerDisplay.placeholder ?? intl.formatMessage({ id: "chat.toolbar.model.label" });
     const providerName =
-      modelSelectionView?.providers.find(
+      pickerModelSelectionView?.providers.find(
         (candidate) => candidate.providerId === effectiveConfig?.provider,
       )?.providerName ?? undefined;
     return resolveV4ModelTriggerDisplay({
@@ -807,7 +826,7 @@ function V4ComposerModelControlsImpl({
   }, [
     effectiveConfig?.provider,
     intl,
-    modelSelectionView,
+    pickerModelSelectionView,
     modelSelectGroups,
     normalizedModelValue,
     triggerDisplay.placeholder,
@@ -832,7 +851,7 @@ function V4ComposerModelControlsImpl({
         draftMode,
       });
       const selectedRegistryProvider = decoded?.providerId
-        ? modelSelectionView?.providers.find(
+        ? pickerModelSelectionView?.providers.find(
             (candidate) => candidate.providerId === decoded.providerId,
           )
         : undefined;
@@ -876,7 +895,7 @@ function V4ComposerModelControlsImpl({
       effectiveConfig?.provider,
       onRecoverCustomModelSelection,
       onSelectModel,
-      modelSelectionView,
+      pickerModelSelectionView,
       workspaceIdentity,
       workspacePath,
     ],
@@ -888,10 +907,10 @@ function V4ComposerModelControlsImpl({
         ? resolveDraftModelThoughtOption(
             effectiveConfig.provider,
             effectiveConfig.model,
-            modelSelectionView,
+            pickerModelSelectionView,
           )
         : null,
-    [effectiveConfig, modelSelectionView],
+    [effectiveConfig, pickerModelSelectionView],
   );
 
   // 候选档位只来自目标 Host 的 ModelSelectionView，已选档位只来自 Composer。
@@ -1050,7 +1069,11 @@ function V4ComposerModelControlsImpl({
           })}
           isItemLocked={isModelOptionLocked}
           onValueChange={handleModelValueChange}
-          disabled={disabled || recoveryPending || modelSelectionState.status !== "ready"}
+          disabled={
+            disabled ||
+            recoveryPending ||
+            (modelSelectionState.status !== "ready" && !isReasoningLevelRefresh)
+          }
           tooltipTitle={modelTriggerDisplay.fullLabel}
           shortcutLabel={modelShortcutLabel}
           triggerRef={modelTriggerRef}
