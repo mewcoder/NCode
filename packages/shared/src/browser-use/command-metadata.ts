@@ -10,8 +10,8 @@ export const BROWSER_VIEWPORT_LIMITS = {
 
 /** Agent 创建或打开的新页面使用的固定逻辑 viewport；不属于人类浏览器显示偏好。 */
 export const DEFAULT_AGENT_BROWSER_VIEWPORT = {
-  width: 1280,
-  height: 720,
+  width: 1440,
+  height: 900,
 } as const;
 
 export const browserViewportSizeSchema = z

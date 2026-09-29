@@ -92,8 +92,19 @@ export function useWebElementPicker({
     logger.info("[UnifiedBrowserView] 开始网页元素选择");
 
     try {
+      const rootStyle = window.getComputedStyle(document.documentElement);
+      const bodyFontFamily = window.getComputedStyle(document.body).fontFamily;
+      const readThemeToken = (name: string, fallback: string) =>
+        rootStyle.getPropertyValue(name).trim() || fallback;
       const result = await executeJsRef.current(
-        buildWebElementPickerScript(labels ? { labels } : {}),
+        buildWebElementPickerScript({
+          ...(labels ? { labels } : {}),
+          palette: {
+            accent: readThemeToken("--color-brand", "#0b7fff"),
+            fontFamily:
+              bodyFontFamily || "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+          },
+        }),
       );
       if (activePickerRunRef.current !== runId) {
         return;

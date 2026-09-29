@@ -53,7 +53,7 @@ export function resolveAnimatedSidePanePanelLayout() {
   return {
     collapsedSize: "0px",
     defaultSize: "0px",
-    maxSize: "65%",
+    maxSize: "80%",
     minSize: "240px",
     useResizablePanel: true,
   };

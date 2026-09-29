@@ -1652,7 +1652,7 @@ export const WorkspaceShellLayout = memo(function WorkspaceShellLayoutComponent(
           >
             <ResizablePanel
               id="conversation-column"
-              minSize="35%"
+              minSize="20%"
               defaultSize={isSidePaneVisible ? "52%" : undefined}
             >
               <ResizablePanelGroup

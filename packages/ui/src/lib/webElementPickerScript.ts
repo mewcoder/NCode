@@ -14,6 +14,17 @@ interface WebElementPickerScriptOptions {
   maxHtmlChars: number;
   maxAttributeChars: number;
   labels: WebElementPickerScriptLabels;
+  palette: WebElementPickerScriptPalette;
+}
+
+interface WebElementPickerScriptPalette {
+  accent: string;
+  border: string;
+  fontFamily: string;
+  tooltipBackground: string;
+  tooltipForeground: string;
+  tooltipTagBackground: string;
+  tooltipTagForeground: string;
 }
 
 export interface WebElementPickerScriptLabels {
@@ -22,8 +33,11 @@ export interface WebElementPickerScriptLabels {
   font: string;
 }
 
-type WebElementPickerScriptBuildOptions = Partial<Omit<WebElementPickerScriptOptions, "labels">> & {
+type WebElementPickerScriptBuildOptions = Partial<
+  Omit<WebElementPickerScriptOptions, "labels" | "palette">
+> & {
   labels?: Partial<WebElementPickerScriptLabels>;
+  palette?: Partial<WebElementPickerScriptPalette>;
 };
 
 const DEFAULT_OPTIONS: WebElementPickerScriptOptions = {
@@ -34,6 +48,15 @@ const DEFAULT_OPTIONS: WebElementPickerScriptOptions = {
     background: "Background",
     color: "Color",
     font: "Font",
+  },
+  palette: {
+    accent: "#0b7fff",
+    border: "rgba(255, 255, 255, 0.14)",
+    fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    tooltipBackground: "rgba(32, 32, 32, 0.88)",
+    tooltipForeground: "#ffffff",
+    tooltipTagBackground: "rgba(255, 255, 255, 0.1)",
+    tooltipTagForeground: "#d0d0d0",
   },
 };
 
@@ -329,10 +352,10 @@ function webElementPickerScript(options: WebElementPickerScriptOptions) {
   const overlay = document.createElement("div");
   overlay.setAttribute("data-zcode-web-element-picker", "overlay");
   Object.assign(overlay.style, {
-    background: "rgba(37, 99, 235, 0.12)",
-    border: "2px solid #2563eb",
-    borderRadius: "4px",
-    boxShadow: "0 0 0 9999px rgba(15, 23, 42, 0.10)",
+    background: `color-mix(in srgb, ${options.palette.tooltipForeground} 8%, transparent)`,
+    border: `1px solid ${options.palette.accent}`,
+    borderRadius: "3px",
+    boxShadow: `0 0 0 2px color-mix(in srgb, ${options.palette.accent} 16%, transparent), 0 0 0 9999px rgba(0, 0, 0, 0.06)`,
     boxSizing: "border-box",
     display: "none",
     left: "0",
@@ -344,23 +367,23 @@ function webElementPickerScript(options: WebElementPickerScriptOptions) {
 
   const label = document.createElement("div");
   Object.assign(label.style, {
-    backdropFilter: "blur(10px)",
-    background: "rgba(17, 24, 39, 0.92)",
-    border: "1px solid rgba(255, 255, 255, 0.14)",
-    borderRadius: "18px",
-    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.28)",
+    backdropFilter: "blur(8px)",
+    background: options.palette.tooltipBackground,
+    border: `1px solid ${options.palette.border}`,
+    borderRadius: "8px",
+    boxShadow: "0 4px 14px rgba(0, 0, 0, 0.16)",
     boxSizing: "border-box",
-    color: "#f9fafb",
+    color: options.palette.tooltipForeground,
     display: "none",
-    font: "12px/1.4 -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+    font: `12px/1.45 ${options.palette.fontFamily}`,
     left: "0",
     maxWidth: "calc(100vw - 16px)",
-    minWidth: "214px",
-    padding: "12px 18px 14px",
+    minWidth: "176px",
+    padding: "8px 11px",
     pointerEvents: "none",
     position: "fixed",
     top: "0",
-    width: "min(320px, calc(100vw - 16px))",
+    width: "min(280px, calc(100vw - 16px))",
     zIndex: "2147483647",
   } satisfies Partial<CSSStyleDeclaration>);
 
@@ -387,19 +410,21 @@ function webElementPickerScript(options: WebElementPickerScriptOptions) {
 
     const row = document.createElement("div");
     Object.assign(row.style, {
-      alignItems: "baseline",
-      columnGap: "16px",
+      alignItems: "center",
+      borderTop: `1px solid ${options.palette.border}`,
+      columnGap: "12px",
       display: "grid",
       gridTemplateColumns: "auto minmax(0, 1fr)",
       minWidth: "0",
+      paddingTop: "5px",
     } satisfies Partial<CSSStyleDeclaration>);
 
     const nameNode = document.createElement("span");
     nameNode.textContent = name;
     Object.assign(nameNode.style, {
-      color: "rgba(255, 255, 255, 0.62)",
-      fontSize: "15px",
-      fontWeight: "600",
+      color: options.palette.tooltipTagForeground,
+      fontSize: "12px",
+      fontWeight: "500",
       minWidth: "0",
       whiteSpace: "nowrap",
     } satisfies Partial<CSSStyleDeclaration>);
@@ -407,10 +432,10 @@ function webElementPickerScript(options: WebElementPickerScriptOptions) {
     const valueNode = document.createElement("span");
     valueNode.textContent = value;
     Object.assign(valueNode.style, {
-      color: "#ffffff",
+      color: options.palette.tooltipForeground,
       fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace",
-      fontSize: "15px",
-      fontWeight: "700",
+      fontSize: "12px",
+      fontWeight: "500",
       minWidth: "0",
       overflow: "hidden",
       textAlign: "right",
@@ -428,21 +453,25 @@ function webElementPickerScript(options: WebElementPickerScriptOptions) {
 
     const header = document.createElement("div");
     Object.assign(header.style, {
-      alignItems: "baseline",
-      columnGap: "16px",
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr) auto",
+      alignItems: "center",
+      display: "flex",
+      gap: "8px",
+      justifyContent: "space-between",
       minWidth: "0",
+      paddingBottom: "6px",
     } satisfies Partial<CSSStyleDeclaration>);
 
     const tagNode = document.createElement("span");
     tagNode.textContent = target.tagName.toLowerCase();
     Object.assign(tagNode.style, {
-      color: "#ffffff",
-      fontSize: "16px",
-      fontWeight: "800",
+      background: options.palette.tooltipTagBackground,
+      borderRadius: "4px",
+      color: options.palette.tooltipTagForeground,
+      fontSize: "12px",
+      fontWeight: "600",
       minWidth: "0",
       overflow: "hidden",
+      padding: "2px 6px",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
     } satisfies Partial<CSSStyleDeclaration>);
@@ -450,10 +479,11 @@ function webElementPickerScript(options: WebElementPickerScriptOptions) {
     const sizeNode = document.createElement("span");
     sizeNode.textContent = formatElementSize(rect);
     Object.assign(sizeNode.style, {
-      color: "#ffffff",
+      color: options.palette.tooltipTagForeground,
       fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace",
-      fontSize: "15px",
-      fontWeight: "800",
+      fontSize: "12px",
+      fontVariantNumeric: "tabular-nums",
+      fontWeight: "500",
       whiteSpace: "nowrap",
     } satisfies Partial<CSSStyleDeclaration>);
 
@@ -649,6 +679,10 @@ export function buildWebElementPickerScript(options: WebElementPickerScriptBuild
     labels: {
       ...DEFAULT_OPTIONS.labels,
       ...options.labels,
+    },
+    palette: {
+      ...DEFAULT_OPTIONS.palette,
+      ...options.palette,
     },
   };
   return `(${webElementPickerScript.toString()})(${JSON.stringify(resolvedOptions)})`;
