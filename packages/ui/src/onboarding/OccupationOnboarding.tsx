@@ -77,6 +77,7 @@ export function OccupationOnboarding({
   const [dismissed, setDismissed] = useState(false);
   const loadDeviceMid = useCallback(() => platform.getDeviceId(), [platform]);
   const [needsOnboarding, markOnboarded] = useOnboardingTrigger({
+    enabled: onboardingEnabled,
     onboardingRecord,
     userId,
     hasStoredOccupation: Boolean(settings?.onboardingOccupation),
@@ -170,7 +171,7 @@ export function OccupationOnboarding({
   // 预填异步后到时不得覆盖用户已经做出的选择。
   const userEditedRef = useRef(false);
   useEffect(() => {
-    if (!onboardingRecord) return;
+    if (!onboardingEnabled || !onboardingRecord) return;
     let cancelled = false;
     onboardingRecord.getLatestEntry().then(
       (entry) => {
@@ -183,7 +184,7 @@ export function OccupationOnboarding({
     return () => {
       cancelled = true;
     };
-  }, [onboardingRecord, userId]);
+  }, [onboardingEnabled, onboardingRecord, userId]);
   const markUserEdited = () => {
     userEditedRef.current = true;
   };

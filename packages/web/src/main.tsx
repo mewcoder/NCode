@@ -240,6 +240,7 @@ function createWebPlatform(): IPlatformService {
       window.open(url, "_blank", "noopener,noreferrer");
     },
     openFeedback: async () => {
+      return; // NCode disables feedback before requesting official configuration.
       const feedbackUrl = await resolveFeedbackUrl();
       if (!feedbackUrl) {
         return;
@@ -247,6 +248,7 @@ function createWebPlatform(): IPlatformService {
       window.open(feedbackUrl, "_blank", "noopener,noreferrer");
     },
     openCommunity: async () => {
+      return; // NCode disables community before requesting official configuration.
       const locale = document.documentElement.lang === "en-US" ? "en-US" : "zh-CN";
       const communityUrl = await resolveWebCommunityUrl(locale);
       if (!communityUrl) {
@@ -254,10 +256,7 @@ function createWebPlatform(): IPlatformService {
       }
       window.open(communityUrl, "_blank", "noopener,noreferrer");
     },
-    canOpenCommunity: async (locale) => {
-      const communityUrl = await resolveWebCommunityUrl(locale);
-      return typeof communityUrl === "string" && communityUrl.length > 0;
-    },
+    canOpenCommunity: async () => false, // NCode disables the entry before requesting official configuration.
     openInFileManager: () =>
       Promise.resolve({ success: false, error: "Not supported in web mode" }),
     openExternalFile: () => Promise.resolve({ success: false, error: "Not supported in web mode" }),
@@ -437,6 +436,11 @@ function renderWebBootstrapError(error: unknown): void {
 
 async function bootstrapWebApp() {
   const params = new URLSearchParams(window.location.search);
+  if (["/cn/share/callback", "/share/callback"].includes(window.location.pathname)) {
+    // Do not exchange official share OAuth tokens in NCode.
+    window.location.replace("/");
+    return;
+  }
   if (isWebOAuthCallback(params)) {
     renderWebAuthCallbackPage();
     return;

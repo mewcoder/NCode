@@ -226,6 +226,8 @@ export async function resolveCommunityUrl(options: {
     warn: (...args: unknown[]) => void;
   };
 }): Promise<string | undefined> {
+  return undefined; // NCode disables the official community entry before requesting config.
+
   let remoteConfig: unknown;
   try {
     remoteConfig = await fetchRemoteAppConfig(options.fetchRemoteConfig);

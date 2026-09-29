@@ -12,18 +12,23 @@ import { logger } from "@/logger.js";
  * 保存成功后把判定置 false（记录已落盘，本次会话不再触发）。
  */
 export function useOnboardingTrigger(options: {
+  enabled: boolean;
   onboardingRecord: ReturnType<typeof useOnboardingRecordService>;
   userId: string | null;
   hasStoredOccupation: boolean;
   loadDeviceMid: () => string;
   update: (patch: Partial<AppSettings>) => Promise<void>;
 }): [boolean | null, () => void] {
-  const { onboardingRecord, userId, hasStoredOccupation, loadDeviceMid, update } = options;
+  const { enabled, onboardingRecord, userId, hasStoredOccupation, loadDeviceMid, update } = options;
   // null 表示异步判定中（按本地使用记录判断是否触发）。
-  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(enabled ? null : false);
   // 记录上一次判定时的 userId，回填只在身份实际变化后发生（见下方回填条件）。
   const lastSyncedUserIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
+    if (!enabled) {
+      setNeedsOnboarding(false);
+      return;
+    }
     let cancelled = false;
     const fallback = () => !hasStoredOccupation;
     // 服务不可用（旧测试 double / 未注册的 host）时退回旧 settings 判定，行为不回退。
@@ -84,6 +89,6 @@ export function useOnboardingTrigger(options: {
     };
     // 不依赖 hasStoredOccupation（对应 settings?.onboardingOccupation）：保存成功会改写该字段，
     // 若记录写入失败会在当场重开引导；记录缺失导致的再次触发按约定留给下次启动。
-  }, [onboardingRecord, userId, loadDeviceMid]);
+  }, [enabled, onboardingRecord, userId, loadDeviceMid]);
   return [needsOnboarding, () => setNeedsOnboarding(false)];
 }
