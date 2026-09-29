@@ -265,7 +265,7 @@ export function ConversationDraftSuggestedPrompts({
                         className={cn(
                           "shrink-0 rounded-sm object-contain",
                           // GitHub 素材自带白色方形底，再缩小一圈以露出与其他图标一致的外层留白。
-                          item.iconUrl?.includes("/github/icon.png") ? "size-4.5" : "size-full",
+                          item.iconUrl?.includes("github") ? "size-4.5" : "size-full",
                         )}
                       />
                     </span>
