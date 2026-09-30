@@ -13,15 +13,16 @@ Let users explicitly select a reusable model configuration while adding a model,
 
 ## Interaction
 
-- Hide the smart-configuration switch when adding a model and default that draft to manual configuration, without automatic matching by Model ID. Keep the switch for editing existing models, and show the “Reuse config” button beside the Model ID label when adding.
-- Resetting an add-model form clears its parameter draft while preserving the entered Model ID and manual mode; it must not trigger ID-based resolution. Restoring an edited model keeps the existing recommended-configuration behavior.
+- Add and edit model drafts both use manual configuration without automatic matching by Model ID. When editing an existing model that follows recommendations, opening the editor snapshots its current effective parameters into the temporary manual draft; only saving converts the persisted model to manual configuration. Canceling leaves the saved model unchanged.
+- Show the “Reuse config” button beside the Model ID label when adding or editing. Resetting an add-model form clears its parameter draft while preserving the entered Model ID and manual mode; it must not trigger ID-based resolution. Explicitly restoring an edited model applies the current recommended parameters as a one-time manual snapshot and does not re-enable automatic following.
 - Open a separate dialog titled “Reuse model configuration” with models from non-personal Providers and built-in template models; exclude user-created personal Providers. Search by model ID only, while each row keeps a unique command identity even when visible model IDs repeat. Each row uses two compact lines: Model ID and one Provider (append “and others” when there are more; hover the Provider name to see all eligible sources), then context/output size tags in K or M using the model-list context badge style, followed by supported input type tags (Image, Video, Audio, PDF) using the model-list capability badge style. If more input types exist, show a compact `+N` tag in the same capability badge style.
+- Inset each option evenly from the list edges and separate adjacent rows with a small vertical gap. Show selection through the row surface and border, without a trailing check mark.
 - Combine sources only when both the model ID and parameter configuration match. This avoids duplicate rows while keeping each selectable row tied to the model ID that will be filled into the draft.
 - Keep built-in Coding Plan templates available as parameter references even without an owned Plan. Actual configured Plan Providers remain subject to entitlement/usability checks; ordinary template models such as GPT also remain searchable before their Provider is instantiated.
 - Keep only Confirm and Cancel in the dialog footer; confirmation applies the selected source.
-- Applying copies editable model parameters into the open draft, fills Model ID from the first displayed source, and switches that draft to manual configuration. The Model ID stays editable, and the current Provider continues to own its connection details.
-- Canceling the search dialog leaves the model draft unchanged. If no source is applied, the user enters the model parameters manually; new models do not run ID-based automatic matching.
-- Existing-model editing remains unchanged.
+- Applying copies editable model parameters into the open draft and switches that draft to manual configuration. For a new model, fill Model ID from the first displayed source; for an edited model, preserve its current Model ID. In both cases, the current Provider continues to own its connection details.
+- Canceling the search dialog leaves the model draft unchanged. If no source is applied, the user enters the model parameters manually; add and edit drafts do not run ID-based automatic matching.
+- Existing models already saved in recommended mode are not migrated just by opening or canceling the editor. Saving an edit stores a manual snapshot, keeping the effective configuration shown at edit time.
 
 ## Invariants
 

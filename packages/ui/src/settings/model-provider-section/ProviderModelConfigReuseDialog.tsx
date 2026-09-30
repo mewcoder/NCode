@@ -85,11 +85,11 @@ export function ProviderModelConfigReuseDialog({
             autoFocus
             placeholder={intl.formatMessage({ id: "settings.modelProvider.reuseConfigSearch" })}
           />
-          <CommandList className="max-h-[min(26rem,55vh)]">
+          <CommandList className="max-h-[min(26rem,55vh)] px-2 py-1">
             <CommandEmpty className="px-3 py-6 text-center text-foreground-subtle">
               {intl.formatMessage({ id: "settings.modelProvider.reuseConfigEmpty" })}
             </CommandEmpty>
-            <CommandGroup className="p-0">
+            <CommandGroup className="**:[[cmdk-group-items]]:space-y-1 p-0">
               {options.map((option) => {
                 const isSelected = option.key === selectedKey;
                 const primarySource = option.sources[0];
@@ -102,16 +102,17 @@ export function ProviderModelConfigReuseDialog({
                   ),
                 ];
                 const properties = option.config.properties;
-                const tokenDetails: { label: string; value: string }[] = [];
+                const tokenDetails: { key: string; label?: string; value: string }[] = [];
                 if (properties?.contextWindow != null) {
                   tokenDetails.push({
-                    label: intl.formatMessage({ id: "settings.modelProvider.reuseConfigContext" }),
+                    key: "contextWindow",
                     value: formatTokenSize(properties.contextWindow, locale),
                   });
                 }
                 const maxOutputTokens = option.config.optionSpecs?.maxOutputTokens?.max;
                 if (maxOutputTokens != null) {
                   tokenDetails.push({
+                    key: "maxOutputTokens",
                     label: intl.formatMessage({ id: "settings.modelProvider.reuseConfigMaxOutput" }),
                     value: formatTokenSize(maxOutputTokens, locale),
                   });
@@ -124,18 +125,8 @@ export function ProviderModelConfigReuseDialog({
                 ].filter((inputType): inputType is string => inputType !== null);
                 const visibleInputTypes = inputTypes.slice(0, 3);
                 const remainingInputTypeCount = inputTypes.length - visibleInputTypes.length;
-                const selectedMetadataTagClassName =
-                  isSelected &&
-                  "!border-primary-foreground/30 !bg-primary-foreground/10 !text-primary-foreground";
-                const tokenTagClassName = cn(
-                  MODEL_CONTEXT_WINDOW_BADGE_CLASS_NAME,
-                  "max-w-none",
-                  selectedMetadataTagClassName,
-                );
-                const metadataTagClassName = cn(
-                  MODEL_INPUT_CAPABILITY_BADGE_CLASS_NAME,
-                  selectedMetadataTagClassName,
-                );
+                const tokenTagClassName = cn(MODEL_CONTEXT_WINDOW_BADGE_CLASS_NAME, "max-w-none");
+                const metadataTagClassName = MODEL_INPUT_CAPABILITY_BADGE_CLASS_NAME;
                 const allProvidersLabel = new Intl.ListFormat(locale, {
                   style: "long",
                   type: "conjunction",
@@ -147,39 +138,33 @@ export function ProviderModelConfigReuseDialog({
                     keywords={[option.searchText]}
                     onSelect={() => setSelectedKey(option.key)}
                     className={cn(
-                      "items-start py-2",
+                      "items-start border border-transparent py-2 transition-colors",
                       isSelected &&
-                        "!bg-primary !text-primary-foreground hover:!bg-primary",
+                        "!border-border-hover !bg-selected !text-foreground hover:!bg-selected",
                     )}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center justify-between gap-3">
                         <code
-                          className={cn(
-                            "min-w-0 truncate font-mono text-ui-sm text-foreground",
-                            isSelected && "!text-primary-foreground",
-                          )}
+                          className="min-w-0 truncate font-mono text-ui-sm text-foreground"
                         >
                           {primarySource.modelId}
                         </code>
                         <span
                           title={providerNames.length > 1 ? allProvidersLabel : undefined}
-                          className={cn(
-                            "shrink-0 text-ui-sm text-foreground-subtle",
-                            isSelected && "!text-primary-foreground/75",
-                          )}
+                          className="shrink-0 text-ui-sm text-foreground-subtle"
                         >
                           {option.providersLabel}
                         </span>
                       </div>
                       {tokenDetails.length > 0 || visibleInputTypes.length > 0 ? (
                         <div className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
-                          {tokenDetails.map(({ label, value }) => (
+                          {tokenDetails.map(({ key, label, value }) => (
                             <span
-                              key={label}
+                              key={key}
                               className={tokenTagClassName}
                             >
-                              {label} {value}
+                              {label ? `${label} ` : ""}{value}
                             </span>
                           ))}
                           {visibleInputTypes.map((inputType) => (

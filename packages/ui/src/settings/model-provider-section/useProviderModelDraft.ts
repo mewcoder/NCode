@@ -79,10 +79,24 @@ export function useProviderModelDraft({
     config.cancel();
     setRawDraft(createProviderModelDraftValues(nextModel));
   };
+  const resetManual = (nextModel: ProviderSettingsFormModel) => {
+    editGeneration.current += 1;
+    config.cancel();
+    const nextDraft = createProviderModelDraftValues(nextModel);
+    setRawDraft(
+      nextDraft.useRecommendedConfigValue === false
+        ? nextDraft
+        : updateModelDraft(nextDraft, { useRecommendedConfigValue: false }, nextModel),
+    );
+  };
   const restore = async () => {
     const generation = ++editGeneration.current;
-    const apply = (resolvedModel: ProviderSettingsFormModel) =>
-      setRawDraft(restoreModelDraft(draft, resolvedModel));
+    const apply = (resolvedModel: ProviderSettingsFormModel) => {
+      const restored = restoreModelDraft(draft, resolvedModel);
+      setRawDraft(
+        updateModelDraft(restored, { useRecommendedConfigValue: false }, resolvedModel),
+      );
+    };
     if (!draft.idValue.trim() || !resolve) {
       config.cancel();
       apply(currentModel);
@@ -110,6 +124,7 @@ export function useProviderModelDraft({
     draft,
     change,
     reset,
+    resetManual,
     restore,
     commit,
     overrides: modelDraftOverrides(draft),

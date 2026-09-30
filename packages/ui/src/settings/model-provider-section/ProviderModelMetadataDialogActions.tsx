@@ -1,9 +1,7 @@
 import { Loader2Icon, CircleAlertIcon, CheckCircle2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button.js";
-import { Switch } from "@/components/ui/switch.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { ModelConfigHelp } from "@/settings/model-provider-section/ModelConfigHelp.js";
 
 export function ModelConfigRestoreButton({
   disabled,
@@ -50,31 +48,6 @@ export function ModelConfigDraftFeedback({
       <span className="text-ui-sm font-medium">
         {error ?? intl.formatMessage({ id: "settings.modelProvider.modelDefaultsLoaded" })}
       </span>
-    </div>
-  );
-}
-
-export function ModelSmartConfigSwitch({
-  checked,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  disabled: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  const { intl } = useZCodeIntl();
-  const label = intl.formatMessage({ id: "settings.modelProvider.followRecommendedConfig" });
-  return (
-    <div
-      data-model-recommended-config="true"
-      className="flex shrink-0 items-center justify-start gap-2 pt-2 text-ui-base text-foreground"
-    >
-      <span className="inline-flex items-center whitespace-nowrap">
-        {label}
-        <ModelConfigHelp field="followRecommendedConfig" />
-      </span>
-      <Switch disabled={disabled} aria-label={label} checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

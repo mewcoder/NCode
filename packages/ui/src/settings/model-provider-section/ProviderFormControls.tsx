@@ -11,6 +11,10 @@ import { Switch } from "@/components/ui/switch.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useProviderModelDraft } from "@/settings/model-provider-section/useProviderModelDraft.js";
 import { ProviderModelMetadataDialog } from "@/settings/model-provider-section/ProviderModelMetadataDialog.js";
+import {
+  ProviderModelConfigReuseDialog,
+  type ProviderModelConfigReuseOption,
+} from "@/settings/model-provider-section/ProviderModelConfigReuseDialog.js";
 import { formatModelContextWindowLabel } from "@/lib/tokenNumberFormat.js";
 import type { ModelConfigResolution, ProviderConfigObject } from "@zcode/provider";
 import { shouldShowModelVisionBadge } from "@/lib/modelVisionBadge.js";
@@ -18,6 +22,7 @@ import { useProviderDetailFeedback } from "@/settings/model-provider-section/Pro
 
 export function ModelRowInput({
   model,
+  modelConfigReuseOptions,
   providerId,
   providerName = providerId,
   providerEnabled = true,
@@ -32,6 +37,7 @@ export function ModelRowInput({
   onTest,
 }: {
   model: ProviderSettingsFormModel;
+  modelConfigReuseOptions?: readonly ProviderModelConfigReuseOption[];
   providerId: string;
   providerName?: string;
   providerEnabled?: boolean;
@@ -52,6 +58,7 @@ export function ModelRowInput({
   const { showFeedback } = useProviderDetailFeedback();
   const [isTesting, setIsTesting] = useState(false);
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [reuseConfigDialogOpen, setReuseConfigDialogOpen] = useState(false);
   const [metadataSaving, setMetadataSaving] = useState(false);
   const metadataSavingRef = useRef(false);
   const [commitErrorMessage, setCommitErrorMessage] = useState<string | null>(null);
@@ -99,7 +106,7 @@ export function ModelRowInput({
 
   const openMetadataDialog = useCallback(() => {
     setEditingModel(model);
-    editor.reset(model);
+    editor.resetManual(model);
     setDraftErrorField(null);
     setCommitErrorMessage(null);
     setDraftBasedOnRevision(settingsRevision);
@@ -136,6 +143,22 @@ export function ModelRowInput({
       setMetadataSaving(false);
     }
   }, [commitDraft]);
+
+  const applyReusedConfig = (option: ProviderModelConfigReuseOption) => {
+    const sourceConfig = structuredClone(option.config);
+    const enabled = draft.enabledValue ?? editingModel.config.enabled ?? true;
+    editor.reset({
+      ...editingModel,
+      modelId: draft.idValue,
+      config: { ...sourceConfig, enabled },
+      personalConfig: sourceConfig,
+      hasPersonalConfig: true,
+      useRecommendedConfig: false,
+    });
+    setReuseConfigDialogOpen(false);
+    setDraftErrorField(null);
+    setCommitErrorMessage(null);
+  };
 
   const handleTest = useCallback(async () => {
     if (!onTest || isTesting || !providerEnabled) {
@@ -305,6 +328,7 @@ export function ModelRowInput({
           draft={draft}
           draftErrorMessage={draftErrorMessage}
           draftErrorField={draftErrorField}
+          onOpenConfigReuse={() => setReuseConfigDialogOpen(true)}
           overrideFields={editor.overrides}
           inheritedConfig={editor.inheritedConfig}
           onOpenChange={handleMetadataDialogOpenChange}
@@ -318,6 +342,14 @@ export function ModelRowInput({
           }}
           modelIdReadOnly={model.builtin}
         />
+        {reuseConfigDialogOpen ? (
+          <ProviderModelConfigReuseDialog
+            open
+            options={modelConfigReuseOptions ?? []}
+            onOpenChange={setReuseConfigDialogOpen}
+            onApply={applyReusedConfig}
+          />
+        ) : null}
         {onDelete ? (
           <Button
             type="button"

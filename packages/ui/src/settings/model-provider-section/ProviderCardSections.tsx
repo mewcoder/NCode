@@ -664,6 +664,7 @@ export function ProviderModelsSection({
                     inputTestId={testId(TID_MODEL_PROVIDER_MODEL_INPUT, String(index))}
                     deleteTestId={testId(TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON, String(index))}
                     model={model}
+                    modelConfigReuseOptions={configReuseOptions}
                     onCommit={(value, basedOnRevision) =>
                       onModelCommit(model.modelId, value, basedOnRevision)
                     }
