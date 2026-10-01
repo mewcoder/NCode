@@ -409,10 +409,6 @@ function V4ComposerModelControlsImpl({
   const openSettingsTab = useTabStore((state) => state.openSettingsTab);
   const modelTriggerRef = useRef<HTMLSpanElement | null>(null);
   const thoughtTriggerRef = useRef<HTMLSpanElement | null>(null);
-  const lastReadyModelSelectionViewRef = useRef<ModelSelectionView | null>(null);
-  useEffect(() => {
-    if (modelSelectionView) lastReadyModelSelectionViewRef.current = modelSelectionView;
-  }, [modelSelectionView]);
   // Ctrl+M 热键：递增 openRequestKey 请求 ModelConfigSelect 打开菜单（旧 handleOpenModelMenuShortcut 语义）。
   const [modelMenuOpenRequestKey, setModelMenuOpenRequestKey] = useState(0);
   const [recoveryPending, setRecoveryPending] = useState(false);
@@ -448,21 +444,12 @@ function V4ComposerModelControlsImpl({
   const effectiveConfig = useMemo<SessionConfigState | null>(() => {
     return resolveDraftDisplayedConfig(draftConfig ?? {});
   }, [draftConfig]);
-  const previousModelSelectionView = lastReadyModelSelectionViewRef.current;
-  const previousEffectiveSelection = previousModelSelectionView?.effectiveSelection;
-  const previousViewMatchesCurrentModel =
-    previousEffectiveSelection?.providerId === effectiveConfig?.provider &&
-    previousEffectiveSelection?.modelId === effectiveConfig?.model;
-  const isReasoningLevelRefresh =
-    modelSelectionState.status === "loading" &&
-    previousViewMatchesCurrentModel &&
-    (previousEffectiveSelection?.options?.reasoningLevel ?? "") !==
-      (effectiveConfig?.thought ?? "");
+  // 选择由当前 Composer 提供；重读期间仅复用同一 Host 的目录，不复用旧选择。
   const pickerModelSelectionView =
     modelSelectionView ??
-    (modelSelectionState.status === "loading" && previousViewMatchesCurrentModel
-      ? previousModelSelectionView
-      : null);
+    (modelSelectionState.status === "loading" ? (modelSelectionState.catalogView ?? null) : null);
+  const isCatalogRefresh =
+    modelSelectionState.status === "loading" && pickerModelSelectionView !== null;
 
   const handleOpenStartPlanUpgrade = useCallback(
     (providerId: string) => {
@@ -831,6 +818,17 @@ function V4ComposerModelControlsImpl({
     normalizedModelValue,
     triggerDisplay.placeholder,
   ]);
+  const modelTriggerIsLoadingSnapshot =
+    modelSelectionState.status === "loading" && pickerModelSelectionView === null;
+  useEffect(() => {
+    if (
+      modelTriggerIsLoadingSnapshot &&
+      (activeConfigPicker === "model" || activeConfigPicker === "thought")
+    ) {
+      // 目标模型变化后当前菜单候选暂不可用；同步关闭 owner 状态，避免加载完成后菜单自行重开。
+      onConfigPickerOpenChange(activeConfigPicker, false);
+    }
+  }, [activeConfigPicker, modelTriggerIsLoadingSnapshot, onConfigPickerOpenChange]);
   const handleModelValueChange = useCallback(
     (value: string) => {
       const decoded = decodeCustomModelValue(value);
@@ -925,7 +923,6 @@ function V4ComposerModelControlsImpl({
       }),
     };
   }, [draftModelThoughtOption, effectiveConfig]);
-
   const handleThoughtValueChange = useCallback(
     (value: string) => {
       if (!effectiveConfig) return;
@@ -1072,12 +1069,12 @@ function V4ComposerModelControlsImpl({
           disabled={
             disabled ||
             recoveryPending ||
-            (modelSelectionState.status !== "ready" && !isReasoningLevelRefresh)
+            (modelSelectionState.status !== "ready" && !isCatalogRefresh)
           }
           tooltipTitle={modelTriggerDisplay.fullLabel}
           shortcutLabel={modelShortcutLabel}
           triggerRef={modelTriggerRef}
-          open={activeConfigPicker === "model"}
+          open={!modelTriggerIsLoadingSnapshot && activeConfigPicker === "model"}
           onOpenChange={handleModelPickerOpenChange}
           openRequestKey={modelMenuOpenRequestKey}
           labelVisibilityClassName="hidden @sm/composer:inline-flex"

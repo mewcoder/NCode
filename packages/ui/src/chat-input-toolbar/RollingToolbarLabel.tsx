@@ -1,6 +1,9 @@
+import { cn } from "@/components/lib/utils.js";
+
+// 全局停用标签滚动动画，保留原实现以便后续需要时恢复。
+/*
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/components/lib/utils.js";
 
 const LABEL_ROLL_TRANSITION = {
   duration: 0.2,
@@ -36,6 +39,7 @@ function usePrefersReducedMotion() {
 
   return prefersReducedMotion;
 }
+*/
 
 export function RollingToolbarLabel({
   label,
@@ -50,7 +54,6 @@ export function RollingToolbarLabel({
   prefixClassName?: string;
   value?: string;
 }) {
-  const reducedMotion = usePrefersReducedMotion();
   const content =
     prefix !== undefined && value !== undefined ? (
       <>
@@ -69,23 +72,21 @@ export function RollingToolbarLabel({
       )}
       title={label}
     >
-      {/* 减少动画也保留同一层文字行：模型触发器的截断样式不能落到供应商／模型片段上。 */}
-      {reducedMotion ? (
-        <span className="inline-flex min-w-0 whitespace-nowrap leading-[1.25]">{content}</span>
-      ) : (
-        <AnimatePresence initial={false} mode="popLayout">
-          <motion.span
-            key={label}
-            className="inline-flex min-w-0 whitespace-nowrap leading-[1.25]"
-            initial={{ y: "0.75em", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "-0.75em", opacity: 0 }}
-            transition={LABEL_ROLL_TRANSITION}
-          >
-            {content}
-          </motion.span>
-        </AnimatePresence>
-      )}
+      <span className="inline-flex min-w-0 whitespace-nowrap leading-[1.25]">{content}</span>
+      {/* 全局停用滚动动画，保留原标签动效实现：
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.span
+          key={label}
+          className="inline-flex min-w-0 whitespace-nowrap leading-[1.25]"
+          initial={{ y: "0.75em", opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: "-0.75em", opacity: 0 }}
+          transition={LABEL_ROLL_TRANSITION}
+        >
+          {content}
+        </motion.span>
+      </AnimatePresence>
+      */}
     </span>
   );
 }

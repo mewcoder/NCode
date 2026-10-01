@@ -8,7 +8,7 @@ import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js"
 import { logger } from "@/logger.js";
 
 export type ModelSelectionState =
-  | { status: "loading" }
+  | { status: "loading"; catalogView?: ModelSelectionView }
   | { status: "ready"; view: ModelSelectionView }
   | { status: "unavailable"; reason: "remote-waiting" | "missing-target" }
   | { status: "error"; error: Error };
@@ -70,14 +70,24 @@ export function useModelSelectionServiceView(
   const ownedRef = useRef(owned);
   ownedRef.current = owned;
   const generationRef = useRef(0);
-  const ownerMatches =
+  const hostMatches =
     owned.service === normalizedService &&
     owned.enabled === enabled &&
-    owned.inputKey === inputKey &&
     owned.unavailableReason === unavailableReason;
-  const visibleState = ownerMatches
-    ? owned.state
-    : initialState(normalizedService, enabled, unavailableReason);
+  // 输入变化只需重读选择解析；同一 Host 的目录可继续展示，不能消费旧 effectiveSelection。
+  // Host 改变时同步丢弃目录，避免远程工作区显示本地或其他 Host 的候选。
+  const catalogView = hostMatches
+    ? owned.state.status === "ready"
+      ? owned.state.view
+      : owned.state.status === "loading"
+        ? owned.state.catalogView
+        : undefined
+    : undefined;
+  const pendingState: ModelSelectionState =
+    enabled && normalizedService
+      ? { status: "loading", catalogView }
+      : initialState(normalizedService, enabled, unavailableReason);
+  const visibleState = hostMatches && owned.inputKey === inputKey ? owned.state : pendingState;
 
   useEffect(() => {
     generationRef.current += 1;
@@ -96,7 +106,7 @@ export function useModelSelectionServiceView(
       enabled,
       unavailableReason,
       inputKey,
-      state: retainedReady ?? initialState(normalizedService, enabled, unavailableReason),
+      state: retainedReady ?? pendingState,
     });
     if (!enabled || !normalizedService) return;
 
