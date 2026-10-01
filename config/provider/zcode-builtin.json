@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 33,
+  "revision": 34,
   "config": {
     "providerConfigRules": {
       "templateRules": [
@@ -336,6 +336,7 @@
             },
             "builtinModelIds": [
               "gpt-6-astra",
+              "gpt-6.1-sol",
               "gpt-6-sol",
               "gpt-6-luna",
               "gpt-5.6-sol",
@@ -606,6 +607,7 @@
             "builtinModelIds": [
               "gpt-6-astra",
               "gpt-6-sol",
+              "gpt-6.1-sol",
               "gpt-6-luna",
               "gpt-5.6-sol",
               "gpt-5.6-terra",
@@ -652,6 +654,7 @@
               "claude-opus-4-6",
               "claude-opus-4-5",
               "claude-sonnet-5",
+              "claude-sonnet-5-5",
               "claude-sonnet-4-6",
               "claude-sonnet-4-5",
               "claude-sonnet-4",
@@ -2537,6 +2540,28 @@
               }
             }
           }
+        },
+        {
+          "modelMatch": ".*gpt-6\\.1-sol(?:[.\\-:/\\[].*)?",
+          "config": {
+            "properties": {
+              "contextWindow": 272000,
+              "inputFormat": {
+                "supportsImage": true,
+                "supportsVideo": false,
+                "supportsAudio": false,
+                "supportsPdf": false
+              }
+            },
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max", "ultra"]
+              },
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
+          }
         }
       ],
       "modelApiRules": [
@@ -3188,7 +3213,7 @@
           }
         },
         {
-          "modelMatch": ".*gpt-6-(?:astra|sol|luna)(?:[.\\-:/\\[].*)?",
+          "modelMatch": ".*(?:gpt-6-(?:astra|sol|luna)|gpt-6\\.1-sol)(?:[.\\-:/\\[].*)?",
           "apiTypeMatch": "openai-responses",
           "config": {
             "optionSpecs": {
@@ -4377,6 +4402,11 @@
                 "supportsVideo": true,
                 "supportsPdf": true
               }
+            },
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 131072
+              }
             }
           }
         },
@@ -4384,14 +4414,24 @@
           "templateId": "opencode-go-chat",
           "modelId": "glm-5.3",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 131072
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-chat",
           "modelId": "glm-5.2",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 131072
+              }
+            }
           }
         },
         {
@@ -4412,14 +4452,24 @@
           "templateId": "opencode-go-chat",
           "modelId": "kimi-k2.7-code",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 262144
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-chat",
           "modelId": "kimi-k2.6",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 65536
+              }
+            }
           }
         },
         {
@@ -4447,49 +4497,93 @@
           "templateId": "opencode-go-chat",
           "modelId": "deepseek-v4-flash-vision-exp",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "inputFormat": {
+                "supportsImage": true
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-chat",
           "modelId": "mimo-v2.5",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-chat",
           "modelId": "mimo-v2.5-pro",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1048576
+            },
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-chat",
           "modelId": "hy4-preview",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "contextWindow": 1024000
+            },
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 64000
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-chat",
           "modelId": "hy3",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "contextWindow": 256000
+            },
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-messages",
           "modelId": "minimax-m3",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 131072
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-messages",
           "modelId": "minimax-m2.7",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 131072
+              }
+            }
           }
         },
         {
@@ -4517,14 +4611,24 @@
           "templateId": "opencode-go-messages",
           "modelId": "qwen3.7-max",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 65536
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-messages",
           "modelId": "qwen3.7-plus",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 65536
+              }
+            }
           }
         },
         {
@@ -4538,14 +4642,25 @@
           "templateId": "opencode-go-responses",
           "modelId": "gpt-5.6-luna",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
           "templateId": "opencode-go-responses",
           "modelId": "grok-4.6",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "maxOutputTokens": {
+                "max": 500000
+              }
+            }
           }
         },
         {
@@ -4818,14 +4933,24 @@
           "modelId": "gpt-5.6-sol",
           "templateId": "openai",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max", "ultra"]
+              }
+            }
           }
         },
         {
           "modelId": "gpt-5.6-terra",
           "templateId": "openai",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max", "ultra"]
+              }
+            }
           }
         },
         {
@@ -5021,35 +5146,65 @@
           "templateId": "opencode-zen-responses",
           "modelId": "gpt-5.6-sol",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
           "templateId": "opencode-zen-responses",
           "modelId": "gpt-5.6-terra",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
           "templateId": "opencode-zen-responses",
           "modelId": "gpt-5.6-luna",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
           "templateId": "opencode-zen-responses",
           "modelId": "gpt-5.5",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
           "templateId": "opencode-zen-responses",
           "modelId": "gpt-5.5-pro",
           "config": {
-            "enabled": false
+            "enabled": false,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
@@ -5950,14 +6105,24 @@
           "templateId": "openai",
           "modelId": "gpt-6-astra",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max", "ultra"]
+              }
+            }
           }
         },
         {
           "templateId": "openai",
           "modelId": "gpt-6-sol",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max", "ultra"]
+              }
+            }
           }
         },
         {
@@ -5971,7 +6136,13 @@
           "templateId": "opencode-zen-responses",
           "modelId": "gpt-6-astra",
           "config": {
-            "enabled": true
+            "enabled": true,
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
           }
         },
         {
@@ -6686,6 +6857,65 @@
               "contextWindow": 262144,
               "inputFormat": {
                 "supportsVideo": false
+              }
+            }
+          }
+        },
+        {
+          "templateId": "opencode-zen-responses",
+          "modelId": "gpt-6.1-sol",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsImage": true,
+                "supportsVideo": false,
+                "supportsAudio": false,
+                "supportsPdf": true
+              }
+            },
+            "optionSpecs": {
+              "reasoningLevel": {
+                "values": ["low", "medium", "high", "xhigh", "max"]
+              },
+              "maxOutputTokens": {
+                "max": 128000
+              }
+            }
+          }
+        },
+        {
+          "templateId": "opencode-go-responses",
+          "modelId": "gpt-6-luna",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
+          }
+        },
+        {
+          "templateId": "opencode-zen-responses",
+          "modelId": "gpt-6-sol",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
+              }
+            }
+          }
+        },
+        {
+          "templateId": "opencode-zen-responses",
+          "modelId": "gpt-6-luna",
+          "config": {
+            "properties": {
+              "contextWindow": 1050000,
+              "inputFormat": {
+                "supportsPdf": true
               }
             }
           }
