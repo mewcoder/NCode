@@ -115,7 +115,7 @@ export interface RunDependencies extends PluginsCommandOverrides {
 }
 
 export type CliPermissionMode = "build" | "plan" | "edit" | "yolo";
-export type CliRuntimeMode = CliPermissionMode | "auto";
+export type CliRuntimeMode = CliPermissionMode | "guarded" | "auto";
 
 export interface CliModeState {
   current?: CliRuntimeMode;

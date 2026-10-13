@@ -1,3 +1,5 @@
+import { IBotsService } from "@zcode/services";
+import { botProviders, type BotProvider } from "@zcode/shared";
 /* eslint-disable max-lines -- HTTP、WebSocket 与静态资源路由集中注册，保持同一鉴权顺序。 */
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
@@ -12,13 +14,17 @@ import {
   VSBuffer,
   SocketProtocol,
   ChannelServer,
+  ChannelClient,
   LoggingChannelServer,
   type ISocket,
 } from "@zcode/rpc";
+import type { TopicResourcePeers } from "@zcode/services/node";
+import { TOPIC_RESOURCE_RELAY_CHANNEL } from "@zcode/shared";
 import {
   ServiceCollection,
   IZCodeAgentService,
   createZCodeAgentConnectionScope,
+  createBotsServiceRpcView,
   IProviderProvisioningTargetService,
 } from "@zcode/services";
 import {
@@ -77,6 +83,7 @@ function setupChannelServer(
   ws: WebSocket,
   services: ServiceCollection,
   clientMode: "desktop-continuous" | "web-remote-replayable",
+  resourcePeers?: TopicResourcePeers,
 ) {
   const socket = wrapWebSocket(ws);
   const protocol = new SocketProtocol(socket);
@@ -84,8 +91,13 @@ function setupChannelServer(
   // 用日志中间件包装，统一记录所有 RPC 调用
   const server = new LoggingChannelServer(rawServer, log);
   const agentService = services.getOptional(IZCodeAgentService);
+  const reverseClient =
+    clientMode === "desktop-continuous" && resourcePeers ? new ChannelClient(protocol) : undefined;
+  const peer = reverseClient
+    ? resourcePeers?.attach(reverseClient.getChannel(TOPIC_RESOURCE_RELAY_CHANNEL))
+    : undefined;
   const connectionScope = agentService
-    ? createZCodeAgentConnectionScope(agentService, {
+    ? createZCodeAgentConnectionScope(peer ? peer.wrapAgent(agentService) : agentService, {
         connectionId: `server-ws-${randomUUID()}`,
         clientMode,
         role: clientMode === "desktop-continuous" ? "trusted-host-relay" : "terminal-client",
@@ -94,6 +106,11 @@ function setupChannelServer(
   const overrides = new Map<string, unknown>();
   if (connectionScope) {
     overrides.set(IZCodeAgentService.channelName, connectionScope.service);
+  }
+  const botsService = services.getOptional(IBotsService);
+  if (botsService) {
+    // Inbound processing is internal; callbacks are invoked through HTTP with request headers.
+    overrides.set(IBotsService.channelName, createBotsServiceRpcView(botsService));
   }
   // Provisioning 携带跨 Environment 凭据，只允许 Desktop trusted host 使用；普通 Web
   // remote/replayable 客户端即使知道频道名，也不能获得 target 写入接口。
@@ -109,6 +126,8 @@ function setupChannelServer(
   }
   services.exposeOnChannelServer(server, overrides);
   socket.onClose(() => {
+    peer?.dispose();
+    reverseClient?.dispose();
     void connectionScope?.dispose();
     rawServer.dispose();
   });
@@ -123,6 +142,7 @@ function setupChannelServer(
 // }
 
 interface HttpServerOptions {
+  topicResourcePeers?: TopicResourcePeers;
   serverId?: string;
   name?: string;
   host?: string;
@@ -324,7 +344,12 @@ export function createHttpServer(
 
   const upgradeTrustedHostWebSocket = upgradeWebSocket(() => ({
     onOpen(_event, ws) {
-      setupChannelServer(ws.raw as WebSocket, services, "desktop-continuous");
+      setupChannelServer(
+        ws.raw as WebSocket,
+        services,
+        "desktop-continuous",
+        options.topicResourcePeers,
+      );
     },
   }));
   app.use("/ws/host", async (c, next) => {
@@ -339,6 +364,52 @@ export function createHttpServer(
   // 官方 App 远控 relay 已关闭；配置鉴权时仍先由上方中间件校验，通过后返回 404。
   app.post("/api/connect-remote", (c) => c.notFound());
   app.get("/ws/remote/:id", (c) => c.notFound());
+
+  const handleBotCallback = async (c: Context) => {
+    const provider = c.req.param("provider") as BotProvider;
+    if (!botProviders.includes(provider)) {
+      return c.json({ error: `Unsupported provider: ${provider}` }, 400);
+    }
+    if (provider !== "webhook") {
+      return c.json({ error: `Provider ${provider} does not support HTTP callbacks.` }, 400);
+    }
+    const botsService = services.getOptional(IBotsService);
+    if (!botsService) {
+      return c.json({ error: "Bots service is not available." }, 503);
+    }
+    const rawBodyText = await c.req.text().catch(() => "");
+    let rawBody: unknown = {};
+    if (rawBodyText) {
+      try {
+        rawBody = JSON.parse(rawBodyText) as unknown;
+      } catch {
+        rawBody = { payload: rawBodyText };
+      }
+    }
+    const botId = c.req.param("botId");
+    const result = await botsService.handleProviderCallbackResponse(provider, {
+      ...(typeof rawBody === "object" && rawBody !== null ? rawBody : { payload: rawBody }),
+      rawBody: rawBodyText,
+      requestHeaders: Object.fromEntries(c.req.raw.headers.entries()),
+      ...(botId ? { botId } : {}),
+    });
+    const responseBody = result.responseBody ?? { ok: result.ok, replies: result.replies };
+    if (result.status === 400) {
+      return c.json(responseBody, 400);
+    }
+    if (result.status === 401) {
+      return c.json(responseBody, 401);
+    }
+    if (result.status === 503) {
+      // Bugfix：Bot 业务失败必须把可重试状态透传给 HTTP provider；返回 200 会让
+      // webhook/网关误以为消息已消费，效果与提前提交 Telegram offset 相同。
+      return c.json(responseBody, 503);
+    }
+    return c.json(responseBody, 200);
+  };
+
+  app.post("/api/bots/:provider", handleBotCallback);
+  app.post("/api/bots/:provider/:botId", handleBotCallback);
 
   /* 暂时停用官方 App 远控路由实现，保留代码以便后续恢复。
   // Web 模式下发起远程连接

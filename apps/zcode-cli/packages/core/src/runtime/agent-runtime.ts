@@ -1,3 +1,7 @@
+import {
+  resolveInitialDynamicWorkflowToolsActivated,
+  type DynamicWorkflowActivationSource,
+} from "./methods/dynamic-workflow-activation.js";
 import { DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY, resolveExecutionState } from "@zcode/shared";
 import type { BackgroundBashOutputResult } from "@zcode/shared";
 import {
@@ -158,6 +162,8 @@ export class AgentRuntime {
   private messageHistory: MessageHistory;
   private readFileState: ReadFileStateMap;
   private cachedTools: ModelToolContract[] | null = null;
+  private dynamicWorkflowToolsActivated: boolean;
+  private dynamicWorkflowActivationSource?: DynamicWorkflowActivationSource;
   private contextBuilder: ContextBuilder | null = null;
   private contextInitialized = false;
   private contextSourceSnapshot?: ContextSourceSnapshot;
@@ -294,6 +300,7 @@ export class AgentRuntime {
     this.modelCatalogPort = deps.modelCatalogPort;
     this.registry = deps.toolRegistry ?? createToolRegistry();
     this.workspaceRoot = this.workingDirectory;
+    this.dynamicWorkflowToolsActivated = resolveInitialDynamicWorkflowToolsActivated(this.config);
     const tooling = initializeRuntimeTooling(runtime, deps, sessionId);
     this.hookRunner = tooling.hookRunner;
     this.workspaceHookAdmission = deps.workspaceHookAdmission;
@@ -335,6 +342,10 @@ export class AgentRuntime {
 }
 
 export interface AgentRuntime {
+  activateDynamicWorkflowTools(input: {
+    source: DynamicWorkflowActivationSource;
+    traceContext?: TraceContext;
+  }): Promise<boolean>;
   lastPermissionGrantId?: string;
   beginShutdown(): void;
   closeBrowserSession(): Promise<void>;
@@ -509,6 +520,7 @@ export interface AgentRuntime {
     childSessionId: SessionId;
     event: SessionEvent;
     traceContext?: TraceContext;
+    interactionOrigin?: ChildClientPortsContext;
   }): Promise<void>;
   /**
    * 外部子 runtime 的接缝（三）：铸造子 runtime 的对外交互端口（permission broker +
@@ -648,6 +660,10 @@ export interface AgentRuntime {
     traceContext?: TraceContext;
     commitAfterApply?: () => Promise<void>;
   }): Promise<WorkspaceFileRewindApplyResult>;
+  sampleModel(
+    input: import("./methods/sample-model.js").SampleModelInput,
+    options: { abortSignal: AbortSignal; traceContext?: TraceContext },
+  ): Promise<import("@zcode/shared/mcp-apps").McpAppsSamplingResult>;
   generateWorkspaceText(
     input: WorkspaceGenerateTextInput,
     options?: { abortSignal?: AbortSignal; traceContext?: TraceContext },

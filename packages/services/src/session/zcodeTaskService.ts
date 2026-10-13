@@ -234,7 +234,67 @@ export interface IZCodeTaskService {
      * 让输入 admission 在写 session_input 外键账本前先统一持久化 session 主记录。
      */
     deferPersistenceUntilFirstPrompt?: boolean;
+    v4Create?: boolean;
+    permissionScope?: "session";
   }): Promise<ZCodeTaskCreateResult>;
+
+  readBotTopicSummaries?(params: {
+    taskId: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+    remoteSessionId?: string;
+  }): Promise<Array<{ checkpoint: string; text: string }>>;
+
+  invalidateBotTopicInputs?(params: {
+    taskId: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+    remoteSessionId?: string;
+  }): Promise<void>;
+  readBotTopicExecution?(params: {
+    taskId: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+    remoteSessionId?: string;
+  }): Promise<{ executionId: string; sourceCommandId?: string } | undefined>;
+  stopBotTopicExecution?(params: {
+    taskId: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+    remoteSessionId?: string;
+    executionId: string;
+  }): Promise<void>;
+
+  /** 从 CLI 权威快照读取群任务切换的阻塞原因；空闲时返回 null。 */
+  getBotGroupTaskBlockReason?(params: {
+    taskId: string;
+    remoteSessionId?: string;
+    workspacePath: string;
+    workspaceIdentity?: string;
+  }): Promise<"running" | "queued" | "interaction" | null>;
+  cancelBotGroupInput?(params: {
+    workspacePath?: string;
+    workspaceIdentity?: string;
+    taskId: string;
+    remoteSessionId?: string;
+    commandId: string;
+    sourceCommandId: string;
+    actorId: string;
+    ownerId: string;
+    botId: string;
+    chatId: string;
+  }): Promise<import("@zcode/shared/zcode-protocol-v4").CommandAck>;
+  submitBotGroupInput?(params: {
+    workspacePath?: string;
+    workspaceIdentity?: string;
+    taskId: string;
+    remoteSessionId?: string;
+    commandId: string;
+    content: string;
+    conversationQuotes?: import("@zcode/shared").ConversationSelectionText[];
+    attachments?: ZCodePromptAttachment[];
+    source: import("@zcode/shared").BotGroupInputSource;
+  }): Promise<import("@zcode/shared/zcode-protocol-v4").CommandAck>;
 
   /** 发送 prompt 到指定 task */
   sendPrompt(
@@ -245,6 +305,7 @@ export interface IZCodeTaskService {
       queryId?: string;
       messageId?: string;
       content: string;
+      botDeliveryTarget?: import("@zcode/shared").ZCodeAutomationBotDeliveryTarget;
       attachments?: ZCodePromptAttachment[];
       clientId?: string;
       clientLabel?: string;
@@ -720,7 +781,7 @@ export interface IZCodeTaskService {
     workspaceIdentity?: string;
     taskId: string;
     clientId?: string;
-    deliveryKind?: "continuous" | "replayable" | "mixed";
+    deliveryKind?: "continuous" | "replayable" | "mixed" | "bot-channel-continuous";
   }): Event<ZCodeStreamEvent>;
 
   /**

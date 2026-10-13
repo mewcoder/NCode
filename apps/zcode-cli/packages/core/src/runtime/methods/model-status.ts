@@ -9,6 +9,7 @@ import type {
 import type { AgentRuntimeInternal } from "../internal.js";
 
 interface ModelStatusSinkOptions {
+  persist?: boolean;
   onStatus?: (event: ModelNetworkStatusEvent) => void;
   streamRecovery?: ModelStreamRecoveryStatus;
 }
@@ -31,7 +32,7 @@ export function createModelStatusSink(
         eventPayload,
         traceContext,
       );
-      await this.appendEvent(event, traceContext);
+      if (options.persist !== false) await this.appendEvent(event, traceContext);
       events.push(event);
     },
   };

@@ -5,6 +5,9 @@ import { pathToFileURL } from "node:url";
 import { defineConfig } from "tsup";
 import { getBuildMetadata } from "./scripts/build-metadata.mjs";
 import { resolveDesktopProductFlavor } from "./scripts/desktop-product-identity.mjs";
+const { copyGenUiRuntimeAssets } = await import(
+  pathToFileURL(resolve(import.meta.dirname, "scripts/gen-ui-runtime-assets.mjs")).href
+);
 // tsup 会先打包配置文件；动态加载构建工具，避免其 import.meta.dirname 被重定位到 desktop。
 const { loadBuiltinProviderConfig } = await import(
   pathToFileURL(resolve(import.meta.dirname, "../../scripts/builtin-provider-config.mjs")).href
@@ -94,10 +97,7 @@ export function applyDesktopTsupEsbuildSecurityOptions(options: DesktopTsupEsbui
 }
 
 const desktopTsupBundleSecurityOptions = resolveDesktopTsupBundleSecurityOptions();
-const disabledTelemetryModule = resolve(
-  import.meta.dirname,
-  "scripts/disabledTelemetryModules.ts",
-);
+const disabledTelemetryModule = resolve(import.meta.dirname, "scripts/disabledTelemetryModules.ts");
 
 function createSharedDefines() {
   return {
@@ -201,6 +201,7 @@ export default defineConfig([
       "preload/index": "src/preload/index.ts",
       "preload/resourceManager": "src/preload/resourceManager.ts",
       "preload/cuaPermissionPanel": "src/preload/cuaPermissionPanel.ts",
+      "preload/pluginSandbox": "src/preload/pluginSandbox/index.ts",
     },
     outDir: "out",
     format: "cjs",
@@ -214,6 +215,25 @@ export default defineConfig([
       applyDesktopTsupEsbuildSecurityOptions(options);
     },
     onSuccess: createDevReadyMarkerHook("preload"),
+    ...desktopTsupBundleSecurityOptions,
+  },
+  {
+    name: "plugin-sandbox-alias",
+    loader: { ".css": "text" },
+    entry: {
+      "plugin-sandbox-alias": "src/renderer/src/plugin-sandbox/alias.ts",
+      "gen-ui": "src/renderer/src/plugin-sandbox/genUi.ts",
+    },
+    outDir: "out/plugin-sandbox",
+    onSuccess: () => copyGenUiRuntimeAssets(resolve("out/plugin-sandbox")),
+    format: "iife",
+    platform: "browser",
+    target: "es2022",
+    noExternal: [/.*/],
+    outExtension: () => ({ js: ".js" }),
+    esbuildOptions(options) {
+      applyDesktopTsupEsbuildSecurityOptions(options);
+    },
     ...desktopTsupBundleSecurityOptions,
   },
   {

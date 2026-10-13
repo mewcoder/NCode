@@ -1,3 +1,14 @@
+import type { DynamicWorkflowRunArtifactItemsResult } from "@zcode/contracts";
+import type { DynamicWorkflowRunEventsResult } from "@zcode/contracts";
+import type { TopicResourcePort } from "@zcode/contracts";
+import type {
+  McpReadResourceResult,
+  McpToolCallResult,
+  McpListResourcesResult,
+  McpListResourceTemplatesResult,
+} from "@zcode/contracts";
+import type { McpAppsToolVisibility } from "@zcode/shared/mcp-apps";
+import type { McpAppProvidedToolDefinition, McpAppProvidedToolExecutor } from "@zcode/core";
 import type { ZCodeToolExecResource, BackgroundBashOutputResult } from "@zcode/shared";
 import type { AiSdkModelAdapter } from "@zcode/adapters/model";
 import type {
@@ -121,6 +132,7 @@ export type RevokeWorkspaceHookTrustInput =
 export type ZCodeAppRuntimeConfigInput = AgentRuntimeConfig;
 
 export interface ZCodeAppOptions {
+  includeVisualize?: boolean;
   sessionId?: SessionId;
   resume?: boolean;
   version?: string;
@@ -181,6 +193,7 @@ export interface ZCodeAppOptions {
   onWorkflowEvent?: (event: WorkflowEvent) => void | Promise<void>;
   automationPort?: AutomationPort;
   offPeakPort?: OffPeakPort;
+  topicResourcePort?: TopicResourcePort;
   /** 首次真实用户执行或 cold-resume fallback 时解析一次，之后由 app 生命周期缓存。 */
   resolveInitialBashShellSelection?: () => Promise<ExecutionShellSelection | undefined>;
   /** Trusted embedder policy; workspace/project files cannot populate this field. */
@@ -395,6 +408,66 @@ export interface ZCodeApp {
   getSkillCatalog(): Promise<SkillLoadOutcome>;
   listMcpServers(): Promise<Record<string, McpServerStatus>>;
   connectMcpServer(name: string): Promise<McpServerStatus>;
+  readMcpResource(
+    serverName: string,
+    uri: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<McpReadResourceResult>;
+  onMcpAppConnectionInvalidated(serverName: string, listener: () => void): () => void;
+  getMcpAppConnectionSnapshot(serverName: string): { identity: string; generation: number } | null;
+  callMcpToolForUi(
+    serverName: string,
+    toolName: string,
+    args: Record<string, unknown> | undefined,
+    options?: { signal?: AbortSignal },
+  ): Promise<McpToolCallResult>;
+  /**
+   * 按 tools/list 的 descriptor 给出工具可见性；工具不存在返回 null。
+   * mcp-ui 用它拒绝 model-only 工具的 UI 调用。
+   */
+  getMcpToolVisibility(
+    serverName: string,
+    toolName: string,
+  ): Promise<readonly McpAppsToolVisibility[] | null>;
+  /**
+   * App-Provided Tools：用给定集合整体替换本会话的 App 工具，失效工具缓存让下一次模型请求可见。
+   * 与非 App 工具重名的定义跳过。返回实际登记的模型侧名字。
+   */
+  replaceMcpAppProvidedTools(
+    definitions: readonly McpAppProvidedToolDefinition[],
+    execute: McpAppProvidedToolExecutor,
+  ): string[];
+  /** 页面发起的 resources/list、resources/templates/list 与订阅（订阅者身份由调用方给出）。 */
+  listMcpResourcesForUi(
+    serverName: string,
+    cursor?: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<McpListResourcesResult>;
+  listMcpResourceTemplatesForUi(
+    serverName: string,
+    cursor?: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<McpListResourceTemplatesResult>;
+  subscribeMcpResourceForUi(
+    serverName: string,
+    uri: string,
+    subscriberKey: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<void>;
+  unsubscribeMcpResourceForUi(
+    serverName: string,
+    uri: string,
+    subscriberKey: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<void>;
+  /** 会话关闭：清掉本会话（subscriberKey 前缀）的全部订阅。 */
+  unsubscribeMcpResourcesForUi(subscriberKeyPrefix: string): Promise<number>;
+  /** 插件页面发起的 resources/read；与 readMcpResource 同一端口，独立入口便于审计与限流。 */
+  readMcpResourceForUi(
+    serverName: string,
+    uri: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<McpReadResourceResult>;
   readBackgroundBashOutput(workId: string, sessionId?: string): Promise<BackgroundBashOutputResult>;
   cancelBackgroundTask?(
     taskId: string,
@@ -412,7 +485,8 @@ export interface ZCodeApp {
     runId: string;
     afterSequence?: number;
     limit?: number;
-  }): Promise<DynamicWorkflowRunEvent[]>;
+    maxBytes?: number;
+  }): Promise<DynamicWorkflowRunEventsResult>;
   /**
    * 恢复一个 dwf run。可选能力，缺席条件同
    * {@link listDynamicWorkflowRunEvents}。成功路径除了 port.resume 之外还负责**追踪重臂**
@@ -485,7 +559,9 @@ export interface ZCodeApp {
     artifactId: string;
     afterSequence?: number;
     limit: number;
-  }): Promise<readonly DynamicWorkflowRunArtifactItem[]>;
+    maxBytes: number;
+    fields?: readonly string[];
+  }): Promise<DynamicWorkflowRunArtifactItemsResult>;
   /**
    * 读一个产物版本的**全部**字节；分块归网关（≤ 512 KiB 一块）。授权链在端口实现侧：
    * 该 run 必须属于本会话 ∧ journal 里有 `(artifactId, version)` 的 completed 行，然后才拿
@@ -520,6 +596,10 @@ export interface ZCodeApp {
     targetMessageId?: string;
     traceContext?: TraceContext;
   }): Promise<WorkspaceForkResult>;
+  sampleModel(
+    input: Parameters<AgentRuntime["sampleModel"]>[0],
+    options: Parameters<AgentRuntime["sampleModel"]>[1],
+  ): ReturnType<AgentRuntime["sampleModel"]>;
   generateWorkspaceText(
     input: WorkspaceGenerateTextInput,
     options?: { abortSignal?: AbortSignal; traceContext?: TraceContext },

@@ -42,7 +42,7 @@ export type {
   SSHConnectOptions,
   WSLConnectOptions,
 } from "./remoteTarget.js";
-export { stripRemoteTargetSecrets } from "./remoteTarget.js";
+export { parseServerEndpointUrl, stripRemoteTargetSecrets } from "./remoteTarget.js";
 export { buildSshRemoteHostKey } from "./remoteSshHostKey.js";
 export { buildRemoteEnvironmentKey } from "./remoteEnvironmentKey.js";
 export type {
@@ -108,6 +108,7 @@ export * from "./dynamic-workflow-feature.js";
 export * from "./markdown-artifact-images.js";
 export * from "./serviceAuthority.js";
 export * from "./server-remote.js";
+export * from "./output-style.js";
 
 export interface ICredentialStore {
   get(key: string): Promise<string | null>;
@@ -191,6 +192,8 @@ export type {
   ConnectRemoteRequest,
   CreateTempTextAttachmentRequest,
   CreateTempTextAttachmentResult,
+  MaterializeWorkflowArtifactFileRequest,
+  MaterializeWorkflowArtifactFileResult,
   SaveFileRequest,
   SaveFileResult,
   PrintPageToPdfResult,
@@ -304,3 +307,9 @@ export * from "./clientConfig.js";
 export * from "./pluginStoreOrdering.js";
 export * from "./session-debug.js";
 export { redactFeedbackText } from "./feedbackPrivacy.js";
+
+export * from "./bots.js";
+export * from "./channel-mention.js";
+export type { ServerConnectOptions } from "./remoteTarget.js";
+
+export * from "./conversationSelection.js";

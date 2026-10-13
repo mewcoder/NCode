@@ -1,8 +1,11 @@
+import { botGroupInputSourceSchema } from "../bots.js";
+import { conversationQuotesSchema } from "../conversationSelection.js";
 // ConversationRow：行类型自包含。
 // 三条结构性规则：row 自包含（渲染任一行不需看别的行）；
 // 结构变化换整行（row.upserted），文本增长用 append（row.delta）；turn 是 row 上的标签不是容器。
 import { z } from "zod";
 import { executionOutputPreviewSchema } from "../execution-output-preview.js";
+import { conversationInputSourceSchema } from "./input-intent.js";
 import { timestampSchema } from "./core.js";
 import { backgroundResultOriginMetaSchema, workflowLaunchMetaSchema } from "./workflow-row-meta.js";
 
@@ -100,6 +103,8 @@ export type TurnHeaderRow = z.infer<typeof turnHeaderRowSchema>;
 export const userInputRowSchema = z.object({
   ...rowBaseFields,
   kind: z.literal("userInput"),
+  botGroupSource: botGroupInputSourceSchema.optional(),
+  conversationQuotes: conversationQuotesSchema.optional(),
   text: z.string(),
   // text 从此下标起是引擎附加文本（dwf ask 尾注 /
   // nudge），GUI 把它折进默认收起的披露；0 = 整条都是；缺席 = 无（老转录、非工作流会话）。
@@ -146,6 +151,7 @@ export const userInputRowSchema = z.object({
       }),
     )
     .optional(),
+  source: conversationInputSourceSchema.optional(),
 });
 export type UserInputRow = z.infer<typeof userInputRowSchema>;
 

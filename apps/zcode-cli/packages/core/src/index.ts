@@ -184,3 +184,13 @@ export type {
   SessionEventSink,
 } from "@zcode/contracts";
 export { LogLevel, SessionEventType } from "@zcode/contracts";
+
+export {
+  createMcpAppProvidedToolEntry,
+  type McpAppProvidedToolDefinition,
+  type McpAppProvidedToolExecutor,
+} from "./mcp/app-tools.js";
+
+export { analyzeScript } from "./tool/handlers/workflow-script-analysis.js";
+
+export { writeWorkflowDraft } from "./tool/handlers/workflow-drafts.js";

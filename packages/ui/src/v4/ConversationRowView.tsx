@@ -1,3 +1,10 @@
+import { Clock } from "lucide-react";
+import { parseAutomationRunId } from "@zcode/shared";
+import { ConversationUserInputBubble } from "@/v4/ConversationUserInputBubble.js";
+import { expandTopicInputMessages } from "@/v4/topicInputMessages.js";
+import { ConnectedBotGroupDeliveryAction } from "@/v4/BotGroupDeliveryAction.js";
+import type { ComponentProps } from "react";
+import { PluginUiModelContextChip, formatPluginDisplayName } from "@/plugin-ui/index.js";
 /* oxlint-disable eslint(max-lines) -- v4 逐行 row 渲染分发集中收口（每种 row 一个 memo 叶子 + timelineMarker 分隔线），拆分会打散行类型对照。 */
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -48,6 +55,7 @@ import type {
 } from "@zcode/shared/zcode-protocol-v4";
 import { AssistantPreviewCards } from "@/AssistantPreviewCards.js";
 import { AssistantCodeCommentCards } from "@/AssistantCodeCommentCards.js";
+import { GenUiMessageResponse } from "@/gen-ui/index.js";
 import { useAssistantCodeCommentFeatureEnabled } from "@/AssistantCodeCommentFeatureProvider.js";
 import {
   Attachment,
@@ -61,11 +69,7 @@ import {
   type ChatMediaAttachmentPreviewTarget,
 } from "@/ChatMediaAttachmentPreviewDialog.js";
 import type { PdfViewerRangeSource } from "@/components/ui/pdf-viewer.js";
-import {
-  MessageAction,
-  MessageActions,
-  MessageResponse,
-} from "@/components/ai-elements/message.js";
+import { MessageAction, MessageActions } from "@/components/ai-elements/message.js";
 import {
   Reasoning,
   ReasoningContent,
@@ -80,8 +84,12 @@ import {
   readWorkflowRetuneCall,
 } from "@/ToolCallBlocks/renderers/createWorkflowInput.js";
 import { WorkflowRetuneRow } from "@/ToolCallBlocks/renderers/WorkflowRetuneRow.js";
-import { workflowRunSettingsCeiling } from "@/components/workflow-timeline/workflowRunSettings.js";
-import { isAmendWorkflowToolCall } from "@/lib/workflowToolNames.js";
+import { workflowRunDefaultConcurrency } from "@/components/workflow-timeline/workflowRunSettings.js";
+import { isAmendWorkflowToolCall, isFillWorkflowHoleToolCall } from "@/lib/workflowToolNames.js";
+import {
+  readWorkflowHoleTarget,
+  workflowFillCounts,
+} from "@/ToolCallBlocks/renderers/createWorkflowHoleInput.js";
 import { ToolCallBlock } from "@/ToolCallBlocks.js";
 import { resolveWorkflowRunOpenToolCallId } from "@/v4/workflowRunCardJoin.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
@@ -119,12 +127,8 @@ import { ConversationSelectionReferenceChip } from "@/v4/composer/ConversationSe
 import { PptxElementReferenceChip } from "@/v4/composer/PptxElementReferenceChip.js";
 import { useOpenPptxElementReference } from "@/v4/composer/useOpenPptxElementReference.js";
 import { ConversationFileRewindDialog } from "@/v4/ConversationFileRewindDialog.js";
-import { ConversationUserInputBody } from "@/v4/ConversationUserInputBody.js";
-import { ConversationUserInputContent } from "@/v4/ConversationUserInputContent.js";
-import {
-  ConversationUserInputEpilogue,
-  splitUserInputEpilogue,
-} from "@/v4/ConversationUserInputEpilogue.js";
+import { BotGroupSourceLabel } from "@/v4/BotGroupSourceLabel.js";
+import { splitUserInputEpilogue } from "@/v4/ConversationUserInputEpilogue.js";
 import { ConversationHookDetailsAction } from "@/v4/ConversationHookDetailsAction.js";
 import { formatModelChangeLabel } from "@/v4/composer/modelTriggerDisplay.js";
 import { formatMessageTimeLabel } from "@/v4/messageTimeLabel.js";
@@ -848,7 +852,7 @@ const UserInputAttachmentList = memo(function UserInputAttachmentList({
   );
 });
 
-const UserInputRowView = memo(function UserInputRowView({
+const SingleUserInputRowView = memo(function SingleUserInputRowView({
   row,
   context,
   onEdit,
@@ -917,6 +921,7 @@ const UserInputRowView = memo(function UserInputRowView({
   const webElementContexts = parsedPrompt.webElements;
   const pptxElementReferences = parsedPrompt.pptxElements;
   const conversationSelections = parsedPrompt.conversationSelections;
+  const pluginUiContexts = parsedPrompt.pluginUiContexts;
   const hasAttachments = (row.attachments?.length ?? 0) > 0;
   const hasMediaAttachments =
     row.attachments?.some(
@@ -928,13 +933,15 @@ const UserInputRowView = memo(function UserInputRowView({
         !attachment.mime.startsWith("image/") && !attachment.mime.startsWith("video/"),
     ) ?? false;
   const hasVisibleText = visibleText.trim().length > 0;
+  const isScheduledAutomationPrompt = parseAutomationRunId(row.sourceCommandId ?? "") !== null;
   // nudge 轮整条都是引擎文本：正文为空但气泡仍要画，里面只有那一枚披露。
   const hasBubble = hasVisibleText || epilogue !== undefined;
   const hasContextReferences =
     codeCommentContexts.length > 0 ||
     webElementContexts.length > 0 ||
     pptxElementReferences.length > 0 ||
-    conversationSelections.length > 0;
+    conversationSelections.length > 0 ||
+    pluginUiContexts.length > 0;
   const hasAttachmentArea = hasAttachments || hasContextReferences;
   const hasAttachmentPills = hasFileAttachments || hasContextReferences;
   const openPptxElementReference = useOpenPptxElementReference({
@@ -1193,12 +1200,36 @@ const UserInputRowView = memo(function UserInputRowView({
 
   return (
     <RowShell rowId={row.rowId} className="group/user-row flex flex-col items-end">
+      {isScheduledAutomationPrompt ? (
+        <div
+          data-v4-user-input-automation-origin="schedule"
+          className="mb-1 flex max-w-xl items-center gap-1 text-ui-sm text-foreground-subtle"
+        >
+          <Clock data-cron-task-icon="true" aria-hidden="true" className="size-3.5 shrink-0" />
+          <span>{intl.formatMessage({ id: "chat.message.sentByScheduledTask" })}</span>
+        </div>
+      ) : null}
+      {row.botGroupSource ? (
+        // 群来源原先插在材料与正文之间，割裂同一输入；统一放在材料之前。
+        <div data-v4-user-input-source="true" className="mb-2 flex min-w-0 max-w-full">
+          <BotGroupSourceLabel source={row.botGroupSource} />
+        </div>
+      ) : null}
+
       {hasAttachmentArea ? (
         <div
           data-v4-user-input-attachments="true"
           data-testid={testId(TID_V4_ROW_ATTACHMENTS, String(row.rowId))}
           className="mb-2 flex max-w-xl flex-col items-end gap-2"
         >
+          {row.botGroupSource && conversationSelections.length > 0 ? (
+            <div data-v4-user-input-quotes="true" className="flex max-w-full justify-end">
+              <ConversationSelectionReferenceChip
+                references={conversationSelections}
+                contentAlign="end"
+              />
+            </div>
+          ) : null}
           {hasMediaAttachments ? (
             <div
               data-v4-user-input-media-attachments="true"
@@ -1246,6 +1277,7 @@ const UserInputRowView = memo(function UserInputRowView({
                 references={conversationSelections}
                 contentAlign="end"
               />
+              <PluginUiModelContextChip contexts={pluginUiContexts} contentAlign="end" />
             </div>
           ) : null}
         </div>
@@ -1254,20 +1286,33 @@ const UserInputRowView = memo(function UserInputRowView({
         // 附件和上下文引用只属于消息行，不属于气泡；否则仅附件消息会留下空气泡。
         // 同一 row 会渲染在主会话和 Subagent 侧栏，固定宽度会忽略实际宿主宽度。
         // 气泡保留 flex item 的自动宽度；宿主至少 624px 时再以 36rem 封顶并保留 48px 余量。
+        <ConversationUserInputBubble
+          text={visibleText}
+          contentParts={row.botGroupSource?.contentParts}
+          rowId={row.rowId}
+          epilogue={epilogue}
+          attachments={row.attachments}
+          contextAttachmentCount={countComposerPromptContexts(parsedPrompt)}
+        />
+      ) : null}
+      {row.source?.kind === "genUi" && (
         <div
-          data-v4-user-input-bubble="true"
-          className="flex max-w-full flex-col gap-2 rounded-xl rounded-tr-xs border border-border bg-surface px-4 py-3 text-ui-base text-foreground @min-[624px]/conversation:max-w-xl"
+          className="mt-1 text-right text-ui-sm text-foreground-subtlest"
+          data-v4-user-input-source="genUi"
         >
-          {hasVisibleText ? (
-            <ConversationUserInputBody contentText={visibleText} rowId={row.rowId}>
-              <ConversationUserInputContent
-                text={visibleText}
-                attachments={row.attachments}
-                contextAttachmentCount={countComposerPromptContexts(parsedPrompt)}
-              />
-            </ConversationUserInputBody>
-          ) : null}
-          {epilogue === undefined ? null : <ConversationUserInputEpilogue text={epilogue} />}
+          {intl.formatMessage({ id: "genUi.from" }, { name: row.source.title || "Gen UI" })}
+        </div>
+      )}
+      {row.source?.kind === "pluginUi" ? (
+        // 插件 UI 代发：来源标记来自 CLI 持久化的 intent.source，不由 renderer 推断。
+        <div
+          data-v4-user-input-source={row.source.pluginId}
+          className="mt-1 text-right text-ui-sm text-foreground-subtlest"
+        >
+          {intl.formatMessage(
+            { id: "pluginUi.fromPlugin" },
+            { name: formatPluginDisplayName(row.source.pluginId) },
+          )}
         </div>
       ) : null}
       {status ? (
@@ -1307,15 +1352,40 @@ const UserInputRowView = memo(function UserInputRowView({
   );
 });
 
+const UserInputRowView = memo(function UserInputRowView(
+  props: ComponentProps<typeof SingleUserInputRowView>,
+) {
+  const rows = useMemo(() => expandTopicInputMessages(props.row), [props.row]);
+  if (rows.length === 1) return <SingleUserInputRowView {...props} row={rows[0]!} />;
+  return (
+    <div className="flex min-w-0 flex-col gap-3" data-v4-topic-messages="true">
+      {rows.map((row) => (
+        <div
+          key={row.botGroupSource!.messageId}
+          data-topic-message-id={row.botGroupSource!.messageId}
+        >
+          {/* 多条原文共用一个已接收输入，不能把局部编辑误当作替换整批。 */}
+          <SingleUserInputRowView {...props} row={row} onEdit={undefined} />
+        </div>
+      ))}
+    </div>
+  );
+});
+
+// memo 组件的数组默认值必须是模块级常量：内联 [] 每次渲染都是新引用，会让 memo 比较失效。
+const EMPTY_SOURCE_COMMAND_IDS: readonly string[] = [];
+
 export const ConversationAssistantTextActions = memo(function ConversationAssistantTextActions({
   rowId,
   entityId,
   text,
   createdAt,
+  compactForRemoteControl = false,
   feedback = null,
   hookInvocations,
   sessionId,
   turnId,
+  sourceCommandIds = EMPTY_SOURCE_COMMAND_IDS,
   onFork,
   onFeedbackChange,
   className,
@@ -1324,6 +1394,8 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
   entityId?: string;
   text: string;
   createdAt: number;
+  compactForRemoteControl?: boolean;
+  sourceCommandIds?: readonly string[];
   feedback?: AssistantMessageFeedback | null;
   hookInvocations?: readonly HookInvocationRow[];
   sessionId?: string | null;
@@ -1465,10 +1537,13 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
       {turnId && hookInvocations ? (
         <ConversationHookDetailsAction rows={hookInvocations} turnId={turnId} />
       ) : null}
-      {/* 旧 conversation surface 删除后，V4 动作栏漏掉了消息创建时间；
+      {/* Bugfix: 旧 conversation surface 删除后，V4 动作栏漏掉了消息创建时间；
           时间是 row.createdAt 的只读派生展示，不新增 renderer 状态。 */}
       {timeLabel ? (
         <span className="select-none text-ui-sm text-foreground-subtlest">{timeLabel}</span>
+      ) : null}
+      {turnId ? (
+        <ConnectedBotGroupDeliveryAction turnId={turnId} sourceCommandIds={sourceCommandIds} />
       ) : null}
     </MessageActions>
   );
@@ -1521,7 +1596,9 @@ const AssistantTextRowView = memo(function AssistantTextRowView({
           导致 assistant 正文虽然在 JSX 上标了 selectable，框选逻辑却永远找不到该区域。
           selectable 语义必须放在稳定的 DOM 包装层上，完成态和 streaming 共用同一路径。 */}
       <div data-conversation-selectable="true" className="w-full text-ui-base">
-        <MessageResponse
+        <GenUiMessageResponse
+          completed={row.state === "complete"}
+          messageKey={`${row.rowId}:${row.entityId ?? ""}`}
           renderZCodeFileCitations
           streaming={streaming}
           workspacePath={context.workspacePath}
@@ -1537,7 +1614,7 @@ const AssistantTextRowView = memo(function AssistantTextRowView({
           readAttachment={context.readAttachment}
         >
           {visibleText}
-        </MessageResponse>
+        </GenUiMessageResponse>
       </div>
       {codeCommentCardsEnabled && codeCommentCards && codeCommentCards.length > 0 ? (
         <div className="mt-3">
@@ -1912,6 +1989,52 @@ const ToolCallRowView = memo(function ToolCallRowView({
     (row.display?.kind === "resume_workflow_run"
       ? context.workflowRunByRunId?.get(row.display.runId)
       : undefined);
+  // 已接进 run 的补全行（docs/dynamic-workflow/presentation.md「The fill row」）：「留白已补全 · {name} ·
+  // {k} 个阶段 · {m} 个子代理 ↗」。按入参的 `run_id` 联接投影（补全行的 toolCallId 不是发起行的），只认成功
+  // 且编过的行——编不过的补全走下面的编译反馈行，什么都没接进 run。卡下方随之长出新的站（轮尾摘要
+  // 取的是这一行的图）。
+  // 名字来自 display 的 `fill` 块（行的入参没有名字——transcript 只存模型自己的入参）。
+  const fillTarget = isFillWorkflowHoleToolCall(row)
+    ? readWorkflowHoleTarget(
+        row.input,
+        row.display?.kind === "create_workflow" ? row.display.fill : undefined,
+      )
+    : undefined;
+  const fillRun =
+    fillTarget?.runId === undefined ? undefined : context.workflowRunByRunId?.get(fillTarget.runId);
+  if (
+    fillTarget !== undefined &&
+    fillTarget.holeId !== undefined &&
+    fillRun !== undefined &&
+    row.status === "success" &&
+    row.display?.kind === "create_workflow" &&
+    row.display.ok
+  ) {
+    const sessionId = context.sessionId;
+    const counts = workflowFillCounts(row.display.causalityGraph, fillTarget.holeId);
+    return (
+      <RowShell rowId={row.rowId} className="py-0">
+        <WorkflowToolSummary
+          toolCallId={row.toolCallId}
+          summary={fillRun}
+          fill={{
+            name: fillTarget.name ?? fillTarget.holeId,
+            ...counts,
+          }}
+          onOpen={
+            context.onOpenWorkflowRun && sessionId
+              ? () =>
+                  context.onOpenWorkflowRun?.({
+                    parentSessionId: sessionId,
+                    toolCallId: resolveWorkflowRunOpenToolCallId(row.toolCallId, fillRun),
+                    runId: fillRun.runId,
+                  })
+              : undefined
+          }
+        />
+      </RowShell>
+    );
+  }
   // 原因：已启动的工具卡与轮尾摘要重复画同一条实时进度；上方改为普通摘要入口。
   // 只替换成功关联的发起行，编译诊断及 Resume 等其他工具仍走原有渲染。
   if (
@@ -1942,7 +2065,7 @@ const ToolCallRowView = memo(function ToolCallRowView({
       </RowShell>
     );
   }
-  // 就地生效的修订：只改并发上限、run 又在飞时这次调用
+  // 就地生效的修订（docs/dynamic-workflow/concurrency.md）：只改并发上限、run 又在飞时这次调用
   // 不编译、不铸新 run，结果只有一句话。判据全在已经上线的字段上——入参的形状、**没有** display、
   // 成功且非错误；工具的结构化输出不过 v4，而三处 create_workflow display schema 都是冻结字段集
   // 的 `.strict()`，多一个键会让旧端把整条工具结果丢掉，所以这条路不新增任何协议字段。
@@ -1956,18 +2079,18 @@ const ToolCallRowView = memo(function ToolCallRowView({
     !context.workflowRunByToolCallId?.has(row.toolCallId)
   ) {
     const sessionId = context.sessionId;
-    // 被调整那条 run 的投影：只为两件事——本机天花板（措辞据它不念出一个大于上限的数）与
+    // 被调整那条 run 的投影：只为两件事——默认并发（措辞据它把「等于默认」念成「恢复为默认」）与
     // 打开请求里那条 run 的发起行 id。它不进上面的 `workflowRun`：那个变量回答的是「这一行是不是
     // 某条 run 的发起行」，而这一行不是。
     const retuned = context.workflowRunByRunId?.get(retune.runId);
-    const ceiling =
-      retuned?.run === undefined ? undefined : workflowRunSettingsCeiling(retuned.run);
+    const defaultConcurrency =
+      retuned?.run === undefined ? undefined : workflowRunDefaultConcurrency(retuned.run);
     return (
       <RowShell rowId={row.rowId} className="py-0">
         <WorkflowRetuneRow
           requested={retune.requested}
           runId={retune.runId}
-          {...(ceiling === undefined ? {} : { ceiling })}
+          {...(defaultConcurrency === undefined ? {} : { defaultConcurrency })}
           {...(context.onOpenWorkflowRun && sessionId
             ? {
                 onOpen: () =>

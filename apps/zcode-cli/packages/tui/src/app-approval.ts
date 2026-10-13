@@ -11,6 +11,11 @@ import { asRecord, stringField } from "./state.js";
 const COMMAND_INPUT_FIELD = "command";
 const DESCRIPTION_INPUT_FIELD = "description";
 
+/** user-once 只批准这一次：菜单里不能出现任何会写成持久规则的选项。 */
+export function decisionsForApproval(request: PermissionBrokerRequest): ApprovalDecision[] {
+  return request.approvalMode === "user-once" ? ["allow_once", "deny"] : approvalDecisions;
+}
+
 export function handleApprovalKey(
   key: KeyEvent,
   approval: ApprovalPrompt,
@@ -23,17 +28,17 @@ export function handleApprovalKey(
   }
 
   if (key.name === "up" || key.name === "down") {
+    const decisions = decisionsForApproval(approval.request);
     const delta = key.name === "up" ? -1 : 1;
     setApprovalQueue((current) => {
       const [first, ...rest] = current;
       if (!first) return current;
-      const selectedIndex = approvalDecisions.indexOf(first.selectedDecision);
+      const selectedIndex = decisions.indexOf(first.selectedDecision);
       return [
         {
           ...first,
           selectedDecision:
-            approvalDecisions[clampIndex(selectedIndex + delta, approvalDecisions.length)] ??
-            "deny",
+            decisions[clampIndex(selectedIndex + delta, decisions.length)] ?? "deny",
         },
         ...rest,
       ];
@@ -124,7 +129,12 @@ function createApprovalResult(
   request: PermissionBrokerRequest,
   decision: ApprovalDecision,
 ): PermissionBrokerResult {
-  if (decision === "deny") {
+  // 兜底：菜单已按 user-once 裁掉 allow_project，这里再挡一次，避免陈旧的 selectedDecision
+  // 把一次性批准写成项目级持久规则。
+  if (
+    decision === "deny" ||
+    (decision === "allow_project" && request.approvalMode === "user-once")
+  ) {
     return {
       decision: "deny",
       reason: "Denied in TUI",

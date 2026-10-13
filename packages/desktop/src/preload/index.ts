@@ -5,6 +5,7 @@ import {
 } from "@zcode/shared";
 /* eslint-disable max-lines -- preload bridge 集中暴露桌面平台 IPC，拆散会让 contextBridge 权限边界更难审计。 */
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
+import { installPluginSandboxHostBridge } from "./pluginSandbox/hostBridge.js";
 import {
   installArmsRumBridgeIpcForward,
   scheduleArmsEventBridgePatch,
@@ -75,6 +76,7 @@ import type {
   WindowControlsOverlayMetrics,
   WindowControlsOverlayReadyPayload,
   CreateTempTextAttachmentRequest,
+  MaterializeWorkflowArtifactFileRequest,
   OpenCuaPermissionOnboardingOptions,
   ConfigureFinalArmsCustomEventE2ERequest,
   FinalArmsCustomEventE2EEntry,
@@ -310,6 +312,9 @@ contextBridge.exposeInMainWorld("zcode", {
   /** 长文本粘贴落盘为真正的本地附件，避免正文和 prompt payload 被撑大 */
   createTempTextAttachment: (payload: CreateTempTextAttachmentRequest) =>
     ipcRenderer.invoke(PlatformChannels.CreateTempTextAttachment, payload),
+  /** dwf 产物「作为文件打开」：把某一版的字节落成本机副本 */
+  materializeWorkflowArtifactFile: (payload: MaterializeWorkflowArtifactFileRequest) =>
+    ipcRenderer.invoke(PlatformChannels.MaterializeWorkflowArtifactFile, payload),
   /** 订阅当前窗口内远程连接过程日志，返回 disposer */
   onRemoteConnectionLog: (callback: (entry: RemoteConnectionRuntimeLog) => void) => {
     const handler = (_event: unknown, payload: unknown) =>
@@ -914,3 +919,5 @@ window.addEventListener("message", (event) => {
   const parsed = databaseStartupControlSchema.safeParse(event.data.control);
   if (parsed.success) ipcRenderer.send(InternalChannels.DatabaseStartupControl, parsed.data);
 });
+
+installPluginSandboxHostBridge();

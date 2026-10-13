@@ -261,6 +261,10 @@ async function previewConversationFileRewind(
 }
 
 interface InputCommandForAdmission {
+  botGroupSource?: ConversationInputIntent["botGroupSource"];
+  conversationQuotes?: ConversationInputIntent["conversationQuotes"];
+  source?: ConversationInputIntent["source"];
+
   kind: ConversationInputIntent["kind"];
   text: string;
   attachments: readonly AttachmentRef[];
@@ -341,12 +345,19 @@ function resolveInputCommandForAdmission(
       text: string;
       attachments?: AttachmentRef[];
       context_refs?: ConversationInputIntent["sharedContextRefs"];
+  botGroupSource?: ConversationInputIntent["botGroupSource"];
+  conversationQuotes?: ConversationInputIntent["conversationQuotes"];
+  source?: ConversationInputIntent["source"];
+
     };
     return {
       kind: envelope.type,
       text: payload.text,
       attachments: payload.attachments ?? [],
       ...(payload.context_refs ? { sharedContextRefs: payload.context_refs } : {}),
+      botGroupSource: payload.botGroupSource,
+      conversationQuotes: payload.conversationQuotes,
+      source: payload.source,
     };
   }
   if (envelope.type === "compact") {
@@ -357,6 +368,7 @@ function resolveInputCommandForAdmission(
   const payload = envelope.payload as {
     target: { rowId: number; entityId: string };
     newText?: string;
+    conversationQuotes?: ConversationInputIntent["conversationQuotes"];
     attachments?: AttachmentRef[];
   };
   const resolution = resolveRowTarget(envelope.sessionId, payload.target, envelope.type);
@@ -368,6 +380,9 @@ function resolveInputCommandForAdmission(
     canonical.intent.provenance?.sourceCommandId ?? canonical.intent.sourceCommandId;
   return {
     kind: canonical.intent.kind,
+    botGroupSource: canonical.intent.botGroupSource,
+    conversationQuotes: payload.conversationQuotes ?? canonical.intent.conversationQuotes,
+    source: canonical.intent.source,
     text:
       envelope.type === "editUserQuery"
         ? (payload.newText ?? canonical.intent.text)
@@ -423,6 +438,9 @@ function buildForkInitialInput(
     queueItemId: admission.queueItemId,
     clientId: envelope.clientId || "cli",
     kind: input.kind,
+    botGroupSource: input.botGroupSource,
+    conversationQuotes: input.conversationQuotes,
+    source: input.source,
     text: input.text,
     attachments: input.attachments,
     delivery: {
@@ -764,6 +782,9 @@ export function createConversationV4Gateway(
         clientId: envelope.clientId || "cli",
         kind,
         text: input.text ?? "",
+        botGroupSource: input.botGroupSource,
+        conversationQuotes: input.conversationQuotes,
+        source: input.source,
         attachments: attachmentRefs,
         ...(input.sharedContextRefs ? { sharedContextRefs: input.sharedContextRefs } : {}),
         delivery: {
@@ -1107,7 +1128,11 @@ export function createConversationV4Gateway(
       mcpServers,
       offPeakToolEnabled,
       dynamicWorkflowEnabled,
+      dynamicWorkflowMode,
+      permissionScope,
     }) => {
+      if (permissionScope && !context.deps.sessionStore)
+        throw new Error("Group task permission scope requires persistence");
       // workspaceId 双形态（Workspace Identity 约束）：
       // - 本地工作区 = workspacePath（identity 缺省时的 fallback）；
       // - 远程 pane（跨 workspace 分屏）= 远程 identity
@@ -1129,6 +1154,7 @@ export function createConversationV4Gateway(
         // 动态工作流门同为 runtime 创建期配置：显式 false 覆盖 workspace 缓存的开启状态；
         // 未指定仍沿用 Host 已同步的 workspace 策略。
         ...(typeof dynamicWorkflowEnabled === "boolean" ? { dynamicWorkflowEnabled } : {}),
+        ...(dynamicWorkflowMode ? { dynamicWorkflowMode } : {}),
       });
       return { sessionId: created.sessionId };
     },

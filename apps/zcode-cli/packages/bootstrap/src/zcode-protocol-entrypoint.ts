@@ -229,6 +229,10 @@ export async function runZCodeProtocolAgent(
       configResult.config.features.mcp === false
         ? undefined
         : createMcpAdapterConnectionPool({
+            notifications: {
+              onNotification: (notification) =>
+                serverForCleanup?.handleMcpNotification(notification),
+            },
             clientVersion: options.version ?? "0.0.0",
             env: options.env,
             logger,
@@ -280,7 +284,8 @@ export async function runZCodeProtocolAgent(
             : {}),
           sourceTitle: "electron",
           onToolExecResource: ZCODE_TELEMETRY_ENABLED
-            ? (params) => connection.send({ method: zcodeProtocolNotifications.toolExecResource, params })
+            ? (params) =>
+                connection.send({ method: zcodeProtocolNotifications.toolExecResource, params })
             : undefined,
         }),
       cwd: options.cwd,

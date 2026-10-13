@@ -33,7 +33,10 @@ import { syncAppTelemetryContext } from "../appTelemetryBridge.js";
 import { createDesktopPlatform } from "./desktopPlatform.js";
 import { startPerformanceTimelineCleanup } from "./performanceTimelineCleanup.js";
 import { initializeDesktopUserActionTrace } from "./userActionTraceBootstrap.js";
-import { buildRemoteWorkspaceSessionServices } from "./remoteWorkspaceSessionServices.js";
+import {
+  buildRemoteWorkspaceSessionServices,
+  buildServerRemoteWorkspaceSessionServices,
+} from "./remoteWorkspaceSessionServices.js";
 import {
   notifyRemoteWorkspaceServicePortReady,
   parseRemoteWorkspaceServicePortMessage,
@@ -218,10 +221,10 @@ function registerRemoteWorkspaceServicePort(params: RemoteWorkspaceServicePortRe
 
   const remoteConnection = createMessagePortServiceConnection(params.port);
   const remoteServices = remoteConnection.services;
-  const services = buildRemoteWorkspaceSessionServices(
-    baseServicesForRemoteSessions,
-    remoteServices,
-  );
+  const services =
+    params.target.kind === "server"
+      ? buildServerRemoteWorkspaceSessionServices(baseServicesForRemoteSessions, remoteServices)
+      : buildRemoteWorkspaceSessionServices(baseServicesForRemoteSessions, remoteServices);
   registerRemoteWorkspaceSession({
     sessionId: params.sessionId,
     target: params.target,

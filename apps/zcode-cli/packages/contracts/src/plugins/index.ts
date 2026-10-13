@@ -155,9 +155,27 @@ export interface PluginManifest {
   outputStyles?: unknown;
   repository?: string;
   settings?: unknown;
+  ui?: unknown;
   skills?: unknown;
   userConfig?: Record<string, PluginUserConfigOption>;
   version?: string;
+}
+
+/** 面板生命周期：第一版只接受会话级；`draft` 留待需要时放开。 */
+export type PluginUiSurfaceAvailability = "session";
+/** 标题：单一字符串或按 locale 键的映射（`{ "zh-CN": "...", "en-US": "..." }`）。 */
+export type PluginUiSurfaceTitle = string | Record<string, string>;
+export interface PluginUiSurfaceDefinition {
+  id: string;
+  title: PluginUiSurfaceTitle;
+  icon?: string;
+  /** 运行时 namespaced MCP server 名（`plugin:${name}:${server}`），UI 直接用它调 mcp/uiReadResource。 */
+  server: string;
+  /** 清单里声明的原始 server 键，仅供诊断与展示。 */
+  declaredServer: string;
+  /** 必须以 `ui://` 开头。 */
+  resourceUri: string;
+  availability: PluginUiSurfaceAvailability;
 }
 
 export interface PluginConfig {
@@ -170,6 +188,7 @@ export interface PluginConfig {
 }
 
 export interface PluginMetadata {
+  uiSurfaces?: PluginUiSurfaceDefinition[];
   /** manifest（plugin.json）里的作者名，规范化为字符串；商店信息缺失时作为详情页回退。 */
   author?: string;
   authorUrl?: string;
@@ -215,6 +234,7 @@ export interface PluginDiagnostic {
 // ============================================================
 
 export interface PluginReferenceCatalogEntry {
+  uiSurfaces?: PluginUiSurfaceDefinition[];
   /** 稳定 Plugin ID：`${manifest.name}@${marketplace}`，canonical plugin:// 链接的唯一身份。 */
   pluginId: string;
   /** manifest name（Skill/MCP/Subagent runtime 名字空间的基），仅用于展示与 provenance 匹配，不具权威性。 */

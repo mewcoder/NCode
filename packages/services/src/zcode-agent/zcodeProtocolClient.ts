@@ -33,6 +33,7 @@ interface PendingRequest<T> {
   resumeTimeout: () => void;
   resolve: (value: T) => void;
   reject: (error: Error) => void;
+  promise?: Promise<T>;
   resultSchema?: z.ZodType<T>;
   cleanupAbort?: () => void;
 }
@@ -131,7 +132,19 @@ export class ZCodeProtocolClient implements IDisposable {
     return this.transport.kind;
   }
 
-  async request<T = unknown>(
+  // 不用 async 包装：必须在最终返回的 Promise 创建时观察拒绝，避免等待前误报 unhandledRejection。
+  request<T = unknown>(
+    method: ZCodeProtocolClientMethod,
+    params?: unknown,
+    resultSchema?: z.ZodType<T>,
+    options?: ZCodeProtocolClientRequestOptions,
+  ): Promise<T> {
+    const requestPromise = this.requestImpl(method, params, resultSchema, options);
+    void requestPromise.catch(() => undefined);
+    return requestPromise;
+  }
+
+  private async requestImpl<T = unknown>(
     method: ZCodeProtocolClientMethod,
     params?: unknown,
     resultSchema?: z.ZodType<T>,
@@ -194,6 +207,12 @@ export class ZCodeProtocolClient implements IDisposable {
         options?.signal?.addEventListener("abort", abortHandler, { once: true });
       }
     });
+
+    // Promise executor 同步执行，不能在其中读取尚未完成赋值的 resultPromise（TDZ）。
+    const registeredPending = this.pending.get(requestKey);
+    if (registeredPending) registeredPending.promise = resultPromise;
+    // Transport send 仍在等待时，关闭/取消也可能先拒绝结果 Promise。
+    void resultPromise.catch(() => undefined);
 
     // 已在发送前取消的请求不能继续写入 transport；否则服务端会执行一个客户端已经
     // 放弃、也无法接收响应的模型任务。
@@ -357,6 +376,7 @@ export class ZCodeProtocolClient implements IDisposable {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timeout);
       pending.cleanupAbort?.();
+      void pending.promise?.catch(() => undefined);
       pending.reject(error);
     }
     this.pending.clear();

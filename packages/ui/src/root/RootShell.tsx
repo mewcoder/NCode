@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AlertDialogHost } from "@/AlertDialogHost.js";
 import { ConfirmDialogHost } from "@/ConfirmDialog.js";
+import { PluginUiFollowUpDialogHost } from "@/plugin-ui/index.js";
 import { CuaPermissionObservationAttachment } from "@/cua-permission/CuaPermissionObservationAttachment.js";
 
 export function RootShell({ children }: { children: ReactNode }) {
@@ -12,6 +13,7 @@ export function RootShell({ children }: { children: ReactNode }) {
       <CuaPermissionObservationAttachment />
       <AlertDialogHost />
       <ConfirmDialogHost />
+      <PluginUiFollowUpDialogHost />
     </div>
   );
 }

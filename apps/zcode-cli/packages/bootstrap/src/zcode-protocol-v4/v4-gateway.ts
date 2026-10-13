@@ -17,10 +17,10 @@ import {
 import type {
   DynamicWorkflowRunArtifact,
   DynamicWorkflowRunArtifactBytes,
-  DynamicWorkflowRunArtifactItem,
+  DynamicWorkflowRunArtifactItemsResult,
   DynamicWorkflowRunWorkspaceNode,
   DynamicWorkflowRunWorkspaceNodeResult,
-  DynamicWorkflowRunEvent,
+  DynamicWorkflowRunEventsResult,
   DynamicWorkflowRunSessionSummary,
   MessageWithParts,
   SessionEvent,
@@ -113,6 +113,7 @@ import {
   v4ConversationWorkflowRunWorkspaceParamsSchema,
   v4ConversationWorkflowRunWorkspaceResultSchema,
   WORKFLOW_WORKSPACE_LIMITS,
+  WORKFLOW_RUN_EVENTS_PAGE_LIMITS,
   v4ConversationWorkflowRunEventsParamsSchema,
   v4ConversationWorkflowRunEventsResultSchema,
   v4ConversationWorkflowRunsParamsSchema,
@@ -376,8 +377,8 @@ export interface V4GatewayHost {
    */
   listDynamicWorkflowRunEvents?(
     sessionId: string,
-    input: { runId: string; afterSequence?: number; limit?: number },
-  ): Promise<DynamicWorkflowRunEvent[]>;
+    input: { runId: string; afterSequence?: number; limit?: number; maxBytes?: number },
+  ): Promise<DynamicWorkflowRunEventsResult>;
   /**
    * dwf run 的枚举面（重启后的发现查询）。
    * 缺席条件同 {@link listDynamicWorkflowRunEvents}。
@@ -398,8 +399,15 @@ export interface V4GatewayHost {
   ): Promise<readonly DynamicWorkflowRunArtifact[] | undefined>;
   listDynamicWorkflowRunArtifactItems?(
     sessionId: string,
-    input: { runId: string; artifactId: string; afterSequence?: number; limit: number },
-  ): Promise<readonly DynamicWorkflowRunArtifactItem[]>;
+    input: {
+      runId: string;
+      artifactId: string;
+      afterSequence?: number;
+      limit: number;
+      maxBytes: number;
+      fields?: readonly string[];
+    },
+  ): Promise<DynamicWorkflowRunArtifactItemsResult>;
   readDynamicWorkflowRunArtifact?(
     sessionId: string,
     input: { runId: string; artifactId: string; version: number },
@@ -1603,8 +1611,9 @@ export class ConversationV4Gateway {
    * 与 rows/range、plans 同族：只读、无状态、超时重发安全。刻意**不是** v4 command——
    * command 的 ACK 结果是那个封闭的「变更结果」判别联合，一页只读事件不属于那个词汇表。
    *
-   * `hasMore` 由「取满 limit」判定：多读一条来确认后面还有，比让 renderer 靠"这页正好满"
-   * 猜测更可靠（正好取尽时不会白翻一页空的）。
+   * 一页的条数与字节两道界在这里定（docs/execution-engine.md「Reading the journal」）：条数取
+   * 调用方的 limit，缺省为协议上限；字节恒为协议上限，renderer 不能放宽。`hasMore` 由存储层
+   * 判定——页可能因字节提前收尾，「取满 limit」已经不是判据。
    */
   async workflowRunEvents(rawParams: unknown): Promise<V4ConversationWorkflowRunEventsResult> {
     const params = v4ConversationWorkflowRunEventsParamsSchema.parse(rawParams);
@@ -1612,18 +1621,13 @@ export class ConversationV4Gateway {
       throw new V4CapabilityUnsupportedError("listDynamicWorkflowRunEvents", params.sessionId);
     }
     await this.ensureHostRecordForJournalRead(params.sessionId);
-    const limit = params.limit;
-    const events = await this.host.listDynamicWorkflowRunEvents(params.sessionId, {
+    const page = await this.host.listDynamicWorkflowRunEvents(params.sessionId, {
       runId: params.runId,
       ...(params.afterSequence === undefined ? {} : { afterSequence: params.afterSequence }),
-      // 多取一条只为判定 hasMore；它不进结果页。
-      ...(limit === undefined ? {} : { limit: limit + 1 }),
+      limit: params.limit ?? WORKFLOW_RUN_EVENTS_PAGE_LIMITS.maxEvents,
+      maxBytes: WORKFLOW_RUN_EVENTS_PAGE_LIMITS.maxBytes,
     });
-    const hasMore = limit !== undefined && events.length > limit;
-    return v4ConversationWorkflowRunEventsResultSchema.parse({
-      events: hasMore ? events.slice(0, limit) : events,
-      hasMore,
-    });
+    return v4ConversationWorkflowRunEventsResultSchema.parse(page);
   }
 
   /**
@@ -1670,8 +1674,8 @@ export class ConversationV4Gateway {
   /**
    * 预置看板的取数面：喂给某个产物的 `report` 条目分页。
    *
-   * `limit` 的**缺省与钳制都在这里**（存储层精确兑现、绝不自造页大小也绝不再钳）；`hasMore` 照 workflowRunEvents 的惯例多取一条判定——判据绝不能是「这页正好满」，
-   * 那会在条目数恰好等于 limit 时误报，让看板去翻一页不存在的数据。
+   * 条数的**缺省与钳制**、以及字节上界都在这里定（存储层精确兑现、绝不自造页大小也绝不再钳）。`fields` 原样下传：看板只要 spec 点名的字段，由 SQLite 取出；`hasMore` 由存储层判定——页可能因字节提前收尾，所以判据绝不能是
+   * 「这页正好满」，也不再是网关多取一条。
    */
   async workflowRunArtifactData(
     rawParams: unknown,
@@ -1691,18 +1695,15 @@ export class ConversationV4Gateway {
         WORKFLOW_ARTIFACT_LIMITS.maxItemsPerPage,
       ),
     );
-    const items = await this.host.listDynamicWorkflowRunArtifactItems(params.sessionId, {
+    const page = await this.host.listDynamicWorkflowRunArtifactItems(params.sessionId, {
       runId: params.runId,
       artifactId: params.artifactId,
       ...(params.afterSequence === undefined ? {} : { afterSequence: params.afterSequence }),
-      // 多取一条只为判定 hasMore；它不进结果页。
-      limit: limit + 1,
+      limit,
+      maxBytes: WORKFLOW_ARTIFACT_LIMITS.maxPageBytes,
+      ...(params.fields === undefined ? {} : { fields: params.fields }),
     });
-    const hasMore = items.length > limit;
-    return v4ConversationWorkflowRunArtifactDataResultSchema.parse({
-      items: hasMore ? items.slice(0, limit) : items,
-      hasMore,
-    });
+    return v4ConversationWorkflowRunArtifactDataResultSchema.parse(page);
   }
 
   /**

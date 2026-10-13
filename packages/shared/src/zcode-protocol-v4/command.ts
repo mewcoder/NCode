@@ -1,3 +1,7 @@
+import { DYNAMIC_WORKFLOW_MODES } from "../dynamic-workflow-feature.js";
+import { zcodeAutomationBotDeliveryTargetSchema } from "../bots.js";
+import { botGroupInputSourceSchema } from "../bots.js";
+import { conversationQuotesSchema } from "../conversationSelection.js";
 import { localTtftContextSchema, localTtftClockSchema } from "../localTtft.js";
 // Command 层：信封 / ACK / 命令全集 payload。
 // conversation rewind 无独立命令（裁决：= editUserQuery 的 UI 入口）；
@@ -5,6 +9,7 @@ import { localTtftContextSchema, localTtftClockSchema } from "../localTtft.js";
 import { z } from "zod";
 import { conversationRowTargetSchema, timestampSchema } from "./core.js";
 import { attachmentRefSchema } from "./attachment-ref.js";
+import { conversationInputSourceSchema } from "./input-intent.js";
 import { v4ConversationFileRewindPreviewResultSchema } from "./transport.js";
 import { modelSelectionSchema } from "../model-selection.js";
 import { modelExecutionSchema } from "../model-execution.js";
@@ -44,6 +49,7 @@ export const commandPayloadSchemas = {
   // firstInput 缺省 → phase=draft 空会话；携带 → 直接 turnHeader+userInput rows。
   createSession: z.object({
     workspaceId: z.string(),
+    permissionScope: z.literal("session").optional(),
     firstInput: z
       .object({
         text: z.string(),
@@ -62,6 +68,7 @@ export const commandPayloadSchemas = {
     offPeakToolEnabled: z.boolean().optional(),
     // 动态工作流灰度 flag，与 offPeakToolEnabled 同一模式。
     dynamicWorkflowEnabled: z.boolean().optional(),
+    dynamicWorkflowMode: z.enum(DYNAMIC_WORKFLOW_MODES).optional(),
   }),
   // 父会话由 envelope.sessionId 指定；服务端从父 record 派生完整运行配置。
   // firstInput 存在时，child 创建完成后立即启动首条普通输入；缺省则保持空副屏。
@@ -88,6 +95,10 @@ export const commandPayloadSchemas = {
       // Share handover 只允许当前 session 的一个已导入上下文；完整正文由 runtime 从
       // 持久化 provenance 解析，不能随 command 从 renderer 传入。
       context_refs: z.array(sharedContextRefSchema).max(1).optional(),
+      source: conversationInputSourceSchema.optional(),
+      botGroupSource: botGroupInputSourceSchema.optional(),
+      conversationQuotes: conversationQuotesSchema.optional(),
+      botDeliveryTarget: zcodeAutomationBotDeliveryTargetSchema.optional(),
       heldQueueDisposition: z.enum(["clearQueueAndSend", "keepQueueAndSend"]).optional(),
       // 暂停队列确认框打开时看到的 queueItemId 集合。CLI 在执行 clear/keep 前校验，
       // 防止桌面/手机并发增删后把用户没确认过的新队列一并处置。
@@ -151,6 +162,7 @@ export const commandPayloadSchemas = {
   editUserQuery: z.object({
     target: conversationRowTargetSchema,
     newText: z.string(),
+    conversationQuotes: conversationQuotesSchema.optional(),
     attachments: z.array(attachmentRefSchema).optional(),
     // 缺省 preserve：仅切 conversation branch；rewind 会先安全恢复该轮文件。
     workspaceMode: z.enum(["preserve", "rewind"]).optional(),
@@ -210,7 +222,7 @@ export const commandPayloadSchemas = {
   // additive（冻结面按黄金测试背书演进）：agent 协作模式切换。
   // 值域 = core CollaborationMode 的可切换子集（auto 非用户可切，不进 UI 命令面）。
   switchCollaborationMode: z.object({
-    mode: z.enum(["build", "edit", "plan", "yolo"]),
+    mode: z.enum(["build", "edit", "plan", "yolo", "guarded"]),
   }),
   setFollowupMode: z.object({ mode: z.enum(["queue", "guide"]) }),
   pauseGoal: z.object({}),

@@ -1,3 +1,4 @@
+import { useBotBroadcastEffects } from "@/root/useBotBroadcastEffects.js";
 /* eslint-disable max-lines -- Root 当前集中编排启动和 workspace shell wiring，先保持入口收口避免跨层状态拆散。 */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LucideProvider, RefreshCw } from "lucide-react";
@@ -266,6 +267,9 @@ function RootInner({
         void services.zcodeAgentService.syncAppRuntimePreferences(parsed.data).catch((error) => {
           logger.warn("[settings] 同步跨窗口运行时偏好失败", error);
         });
+        void services.botsService.syncAppRuntimePreferences(parsed.data).catch((error) => {
+          logger.warn("[settings] 同步跨窗口 Bot 运行时偏好失败", error);
+        });
         return;
       }
 
@@ -297,7 +301,12 @@ function RootInner({
     return () => {
       disposable.dispose();
     };
-  }, [refreshAppSettings, services.broadcastService, services.zcodeAgentService]);
+  }, [
+    refreshAppSettings,
+    services.broadcastService,
+    services.zcodeAgentService,
+    services.botsService,
+  ]);
 
   useEffect(() => {
     if (!appSettings) {
@@ -312,10 +321,20 @@ function RootInner({
       .catch((error) => {
         logger.warn("[settings] 初始化运行时偏好失败", error);
       });
+    void services.botsService
+      .syncAppRuntimePreferences({
+        askUserQuestionAutoResolutionEnabled:
+          appSettings.askUserQuestionAutoResolutionEnabled !== false,
+        modelIoFullRetentionEnabled: appSettings.modelIoFullRetentionEnabled === true,
+      })
+      .catch((error) => {
+        logger.warn("[settings] 初始化 Bot 运行时偏好失败", error);
+      });
   }, [
     appSettings?.askUserQuestionAutoResolutionEnabled,
     appSettings?.modelIoFullRetentionEnabled,
     services.zcodeAgentService,
+    services.botsService,
   ]);
 
   const tabs = useTabStore((state) => state.tabs);
@@ -365,6 +384,7 @@ function RootInner({
   const addTab = useTabStore((state) => state.addTab);
   const activateTabByPath = useTabStore((state) => state.activateTabByPath);
   const tabStoreApi = useTabStoreApi();
+  useBotBroadcastEffects(services, tabStoreApi);
   const refreshProviderState = useRootProviderStateRefresh(services);
   useRootProviderSettingsSnapshot(services);
   useEffect(() => {

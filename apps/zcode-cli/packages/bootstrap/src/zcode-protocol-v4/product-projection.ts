@@ -1,3 +1,8 @@
+import type {
+  PluginUiResourceUpdatedPayload,
+  PluginUiResourceListChangedPayload,
+  PluginUiAppToolCallRequestedPayload,
+} from "@zcode/contracts";
 import { PERMISSION_FULL_ACCESS_OPTION_ID } from "@zcode/shared/zcode-protocol-v4";
 // ProductProjection —— CLI 权威投影第二 reducer。
 // 输入：CLI 事件日志（SessionEvent，权威事实源）；输出：ConversationDelta[]。
@@ -304,6 +309,9 @@ export interface ConversationEditTarget {
   coveredByStableCompact: boolean;
   intent: {
     kind: "sendText" | "sendGoalCommand";
+    source?: TurnInputIntentMetadata["source"];
+    botGroupSource?: TurnInputIntentMetadata["botGroupSource"];
+    conversationQuotes?: TurnInputIntentMetadata["conversationQuotes"];
     text: string;
     sourceCommandId?: string;
     clientId?: string;
@@ -1374,6 +1382,51 @@ export class ProductProjection {
         return this.onPermissionResolved(event);
       case SessionEventType.PermissionDenied:
         return this.onPermissionDenied(event);
+      case SessionEventType.PluginUiResourceUpdated: {
+        // live-only，不改快照；renderer 按 subscribers 派发给沙箱实例。
+        const payload = event.payload as PluginUiResourceUpdatedPayload;
+        return [
+          {
+            op: "pluginUi.resourceUpdated",
+            pluginId: payload.pluginId,
+            serverName: payload.serverName,
+            uri: payload.uri,
+            subscribers: payload.subscribers,
+          },
+        ];
+      }
+      case SessionEventType.PluginUiResourceListChanged: {
+        const payload = event.payload as PluginUiResourceListChangedPayload;
+        return [
+          {
+            op: "pluginUi.resourceListChanged",
+            pluginId: payload.pluginId,
+            serverName: payload.serverName,
+            subscribers: payload.subscribers,
+          },
+        ];
+      }
+      case SessionEventType.PluginUiInstanceClosed: {
+        const payload = event.payload as PluginUiResourceListChangedPayload;
+        return [{ op: "pluginUi.instanceClosed", ...payload }];
+      }
+      case SessionEventType.PluginUiAppToolCallRequested: {
+        // App-Provided Tools 信箱：live-only，投递给 subscribers 里唯一的实例。
+        const payload = event.payload as PluginUiAppToolCallRequestedPayload;
+        return [
+          {
+            op: "pluginUi.appToolCall",
+            activity: payload.activity,
+            ...(payload.cancelled ? { cancelled: true } : {}),
+            pluginId: payload.pluginId,
+            serverName: payload.serverName,
+            subscribers: payload.subscribers,
+            callId: payload.callId,
+            toolName: payload.toolName,
+            arguments: payload.arguments,
+          },
+        ];
+      }
       case SessionEventType.UserInputAutoResolutionUpdated:
         return this.onUserInputAutoResolutionUpdated(event);
       case SessionEventType.WorkspaceHookReviewRequested:
@@ -2036,6 +2089,9 @@ export class ProductProjection {
         kind: "userInput",
         text: fact.input,
         origin: fact.origin,
+        ...(fact.source ? { source: fact.source } : {}),
+        ...(fact.botGroupSource ? { botGroupSource: fact.botGroupSource } : {}),
+        ...(fact.conversationQuotes ? { conversationQuotes: fact.conversationQuotes } : {}),
         ...(fact.sourceCommandId ? { sourceCommandId: fact.sourceCommandId } : {}),
         ...(rootSourceCommandId ? { rootSourceCommandId } : {}),
         ...(fact.clientId ? { clientId: fact.clientId } : {}),
@@ -2057,6 +2113,9 @@ export class ProductProjection {
               coveredByStableCompact: false,
               intent: {
                 kind: fact.intentKind,
+                source: fact.source,
+                botGroupSource: fact.botGroupSource,
+                conversationQuotes: fact.conversationQuotes,
                 text: fact.intentText,
                 ...(fact.sourceCommandId ? { sourceCommandId: fact.sourceCommandId } : {}),
                 ...(fact.clientId ? { clientId: fact.clientId } : {}),
@@ -3149,7 +3208,10 @@ export class ProductProjection {
         summary: payload.reason,
         detail: payload.input,
         freeText: true,
-        ...(payload.fullAccessSupported === true && !payload.origin && !payload.optionsPolicy
+        ...(payload.approvalMode !== "user-once" &&
+        payload.fullAccessSupported === true &&
+        !payload.origin &&
+        !payload.optionsPolicy
           ? {
               fullAccessOption: {
                 optionId: PERMISSION_FULL_ACCESS_OPTION_ID,
@@ -3163,6 +3225,7 @@ export class ProductProjection {
         ...(askDisplay ? { display: askDisplay } : {}),
         options: [
           ...buildProtocolPermissionOptions({
+            approvalMode: payload.approvalMode,
             input: payload.input,
             suggestedPermissionUpdates: payload.suggestedPermissionUpdates,
             ...(payload.optionsPolicy ? { optionsPolicy: payload.optionsPolicy } : {}),
@@ -3555,6 +3618,11 @@ export class ProductProjection {
         kind: "userInput" as const,
         text: item.text,
         origin: "realUser" as const,
+        ...(item.intent?.source ? { source: item.intent.source } : {}),
+        ...(item.intent?.botGroupSource ? { botGroupSource: item.intent.botGroupSource } : {}),
+        ...(item.intent?.conversationQuotes
+          ? { conversationQuotes: item.intent.conversationQuotes }
+          : {}),
         ...(delivery === "guide" ? { guided: true as const } : {}),
         ...(item.intent?.sourceCommandId ? { sourceCommandId: item.intent.sourceCommandId } : {}),
         ...(rootSourceCommandId ? { rootSourceCommandId } : {}),
@@ -3575,6 +3643,9 @@ export class ProductProjection {
               intent: {
                 kind: item.intent?.kind === "sendGoalCommand" ? "sendGoalCommand" : "sendText",
                 text: item.intent?.text ?? item.text,
+                source: item.intent?.source,
+                botGroupSource: item.intent?.botGroupSource,
+                conversationQuotes: item.intent?.conversationQuotes,
                 ...(item.intent?.sourceCommandId
                   ? { sourceCommandId: item.intent.sourceCommandId }
                   : {}),
@@ -3869,6 +3940,10 @@ export class ProductProjection {
           }
           break;
         // 非行 op：只动 workflowRuns 状态键，与 subagent 行投影的输入没有交集。
+        case "pluginUi.resourceUpdated":
+        case "pluginUi.resourceListChanged":
+        case "pluginUi.instanceClosed":
+        case "pluginUi.appToolCall":
         case "workflowRun.updated":
         case "workflowRun.removed":
           break;
@@ -4016,6 +4091,10 @@ export class ProductProjection {
         case "row.appended":
         case "state.updated":
         // 非行 op：改不了这一行的 prospective 形态。
+        case "pluginUi.resourceUpdated":
+        case "pluginUi.resourceListChanged":
+        case "pluginUi.instanceClosed":
+        case "pluginUi.appToolCall":
         case "workflowRun.updated":
         case "workflowRun.removed":
           break;

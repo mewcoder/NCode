@@ -60,6 +60,10 @@ function V4ComposerModeSwitchImpl({
   const displayProvider = provider ?? ZCODE_AGENT_PROVIDER;
   const modeShortcutLabel = useShortcutCommandLabel("cycleSessionMode");
   const modes = getZCodeAgentAvailableModes();
+  // 兼容远端恢复的 guarded 模式，不给旧本地 CLI 增加不可执行的菜单选项。
+  if (draftConfig?.mode === "guarded") {
+    modes.push({ id: "guarded", name: "Autonomous mode", description: "Ask when there’s risk" });
+  }
   const permissions = modes.filter((mode) => mode.id !== "plan");
   const selected = permissions.find((mode) => mode.id === draftConfig?.mode);
   const label = (mode: (typeof modes)[number]) =>

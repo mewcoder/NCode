@@ -135,7 +135,7 @@ async function editUserQuery(
   const attachmentRefs = payload.attachments ?? stableAttachmentRefs(editTarget);
   // attachments 缺省与 [] 语义不同；必须基于 effective refs 校验，
   // 才能同时允许 attachment-only edit，并在正文和附件都被清空时于 rewind 前拒绝。
-  if (!hasPromptInput(payload.newText, attachmentRefs)) {
+  if (!hasPromptInput(payload.newText, attachmentRefs) && !(payload.conversationQuotes ?? editTarget.intent.conversationQuotes)?.length) {
     throw new V4InputAdmissionRejectedError("proto.invalidPayload", "input must not be empty");
   }
   // 附件映射在 rewind 前完成：引用失效要在截断历史之前暴露，避免半程失败。
@@ -347,6 +347,11 @@ async function startCanonicalIntent(
     envelope,
     {
       kind: editTarget.intent.kind,
+      botGroupSource: editTarget.intent.botGroupSource,
+      source: editTarget.intent.source,
+      conversationQuotes: envelope.type === "editUserQuery"
+        ? ((envelope.payload as CommandPayloadMap["editUserQuery"]).conversationQuotes ?? editTarget.intent.conversationQuotes)
+        : editTarget.intent.conversationQuotes,
       text: editTarget.intent.text,
       sourceCommandId: editTarget.intent.sourceCommandId,
       clientId: editTarget.intent.clientId,

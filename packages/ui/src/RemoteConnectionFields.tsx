@@ -20,6 +20,10 @@ import {
   TID_SSH_PORT_INPUT,
   TID_SSH_PRIVATE_KEY_INPUT,
   TID_SSH_USERNAME_INPUT,
+  TID_SERVER_NAME_INPUT,
+  TID_SERVER_TOKEN_INPUT,
+  TID_SERVER_URL_INPUT,
+  TID_SERVER_WORKSPACE_PATH_INPUT,
   TID_WSL_DISTRO_SELECT,
   TID_WSL_USER_INPUT,
   isValidWslUser,
@@ -74,6 +78,10 @@ export function RemoteConnectionFields({
   wslDistros,
   dockerContainer,
   manualDockerContainer,
+  serverUrl,
+  serverName,
+  serverToken,
+  serverWorkspacePath,
   dockerContainers,
   dockerAvailable,
   sshConfigAliases,
@@ -97,6 +105,10 @@ export function RemoteConnectionFields({
   setWslUser,
   setDockerContainer,
   setManualDockerContainer,
+  setServerUrl,
+  setServerName,
+  setServerToken,
+  setServerWorkspacePath,
 }: {
   kind: RemoteTarget["kind"];
   host: string;
@@ -112,6 +124,10 @@ export function RemoteConnectionFields({
   wslDistros: WSLDistro[];
   dockerContainer: string;
   manualDockerContainer: string;
+  serverUrl: string;
+  serverName: string;
+  serverToken: string;
+  serverWorkspacePath: string;
   dockerContainers: DockerContainerInfo[];
   dockerAvailable: boolean | null;
   sshConfigAliases: SSHConfigAliasOption[];
@@ -135,6 +151,10 @@ export function RemoteConnectionFields({
   setWslUser?: (value: string) => void;
   setDockerContainer: (value: string) => void;
   setManualDockerContainer: (value: string) => void;
+  setServerUrl: (value: string) => void;
+  setServerName: (value: string) => void;
+  setServerToken: (value: string) => void;
+  setServerWorkspacePath: (value: string) => void;
 }) {
   const { intl } = useZCodeIntl();
   const platform = usePlatform();
@@ -510,6 +530,77 @@ export function RemoteConnectionFields({
             </div>
             <p className="mt-1 text-ui-base text-foreground-subtle">
               {intl.formatMessage({ id: "ssh.assetInstallModeDescription" })}
+            </p>
+          </div>
+        </div>
+      );
+    case "server":
+      return (
+        <div className="space-y-3">
+          <p className="text-ui-base text-foreground-subtle">
+            {intl.formatMessage({ id: "server.description" })}
+          </p>
+          <div>
+            <label className="mb-1 block text-ui-base text-foreground-subtle">
+              {intl.formatMessage({ id: "server.url" })}
+            </label>
+            <Input
+              size="lg"
+              className="h-9 text-ui-base"
+              value={serverUrl}
+              onChange={(event) => setServerUrl(event.target.value)}
+              placeholder={intl.formatMessage({ id: "server.urlPlaceholder" })}
+              autoCapitalize="none"
+              spellCheck={false}
+              data-testid={TID_SERVER_URL_INPUT}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-ui-base text-foreground-subtle">
+                {intl.formatMessage({ id: "server.name" })}
+              </label>
+              <Input
+                size="lg"
+                className="h-9 text-ui-base"
+                value={serverName}
+                onChange={(event) => setServerName(event.target.value)}
+                placeholder={intl.formatMessage({ id: "server.namePlaceholder" })}
+                data-testid={TID_SERVER_NAME_INPUT}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-ui-base text-foreground-subtle">
+                {intl.formatMessage({ id: "server.token" })}
+              </label>
+              <Input
+                size="lg"
+                className="h-9 text-ui-base"
+                type="password"
+                value={serverToken}
+                onChange={(event) => setServerToken(event.target.value)}
+                placeholder={intl.formatMessage({ id: "server.tokenPlaceholder" })}
+                autoComplete="off"
+                data-testid={TID_SERVER_TOKEN_INPUT}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-ui-base text-foreground-subtle">
+              {intl.formatMessage({ id: "server.workspacePath" })}
+            </label>
+            <Input
+              size="lg"
+              className="h-9 text-ui-base"
+              value={serverWorkspacePath}
+              onChange={(event) => setServerWorkspacePath(event.target.value)}
+              placeholder={intl.formatMessage({ id: "server.workspacePathPlaceholder" })}
+              autoCapitalize="none"
+              spellCheck={false}
+              data-testid={TID_SERVER_WORKSPACE_PATH_INPUT}
+            />
+            <p className="mt-1 text-ui-base text-foreground-subtle">
+              {intl.formatMessage({ id: "server.workspacePathDescription" })}
             </p>
           </div>
         </div>

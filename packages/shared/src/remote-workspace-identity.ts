@@ -10,9 +10,9 @@
 // docker 容器名/wsl 发行版名的合法字符集均不含 ":" 与 "/"）。
 // 消费方：CLI v4 createSession 的 workspaceId（远程 pane 里 workspaceKey =
 // identity）需要还原出真实 workspacePath 作为会话 workingDirectory。
-import type { RemoteTarget } from "./remoteTarget.js";
+import { parseServerEndpointUrl, type RemoteTarget } from "./remoteTarget.js";
 
-export type RemoteWorkspaceIdentityKind = "ssh" | "wsl" | "docker";
+export type RemoteWorkspaceIdentityKind = "ssh" | "wsl" | "docker" | "server";
 
 export interface ParsedRemoteWorkspaceIdentity {
   kind: RemoteWorkspaceIdentityKind;
@@ -27,16 +27,53 @@ const AUTHORITY_SEGMENTS: Record<RemoteWorkspaceIdentityKind, number> = {
   ssh: 3,
   wsl: 1,
   docker: 1,
+  server: 1,
 };
 
 function isRemoteWorkspaceIdentityKind(value: string): value is RemoteWorkspaceIdentityKind {
-  return value === "ssh" || value === "wsl" || value === "docker";
+  return value === "ssh" || value === "wsl" || value === "docker" || value === "server";
 }
 
 function normalizeWorkspacePathForIdentity(workspacePath: string): string {
   const normalized = workspacePath.replace(/\\/g, "/").replace(/\/+/g, "/");
   const trimmed = normalized.replace(/^\/+|\/+$/g, "");
   return `/${trimmed}`;
+}
+
+export function resolveServerIdentityId(target: Extract<RemoteTarget, { kind: "server" }>): string {
+  const endpoint = parseServerEndpointUrl(target.url);
+  if (!endpoint) {
+    throw new Error("Server URL must use HTTP(S) or WS(S) and must not contain userinfo.");
+  }
+  const explicit = target.serverId?.trim();
+  if (explicit) return `id:${explicit}`;
+  endpoint.protocol =
+    endpoint.protocol === "wss:"
+      ? "https:"
+      : endpoint.protocol === "ws:"
+        ? "http:"
+        : endpoint.protocol;
+  const path = endpoint.pathname.replace(/\/+$/g, "").replace(/\/ws(?:\/host)?$/, "");
+  return `endpoint:${endpoint.origin}${path}`;
+}
+
+function normalizeServerIdForIdentity(serverId: string): string {
+  const value = serverId.trim();
+  if (!value) throw new Error("serverId must not be empty");
+  return `s-${Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export interface BuildServerRemoteWorkspaceIdentityOptions {
+  serverId: string;
+  workspacePath: string;
+}
+
+export function buildServerRemoteWorkspaceIdentity(
+  options: BuildServerRemoteWorkspaceIdentityOptions,
+): string {
+  const serverId = normalizeServerIdForIdentity(options.serverId);
+  const workspacePath = normalizeWorkspacePathForIdentity(options.workspacePath);
+  return `${REMOTE_IDENTITY_PREFIX}server:${serverId}:${workspacePath}`;
 }
 
 /**
@@ -57,6 +94,11 @@ export function buildRemoteWorkspaceIdentity(workspacePath: string, target: Remo
     }
     case "docker":
       return `remote:docker:${target.container}:${normalizedPath}`;
+    case "server":
+      return buildServerRemoteWorkspaceIdentity({
+        serverId: resolveServerIdentityId(target),
+        workspacePath: normalizedPath,
+      });
   }
 }
 

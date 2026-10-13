@@ -1,3 +1,5 @@
+import { createProtocolTopicResourcePort } from "./topic-resource-port.js";
+import { abortMcpUiToolCallsForSession, clearMcpUiAppToolsForSession } from "./mcp-ui/index.js";
 /* eslint-disable max-lines -- ZCode Protocol 的 session/workspace 方法共享同一个 server context 与 snapshot helpers，迁移期先集中维护。 */
 import { observeSessionDebug } from "./session-debug.js";
 import {
@@ -117,9 +119,16 @@ import {
 } from "./subagent-session-query.js";
 import { runSessionModelConfigMutation } from "../zcode-protocol-v4/model-config-mutation.js";
 import { runWithSessionResidencyFinalization } from "./session-residency.js";
+import { resolveDynamicWorkflowRuntimeGate } from "./dynamic-workflow-policy.js";
 
 const PLAN_MODE_GOAL_CONTINUATION_SKIPPED_MESSAGE = "Plan mode 下已记录 goal，但不会自动继续。";
 const SLOW_SNAPSHOT_LOG_THRESHOLD_MS = 1000;
+const REMOTE_AUTOMATION_TOOL_NAMES = [
+  "CronCreate",
+  "CronList",
+  "CronUpdate",
+  "CronDelete",
+] as const;
 
 type ProtocolGoalTarget = NonNullable<
   Awaited<ReturnType<NonNullable<ZCodeProtocolSessionRecord["app"]["readTarget"]>>>
@@ -1999,6 +2008,7 @@ export async function sendPrompt(context: ZCodeProtocolAgentServerContext, rawPa
             }
           : {}),
       toolDenylist: params.toolDenylist,
+      botDeliveryTarget: params.botDeliveryTarget,
     }),
   ).catch(() => {
     // 后台 turn 的错误会通过状态/事件流降级上报；这里兜底防止协议进程出现 unhandled rejection。
@@ -2370,6 +2380,7 @@ async function runPromptTurnInBackground(
     queryId?: QueryId;
     content: string;
     toolDenylist?: readonly string[];
+    botDeliveryTarget?: import("@zcode/shared").ZCodeAutomationBotDeliveryTarget;
   } & TurnBackgroundAttribution,
 ): Promise<void> {
   const startedAt = Date.now();
@@ -2381,8 +2392,10 @@ async function runPromptTurnInBackground(
     workspacePath: record.workspace.workspacePath,
   });
   let mutationReason = "prompt_completed";
+  const previousBotDeliveryTarget = record.activeBotDeliveryTarget;
   const previousAutomationId = record.activeAutomationId;
   const previousOffPeakTaskId = record.activeOffPeakTaskId;
+  record.activeBotDeliveryTarget = params.botDeliveryTarget;
   const activeAutomationId = resolvePromptTurnAutomationId(params);
   const activeOffPeakTaskId = resolvePromptTurnOffPeakTaskId(params);
   const turnToolDisallowlist = buildPromptTurnToolDisallowlist(
@@ -2462,6 +2475,7 @@ async function runPromptTurnInBackground(
         workspacePath: record.workspace.workspacePath,
       });
     }
+    record.activeBotDeliveryTarget = previousBotDeliveryTarget;
     record.activeAutomationId = previousAutomationId;
     record.activeOffPeakTaskId = previousOffPeakTaskId;
   }
@@ -2713,6 +2727,9 @@ export async function closeSession(context: ZCodeProtocolAgentServerContext, raw
     return { closed: false };
   }
   record.unsubscribe?.();
+  abortMcpUiToolCallsForSession(params.sessionId);
+  clearMcpUiAppToolsForSession(context, params.sessionId);
+  await record.app.unsubscribeMcpResourcesForUi(`${params.sessionId}|`).catch(() => 0);
   await record.app.close?.();
   // v4 通道：会话关闭同时清 publisher / 订阅调度；重开会话走 snapshot 冷启动。
   // dispose 必须先于注册表删除——gateway 靠 getSessionWorkspaceId
@@ -3332,10 +3349,15 @@ async function createRecord(
       // 两者都没有就是 false（fail-closed）。这里必须写出显式布尔，不能省成 undefined：
       // core 把「缺席」定义为「不参与准入限制、保留全部工具」（TUI / headless /
       // workflow_child 的语义），受信 Host 创建的会话不能落进那条豁免。
-      dynamicWorkflowEnabled:
-        "dynamicWorkflowEnabled" in params && typeof params.dynamicWorkflowEnabled === "boolean"
-          ? params.dynamicWorkflowEnabled
-          : context.appRuntimePreferences.dynamicWorkflowEnabled === true,
+      ...resolveDynamicWorkflowRuntimeGate(
+        {
+          dynamicWorkflowEnabled:
+            "dynamicWorkflowEnabled" in params ? params.dynamicWorkflowEnabled : undefined,
+          dynamicWorkflowMode:
+            "dynamicWorkflowMode" in params ? params.dynamicWorkflowMode : undefined,
+        },
+        context.appRuntimePreferences,
+      ),
       // 协议侧的工具允许/拒绝列表是 session 级安全边界，必须进入 runtimeConfig，
       // 不能只依赖 prompt 文本约束，否则内置工具和动态 MCP 工具仍可能越过调用面。
       toolAllowlist: "toolAllowlist" in params ? params.toolAllowlist : undefined,
@@ -3366,6 +3388,7 @@ async function createRecord(
     // core 遇到 permission / AskUserQuestion 只能走默认拒绝，UI 永远收不到阻塞请求。
     // 这里把阻塞交互转换成 server-to-client JSON-RPC request，由 app 通过 response 释放 runtime。
     permissionBroker: createProtocolInteractionBroker(context),
+    topicResourcePort: createProtocolTopicResourcePort(context),
     automationPort: createProtocolAutomationPort(context, () => ownSessionRecord),
     // Off-Peak 已关闭，不向 Agent Runtime 注入对应工具。
     resolveInitialBashShellSelection: startupPreferences.resolveInitialBashShellSelection,

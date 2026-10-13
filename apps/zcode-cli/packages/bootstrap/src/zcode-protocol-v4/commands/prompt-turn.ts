@@ -24,6 +24,7 @@ interface StartPromptTurnParamsBase {
   toolDisallowlist?: readonly string[];
   /** sendQueuedNow 已持有 Core promotion lease，要求这次 admission 只能占用空闲位。 */
   requireIdle?: boolean;
+  botDeliveryTarget?: import("@zcode/shared").ZCodeAutomationBotDeliveryTarget;
 }
 
 type StartPromptTurnParams = StartPromptTurnParamsBase & TurnBackgroundAttribution;
@@ -83,6 +84,7 @@ export async function startPromptTurn(
   }
   if (record.persistence === "deferred") record.persistence = "immediate";
 
+  const previousBotDeliveryTarget = record.activeBotDeliveryTarget;
   const previousAutomationId = record.activeAutomationId;
   const previousOffPeakTaskId = record.activeOffPeakTaskId;
   const activeAutomationId = resolveTurnAutomationId(params);
@@ -98,6 +100,7 @@ export async function startPromptTurn(
     record.activeOffPeakTaskId = activeOffPeakTaskId;
   }
 
+  record.activeBotDeliveryTarget = params.botDeliveryTarget;
   let admission: SendInputResult;
   try {
     admission = await record.app.sendInput(
@@ -132,13 +135,13 @@ export async function startPromptTurn(
       },
     );
   } catch (error) {
-    clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId);
+    clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId, previousBotDeliveryTarget);
     await host.afterLegacyStateMutation?.(record, "prompt_failed");
     throw error;
   }
 
   if (admission.kind === "rejected") {
-    clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId);
+    clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId, previousBotDeliveryTarget);
     throw new V4PromptRejectedError(
       "activePrompt",
       `Core prompt admission rejected: ${admission.reason}`,
@@ -146,7 +149,7 @@ export async function startPromptTurn(
   }
 
   if (admission.kind === "queued") {
-    clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId);
+    clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId, previousBotDeliveryTarget);
     return { admission, turnStarted: Promise.resolve() };
   }
 
@@ -162,7 +165,7 @@ export async function startPromptTurn(
         sessionId: record.app.sessionId,
       });
     } finally {
-      clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId);
+      clearPromptRecordState(record, previousAutomationId, previousOffPeakTaskId, previousBotDeliveryTarget);
       await host.afterLegacyStateMutation?.(record, mutationReason);
     }
   });
@@ -180,7 +183,9 @@ function clearPromptRecordState(
   record: V4SessionRecordView,
   previousAutomationId: string | undefined,
   previousOffPeakTaskId: string | undefined,
+  previousBotDeliveryTarget: import("@zcode/shared").ZCodeAutomationBotDeliveryTarget | undefined,
 ): void {
+  record.activeBotDeliveryTarget = previousBotDeliveryTarget;
   record.activeAutomationId = previousAutomationId;
   // 闲时轮身份与 automation 同规则随 turn 还原，防止跨轮残留误拒 OffPeakCreate。
   record.activeOffPeakTaskId = previousOffPeakTaskId;

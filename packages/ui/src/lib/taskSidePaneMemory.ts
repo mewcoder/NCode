@@ -9,6 +9,7 @@ interface TaskSidePaneMemoryState {
   isSidePaneCollapsed: boolean;
   /** 对话级展开/收起偏好；tabs 本身仍按 workspace 复用。 */
   sidePaneCollapsedByOwner: Record<string, boolean>;
+  pluginUiAutoOpenKeys: ReadonlySet<string>;
   activeGitSourceId: GitChangeSourceId;
   browserUrls: Record<string, string>;
   /** @deprecated 旧版单浏览器 tab 的 URL，保留用于读取历史内存状态。 */
@@ -19,6 +20,7 @@ const DEFAULT_TASK_SIDE_PANE_MEMORY_STATE: TaskSidePaneMemoryState = {
   sidePaneState: null,
   isSidePaneCollapsed: true,
   sidePaneCollapsedByOwner: {},
+  pluginUiAutoOpenKeys: new Set(),
   activeGitSourceId: "unstaged",
   browserUrls: {},
   browserUrl: null,
@@ -140,4 +142,17 @@ export function saveTaskSidePaneCollapsedPreference(
       [ownerKey]: isSidePaneCollapsed,
     },
   });
+}
+
+export function claimPluginUiSidePaneAutoOpen(
+  workspaceKey: string | null,
+  requestKey: string,
+): boolean {
+  if (!workspaceKey) return false;
+  const state = readTaskSidePaneMemoryState(workspaceKey);
+  if (state.pluginUiAutoOpenKeys.has(requestKey)) return false;
+  saveTaskSidePaneMemoryState(workspaceKey, {
+    pluginUiAutoOpenKeys: new Set([...state.pluginUiAutoOpenKeys, requestKey]),
+  });
+  return true;
 }

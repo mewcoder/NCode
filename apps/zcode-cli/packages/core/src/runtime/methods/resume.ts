@@ -1,3 +1,4 @@
+import { restoreDynamicWorkflowActivationOnResume } from "./dynamic-workflow-activation.js";
 import { restorePermissionGrantMarker } from "../helpers/permission-grant-resume.js";
 import { executionStateSchema, resolveExecutionState } from "@zcode/shared";
 import { SESSION_ENTRY_EXECUTION_STATE } from "@zcode/contracts";
@@ -215,6 +216,7 @@ export async function resumeFromStore(
     Object.assign(this.config, savedExecution.data);
   }
 
+  await restoreDynamicWorkflowActivationOnResume.call(this, messages);
   await restorePermissionGrantMarker(this, traceContext);
 
   this.mainTurnCacheHitAggregate = mainTurnCacheHitAggregateFromMessages({

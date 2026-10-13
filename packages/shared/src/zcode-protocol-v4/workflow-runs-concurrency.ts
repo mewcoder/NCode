@@ -11,19 +11,16 @@ import {
   type WorkflowRunState,
 } from "./workflow-runs.js";
 
-/** 事件里的 `reason` 值：桶空闲重置回天花板——它不是冷却，收到即清掉旧的 cooldown。 */
+/** 桶空闲重置回默认并发；不是冷却，收到即清掉旧的 cooldown。 */
 const CONCURRENCY_IDLE_RESET_REASON = "idle_reset";
 
 /**
  * `concurrency-changed` → `run.concurrency`。
- *
- * ceiling 由本 run 见过的最大 `previous` / `next` 推导（事件不带它；桶从天花板起步，所以首条
- * 事件的 `previous` 就是天花板，只降不升的序列里它也恒是最大值）。`cooldownMs` 只在带
- * Retry-After 的限流上在场；`idle_reset` 清掉它。`next` 读不动（缺席 / 非正整数）时整条只抬水位：
- * 没有 cap 就没有可显示的东西。
- *
- * `limit` 照搬：它是本 run 自己的界（`run-started` 带来的），与共享桶的涨落无关——治理器压低
- * 或放开一个 provider key，不会改变用户给这次 run 定的上限。
+ * `ceiling` 优先取 run-started 记录的默认并发 `run.concurrencyCeiling`。
+ * 新版共享桶可增长到默认值之上，历史 previous/next 最大值不能代替默认并发；
+ * 仅对不发该字段的旧 CLI，才从只降不升的桶读数推导退路。
+ * Retry-After 可附带 cooldownMs，idle_reset 清掉冷却；无合法 next 时保留原状态。
+ * `limit` 是用户为本 run 设置的界，与共享桶涨落无关，始终原样保留。
  */
 export function reduceConcurrencyChanged(
   run: WorkflowRunState,
@@ -32,7 +29,7 @@ export function reduceConcurrencyChanged(
   const next = positiveInteger(payload.next);
   if (next === undefined) return run;
   const previous = positiveInteger(payload.previous) ?? next;
-  const ceiling = Math.max(run.concurrency?.ceiling ?? 0, previous, next);
+  const ceiling = run.concurrencyCeiling ?? Math.max(run.concurrency?.ceiling ?? 0, previous, next);
   const key = nonEmptyString(payload.key);
   const limit = run.concurrency?.limit;
   const cooldownMs =
@@ -56,12 +53,12 @@ export function reduceConcurrencyChanged(
  * `caps.maxConcurrency` 与 CLI 在铸载荷那一刻算出的 `concurrencyCeiling`（天花板是进程事实，
  * 不是引擎事实，所以它由 CLI 拼进载荷，与 `resumedFrom` 同一先例）。
  *
- * 只在 `maxConcurrency < ceiling` 时记：跑在天花板上的 run 与从前逐字节相同，一个键都不多。
+ * 只在 `maxConcurrency !== ceiling` 时记：跑在天花板上的 run 与从前逐字节相同，一个键都不多。
  * 老 CLI 不发 `concurrencyCeiling`，读不出天花板就无从判断这个 run 是否被压低——什么都不改。
  *
  * 共享桶那一侧（`cap` / `key` / `cooldownMs`）原样留着：resume 会为同一个 runId 再发一条
  * `run-started`，而那时进程里很可能已经学到了一个被限流压低的 cap，用天花板把它盖掉就是把
- * 读数抬回一个假值。同理 `ceiling` 只升不降——与 `reduceConcurrencyChanged` 同一条水位规则。
+ * 读数抬回一个假值。显式 `concurrencyCeiling` 优先于共享桶历史读数。
  */
 export function reduceRunStartedConcurrency(
   run: WorkflowRunState,
@@ -73,19 +70,19 @@ export function reduceRunStartedConcurrency(
     readCeiling !== undefined && readCeiling <= WORKFLOW_RUNS_LIMITS.maxConcurrencyCeiling
       ? readCeiling
       : undefined;
-  // 天花板本身单独记一份（`run.concurrencyCeiling`）：「配置」弹层的步进器要知道停在哪，而
-  // 跑在天花板上的 run 没有 `concurrency` 可挂。读不出就沿用已知值——与 subagentModel 同一条退化规则。
+  // 默认并发独立保存在 run 上：等于默认值的 run 可能没有 concurrency 投影。
+  // 老事件未携带该字段时保留已知值。
   const withCeiling =
     ceiling === undefined || run.concurrencyCeiling === ceiling
       ? run
       : { ...run, concurrencyCeiling: ceiling };
-  if (limit === undefined || ceiling === undefined || limit >= ceiling) return withCeiling;
+  if (limit === undefined || ceiling === undefined || limit === ceiling) return withCeiling;
   const existing = withCeiling.concurrency;
   const concurrency: WorkflowRunConcurrency = {
-    // 没有共享桶读数时，cap 从天花板起步——桶本来就是从那里开始的（同 reduceConcurrencyChanged
+    // 没有共享桶读数时，cap 从默认并发起步——桶从该默认值开始（同 reduceConcurrencyChanged
     // 推导 ceiling 的那条依据）。
     ...(existing ?? { cap: ceiling }),
-    ceiling: Math.max(existing?.ceiling ?? 0, ceiling),
+    ceiling,
     limit,
   };
   return { ...withCeiling, concurrency };
@@ -95,9 +92,9 @@ export function reduceRunStartedConcurrency(
  * `run-caps-changed` → `run.concurrency.limit`：run **在飞时**它自己的那条界被改了。只改 `max_concurrency` 的修订就地生效——不停这次 run、
  * 不另起一次——引擎改完 caps 发这条事件，载荷与 `run-started` 同形（引擎的 `caps.maxConcurrency`
  * 加 CLI 拼进来的 `concurrencyCeiling`）。所以这里与 `reduceRunStartedConcurrency` 读同两个字段、
- * 守同一条「只在低于天花板时记」：同一个数经两条路进来不能得出两份读数。
+ * 守同一条「只在不等于天花板时记」：同一个数经两条路进来不能得出两份读数。
  *
- * 天花板按「载荷 → 本 run 已知值」取。它是进程事实、整条 run 恒定，`run-started` 已经把它记在
+ * 天花板按「载荷 → 本 run 已知值」取。它是进程的默认并发，`run-started` 已经把它记在
  * `run.concurrencyCeiling` 上了，所以这条事件比 `run-started` 多一层退路；两个都没有才无从判断
  * 这个数是否被压低，什么都不改。`caps` 读不动同理。
  *
@@ -122,17 +119,18 @@ export function reduceRunCapsChanged(
   const ceiling = payloadCeiling ?? withCeiling.concurrencyCeiling;
   if (maxConcurrency === undefined || ceiling === undefined) return withCeiling;
   const existing = withCeiling.concurrency;
-  if (maxConcurrency < ceiling) {
+  if (maxConcurrency !== ceiling) {
     const concurrency: WorkflowRunConcurrency = {
-      // 没有共享桶读数时 cap 从天花板起步——与 reduceRunStartedConcurrency 同一条依据。
+      // 没有共享桶读数时 cap 从默认并发起步——与 reduceRunStartedConcurrency 同一条依据。
       ...(existing ?? { cap: ceiling }),
-      ceiling: Math.max(existing?.ceiling ?? 0, ceiling),
+      ceiling,
       limit: maxConcurrency,
     };
     return { ...withCeiling, concurrency };
   }
   if (existing?.limit === undefined) return withCeiling;
-  const { limit: _lifted, ...shared } = existing;
+  const { limit: _lifted, ...rest } = existing;
+  const shared: WorkflowRunConcurrency = { ...rest, ceiling };
   return shared.cooldownMs === undefined && shared.cap >= shared.ceiling
     ? withoutConcurrency(withCeiling)
     : { ...withCeiling, concurrency: shared };

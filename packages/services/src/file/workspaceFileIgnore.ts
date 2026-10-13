@@ -8,8 +8,9 @@ import type { ServiceLogger } from "../logger/serviceLogger.js";
  * workspace 文件搜索忽略的单一真相源。
  *
  * `.zcodeignore`（workspace root，gitignore 语法）是搜索索引的唯一规则文件：
- * 首次需要规则而文件不存在时自动创建，内容为 root `.gitignore` 的拷贝（无则默认模板）；
- * 之后 `.gitignore` 的变化不再影响搜索，用户通过设置页编辑或「从 .gitignore 重新同步」。
+ * 文件不存在时只在内存组合 root `.gitignore` 与内置默认规则，普通搜索不会创建文件；
+ * 文件存在后按其内容搜索，`.gitignore` 的变化不再自动同步。
+ * 只有显式编辑、同步或恢复规则的操作才落盘。
  *
  * 规则解析交给 `ignore` npm 包（gitignore spec 2.22 参考实现，ESLint 同款）：
  * 后声明覆盖、`!` 反选（含父目录排除后子文件无法恢复的 git 原生约束）、anchored/basename、
@@ -23,8 +24,7 @@ type WorkspaceFileIgnoreLogger = Pick<ServiceLogger, "info" | "warn">;
 
 type WorkspaceFileSearchIgnoreRulesSource =
   | "file"
-  | "created-from-gitignore"
-  | "created-from-template"
+  | "template"
   | "fallback-gitignore"
   | "fallback-builtin";
 
@@ -282,9 +282,8 @@ async function atomicWriteIgnoreFile(path: string, content: string): Promise<voi
 }
 
 /**
- * 扫描前加载 `.zcodeignore` 规则；含自动创建与 fail-open 降级链：
- * 文件不存在 → 原子创建（.gitignore 拷贝 / 默认模板）；
- * 创建或读取失败（只读 fs、权限）→ 内存使用 .gitignore 内容 → 再失败用内置默认规则。
+ * 扫描前加载 `.zcodeignore` 规则，文件不存在时只在内存使用初始模板。
+ * 读取失败（只读 fs、权限）→ 内存使用 .gitignore 内容 → 再失败用内置默认规则。
  * 任何降级只 warn 一次，绝不让 @ 面板因规则文件不可用而扫描失败。
  */
 export async function loadWorkspaceFileSearchIgnoreRules(
@@ -333,6 +332,8 @@ export async function loadWorkspaceFileSearchIgnoreRules(
     () => null,
   );
   const initialContent = buildWorkspaceFileSearchIgnoreTemplate(gitignoreContent);
+  // 停用搜索时的自动落盘；保留原创建和日志逻辑，当前只使用内存模板。
+  /*
   try {
     await atomicWriteIgnoreFile(ignorePath, initialContent);
   } catch (error) {
@@ -356,9 +357,10 @@ export async function loadWorkspaceFileSearchIgnoreRules(
       gitignoreContent !== null ? ".gitignore 拷贝" : "默认模板"
     }）`,
   );
+  */
   return {
     matcher: buildIgnoreMatcher(initialContent),
-    source: gitignoreContent !== null ? "created-from-gitignore" : "created-from-template",
+    source: "template",
   };
 }
 

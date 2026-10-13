@@ -34,7 +34,11 @@ const ZCODE_AGENT_MODE_OPTIONS = [
     description: "Edit and run commands with fewer confirmations.",
   },
 ] as const satisfies readonly ZCodeTaskModeInfo[];
-const ZCODE_AGENT_MODE_ID_SET = new Set<string>(ZCODE_AGENT_MODE_OPTIONS.map((mode) => mode.id));
+// 保留远端已有 guarded 会话的真实模式；本地旧 CLI 的固定选项不新增该能力。
+const ZCODE_AGENT_MODE_ID_SET = new Set<string>([
+  ...ZCODE_AGENT_MODE_OPTIONS.map((mode) => mode.id),
+  "guarded",
+]);
 
 // OpenRouter 会把 `:free` 作为模型 ID 的一部分。UI/configOptions 的展示态
 // 不能再用冒号分隔 thought level，否则草稿选择会静默截断真实 modelId。

@@ -1,7 +1,10 @@
+import { IBotsService } from "@zcode/services";
+import { createBotsService } from "@zcode/services/node";
 /* eslint-disable max-lines -- 远程 workspace 服务注册需集中维护，以保持依赖注入顺序 */
 import {
   ServiceCollection,
   IFileService,
+  IGenUiService,
   IMediaPreviewService,
   IGitService,
   IGitCheckpointService,
@@ -14,6 +17,7 @@ import {
   IZCodeAgentService,
   IZCodeSessionService,
   IConversationShareService,
+  createUnsupportedConversationShareService,
   IFileWatcherService,
   IOAuthService,
   IModelSelectionService,
@@ -32,6 +36,7 @@ import {
   ICommandsService,
   IHooksService,
   IMemoryService,
+  IOutputStyleService,
   ISettingsSyncService,
   IPromptAttachmentTransferService,
   type IServiceAccessor,
@@ -61,6 +66,7 @@ import {
   createServiceLogger,
   createSubagentsService,
   createMemoryService,
+  createOutputStyleService,
   createRemoteConversationShareArtifactSource,
   OAuthCredentialRepo,
 } from "@zcode/services/node";
@@ -311,6 +317,7 @@ export function createRemoteWorkspaceServiceCollection(params: {
   // 设置、凭据、OAuth、模型供应商和 settings-sync 继续读写本机配置。
   const services = new ServiceCollection()
     .register(IFileService, params.connectionServices.fileService)
+    .register(IGenUiService, params.connectionServices.genUiService)
     .register(IGitService, params.connectionServices.gitService)
     .register(IGitCheckpointService, params.connectionServices.gitCheckpointService)
     .register(ISystemService, params.connectionServices.systemService)
@@ -322,6 +329,17 @@ export function createRemoteWorkspaceServiceCollection(params: {
     .register(IZCodeAgentService, params.connectionServices.zcodeAgentService)
     .register(IZCodeSessionService, remoteZCodeSessionService)
     .register(IConversationShareService, conversationShareService)
+    .register(
+      IBotsService,
+      createBotsService({
+        credentialService: localCredentialService,
+        zcodeTaskService: remoteZCodeTaskService,
+        broadcastService: localBroadcastService,
+        settingService: localSettingService,
+        modelSelectionService: params.connectionServices.modelSelectionService,
+        runStartupBackgroundTasks: false,
+      }),
+    )
     .register(IFileWatcherService, params.connectionServices.fileWatcherService)
     .register(
       IOAuthService,
@@ -359,12 +377,79 @@ export function createRemoteWorkspaceServiceCollection(params: {
     .register(ISubagentsService, createSubagentsService({ isDesktopRuntime: true }))
     .register(IHooksService, params.connectionServices.hooksService)
     .register(IMemoryService, createMemoryService())
+    .register(IOutputStyleService, createOutputStyleService())
     .register(
       ISettingsSyncService,
       createSettingsSyncService({ settingService: localSettingService }),
     )
     .register(IPromptAttachmentTransferService, params.promptAttachmentTransferService);
   registerHostApiNetworkTransportForDispose(services, hostApiNetworkTransport);
+  registerRemoteProviderProvisioningExecutor(services, remoteProviderProvisioningService);
+  return services;
+}
+
+function createUnsupportedRemoteConversationShareService(): IConversationShareService {
+  return createUnsupportedConversationShareService({ message: "Conversation sharing is disabled" });
+}
+
+export function createServerRemoteWorkspaceServiceCollection(params: {
+  clientConfigService: IClientConfigService;
+  connectionServices: IServiceAccessor;
+  sourceServices?: ServiceCollection;
+}): ServiceCollection {
+  assertLegacyRemoteWorkspaceRpcContract(params.connectionServices);
+  // Server remote 连接的是一个已经运行的完整 ZCode server。
+  // Host 只做 RPC 转接，不替 server 决定 workspace/runtime/model-provider 归属。
+  const remoteProviderProvisioningService =
+    createRemoteProviderProvisioningExecutorFromWorkspace(params);
+  const services = new ServiceCollection()
+    .register(IFileService, params.connectionServices.fileService)
+    .register(IGenUiService, params.connectionServices.genUiService)
+    .register(
+      IMediaPreviewService,
+      params.connectionServices.mediaPreviewService ??
+        createMediaPreviewService({ fileService: params.connectionServices.fileService }),
+    )
+    .register(IGitService, params.connectionServices.gitService)
+    .register(IGitCheckpointService, params.connectionServices.gitCheckpointService)
+    .register(ISystemService, params.connectionServices.systemService)
+    .register(ITerminalService, params.connectionServices.terminalService)
+    .register(ISettingService, params.connectionServices.settingService)
+    .register(ICredentialService, params.connectionServices.credentialService)
+    .register(IBroadcastService, params.connectionServices.broadcastService)
+    .register(IZCodeTaskService, params.connectionServices.zcodeTaskService)
+    .register(IZCodeAgentService, params.connectionServices.zcodeAgentService)
+    .register(IZCodeSessionService, params.connectionServices.zcodeSessionService)
+    .register(IConversationShareService, createUnsupportedRemoteConversationShareService())
+    .register(IBotsService, params.connectionServices.botsService)
+    .register(IFileWatcherService, params.connectionServices.fileWatcherService)
+    .register(IOAuthService, params.connectionServices.oauthService)
+    .register(IModelSelectionService, params.connectionServices.modelSelectionService)
+    .register(IProviderSettingsService, params.connectionServices.providerSettingsService)
+    .register(IUsageStatsService, params.connectionServices.usageStatsService)
+    .register(
+      ICodingPlanSubscriptionService,
+      params.connectionServices.codingPlanSubscriptionService,
+    )
+    .register(IClientConfigService, params.clientConfigService)
+    .register(IClientScenesService, params.connectionServices.clientScenesService)
+    .register(ISkillsService, params.connectionServices.skillsService)
+    .register(ISkillSyncService, params.connectionServices.skillSyncService)
+    .register(IMcpSyncService, params.connectionServices.mcpSyncService)
+    .register(IPluginsService, params.connectionServices.pluginsService)
+    .register(IPluginManagementService, params.connectionServices.pluginManagementService)
+    .register(ISubagentsService, params.connectionServices.subagentsService)
+    .register(ICommandsService, params.connectionServices.commandsService)
+    .register(IHooksService, params.connectionServices.hooksService)
+    .register(IMemoryService, params.connectionServices.memoryService)
+    .register(IOutputStyleService, params.connectionServices.outputStyleService)
+    .register(ISettingsSyncService, params.connectionServices.settingsSyncService)
+    .register(
+      IPromptAttachmentTransferService,
+      params.connectionServices.promptAttachmentTransferService,
+    );
+  // Server 的设置与 OAuth 由 Server 持有，引导记录也必须透传同一服务，不能借用桌面记录。
+  // 保留 accessor 的可选能力约定；当前 RemoteServiceAccess 会提供此代理。
   registerRemoteProviderProvisioningExecutor(services, remoteProviderProvisioningService);
   return services;
 }

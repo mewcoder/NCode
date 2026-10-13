@@ -14,7 +14,9 @@ import {
   type ISocket,
 } from "@zcode/rpc";
 import {
+  createBotsServiceRpcView,
   createZCodeAgentConnectionScope,
+  IBotsService,
   IZCodeAgentService,
   ServiceCollection,
 } from "@zcode/services";
@@ -102,10 +104,15 @@ function exposeWebSocket(
         role: clientMode === "desktop-continuous" ? "trusted-host-relay" : "terminal-client",
       })
     : undefined;
-  services.exposeOnChannelServer(
-    server,
-    scope ? new Map([[IZCodeAgentService.channelName, scope.service]]) : new Map(),
-  );
+  const overrides = new Map<string, unknown>();
+  if (scope) {
+    overrides.set(IZCodeAgentService.channelName, scope.service);
+  }
+  const botsService = services.getOptional(IBotsService);
+  if (botsService) {
+    overrides.set(IBotsService.channelName, createBotsServiceRpcView(botsService));
+  }
+  services.exposeOnChannelServer(server, overrides);
   socket.onClose(() => {
     void scope?.dispose();
     rawServer.dispose();

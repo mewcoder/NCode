@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { IPlatformService, RemoteWorkspaceSessionEntry } from "@zcode/shared";
-import { stripRemoteTargetSecrets } from "@zcode/shared";
+import { parseServerEndpointUrl, stripRemoteTargetSecrets } from "@zcode/shared";
 import type { IServiceAccessor } from "@zcode/services";
 import { toast } from "@/components/ui/toast.js";
 import {
@@ -102,7 +102,22 @@ export async function reconnectRemoteWorkspaceHistoryEntry({
 }: ManualReconnectRemoteWorkspaceParams): Promise<void> {
   const activateWorkspaceAfterReconnect = options?.activateWorkspaceAfterReconnect ?? true;
   const showErrorToast = options?.showErrorToast ?? true;
-  const fallbackWorkspaceIdentity = resolveRemoteWorkspaceSessionIdentity(sessionEntry);
+  let fallbackWorkspaceIdentity: string;
+  try {
+    if (sessionEntry.target.kind === "server" && !parseServerEndpointUrl(sessionEntry.target.url)) {
+      throw new Error("Saved Server URL is invalid or contains embedded credentials.");
+    }
+    fallbackWorkspaceIdentity = resolveRemoteWorkspaceSessionIdentity(sessionEntry);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Saved remote target is invalid.";
+    logger.warn("[Root] 无法重连无效的远程 workspace 历史项", {
+      workspacePath: sessionEntry.workspacePath,
+      error: message,
+    });
+    if (showErrorToast) toast(message);
+    if (options?.throwOnFailure) throw error;
+    return;
+  }
   const reconnectWorkspaceKey = fallbackWorkspaceIdentity?.trim() || sessionEntry.workspacePath;
 
   setReconnectingRemoteWorkspaceKeys((currentKeys) =>
@@ -114,6 +129,7 @@ export async function reconnectRemoteWorkspaceHistoryEntry({
   let reconnectTarget = createRemoteTargetFromSnapshot(sessionEntry.target, {
     password: null,
     privateKeyPassphrase: null,
+    token: null,
   });
   let resolvedWorkspacePath = sessionEntry.workspacePath;
   let resolvedWorkspaceIdentity = fallbackWorkspaceIdentity;
@@ -128,7 +144,14 @@ export async function reconnectRemoteWorkspaceHistoryEntry({
           ? await loadCredential(sessionEntry.target.privateKeyPassphraseCredentialKey)
           : null,
     };
-    reconnectTarget = createRemoteTargetFromSnapshot(sessionEntry.target, sshCredentials);
+    const token =
+      sessionEntry.target.kind === "server" && sessionEntry.target.tokenCredentialKey
+        ? await loadCredential(sessionEntry.target.tokenCredentialKey)
+        : null;
+    reconnectTarget = createRemoteTargetFromSnapshot(sessionEntry.target, {
+      ...sshCredentials,
+      token,
+    });
     const sessionId = await connectRemoteWorkspaceTarget(reconnectTarget, options?.requestId, {
       workspacePath: sessionEntry.workspacePath,
       workspaceIdentity: fallbackWorkspaceIdentity,

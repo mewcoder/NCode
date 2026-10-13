@@ -885,6 +885,7 @@ function mapPermissionRequestedPayload(payload: unknown): Record<string, unknown
   return {
     ...record,
     options: buildProtocolPermissionOptions({
+      approvalMode: record.approvalMode === "user-once" ? "user-once" : undefined,
       input: record.input,
       suggestedPermissionUpdates: Array.isArray(record.suggestedPermissionUpdates)
         ? (record.suggestedPermissionUpdates as PendingPermission["suggestedPermissionUpdates"])

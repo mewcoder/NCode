@@ -1,3 +1,4 @@
+import type { TopicResourcePort } from "@zcode/contracts";
 import type { RuntimeInputPresentation } from "@zcode/contracts";
 /* eslint-disable max-lines -- Runtime 类型集中承载 core/runtime 对外结构，拆分需要单独迁移。 */
 import { PermissionService, ToolScheduler } from "./deps.js";
@@ -121,6 +122,7 @@ export interface AgentRuntimeConfig {
   deliveryKind?: "desktop-continuous" | "web-remote-replayable";
   remoteSessionId?: string;
   bashTimeoutPolicy?: BashTimeoutPolicy;
+  genUiOutputRoot?: string;
   presentationSurface?: PresentationSurface;
   mode?: CollaborationMode;
   planEnabled?: boolean;
@@ -211,6 +213,7 @@ export interface AgentRuntimeConfig {
    * false 会关闭十个工作流工具，不改变其他工具的注册策略。
    */
   dynamicWorkflowEnabled?: boolean;
+  dynamicWorkflowToolsOnDemand?: boolean;
 
   // Context Builder config
   systemPrompt?: string;
@@ -367,6 +370,7 @@ export interface AgentRuntimeDeps {
   artifactStore?: ToolArtifactStorePort;
   automationPort?: AutomationPort;
   offPeakPort?: OffPeakPort;
+  topicResourcePort?: TopicResourcePort;
   contextSourcePort?: ContextSourcePort;
   eventSink?: SessionEventSink;
   logger?: Logger;

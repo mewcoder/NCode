@@ -46,6 +46,8 @@ interface CanonicalConversationFactBase {
 }
 
 export interface CanonicalUserIntentFact extends CanonicalConversationFactBase {
+  botGroupSource?: import("@zcode/shared").BotGroupInputSource;
+  conversationQuotes?: import("@zcode/shared").ConversationSelectionText[];
   semanticKind: "userIntent";
   visibility: "visible" | "modelOnly";
   origin:
@@ -57,6 +59,7 @@ export interface CanonicalUserIntentFact extends CanonicalConversationFactBase {
     | "workflowLaunch";
   input: string;
   intentText: string;
+  source?: import("@zcode/shared/zcode-protocol-v4").ConversationInputSource;
   intentKind: "sendText" | "sendGoalCommand";
   turnNumber: number;
   executionKind: "agent" | "controlOnly";
@@ -249,6 +252,11 @@ function normalizeTurnStarted(
     diagnostics,
     input: payload.input,
     intentText: payload.intent?.text ?? payload.input,
+    ...(payload.intent?.source ? { source: payload.intent.source } : {}),
+    ...(payload.intent?.botGroupSource ? { botGroupSource: payload.intent.botGroupSource } : {}),
+    ...(payload.intent?.conversationQuotes
+      ? { conversationQuotes: payload.intent.conversationQuotes }
+      : {}),
     intentKind: payload.intent?.kind === "sendGoalCommand" ? "sendGoalCommand" : "sendText",
     turnNumber: payload.turnNumber,
     executionKind: payload.executionKind ?? "agent",

@@ -33,6 +33,11 @@ import {
   type WorkspacePurpose,
   ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
 } from "@zcode/shared";
+import type {
+  PluginSandboxHandle,
+  PluginSandboxRegisterRequestPayload,
+  PluginSandboxRegisterResultPayload,
+} from "@zcode/shared/mcp-apps";
 import { getMainLaunchPartialMarks } from "./desktopLaunchMarks.js";
 import { BroadcastHub } from "./broadcastHub.js";
 import type { TaskRealtimeBus } from "./taskRealtimeBus.js";
@@ -207,6 +212,27 @@ export function spawnHostProcess(
     /** host 中闲时任务翻 schedulable 后请求 main 立即唤醒 scheduler。 */
     onOffPeakSchedulerWakeRequested?: (offPeakTaskId?: string) => void;
     // browser-use：main 用 WebContentsView+CDP 执行一条命令。实现由宿主注入；缺省则 backend_unavailable。
+    handleBotRemoteWorkspaceReconnectRequest?: (params: {
+      win: BrowserWindow;
+      requestId: string;
+      workspacePath: string;
+      workspaceIdentity: string;
+      target: RemoteTarget;
+    }) => Promise<{ ok: boolean; sessionId?: string; error?: string }>;
+    handleBotRemoteWorkspaceConnectionStatusRequest?: (params: {
+      win: BrowserWindow;
+      requestId: string;
+      workspacePath: string;
+      workspaceIdentity: string;
+      target: RemoteTarget;
+    }) => Promise<{ ok: boolean; connected?: boolean; error?: string }>;
+    handleBotRemoteWorkspaceRuntimePortRequest?: (params: {
+      win: BrowserWindow;
+      requestId: string;
+      workspacePath: string;
+      workspaceIdentity: string;
+      target: RemoteTarget;
+    }) => Promise<{ ok: boolean; port?: MessagePortMain; error?: string }>;
     handleBrowserExecuteRequest?: (params: {
       win: BrowserWindow;
       requestId: string;
@@ -224,6 +250,10 @@ export function spawnHostProcess(
     }) => Promise<{ ok: boolean; [k: string]: unknown }>;
     /** Host 已完成附件授权后，由 Main 将本地视频 realpath 加入精确协议授权集合。 */
     authorizeLocalMediaPreviewPath?: (path: string) => Promise<string>;
+    /** Host 校验完插件 UI HTML 后交给 Main 沙箱注册表登记，返回句柄。 */
+    registerPluginSandbox?: (
+      input: PluginSandboxRegisterRequestPayload,
+    ) => PluginSandboxHandle | Promise<PluginSandboxHandle>;
   },
   options?: SpawnHostProcessOptions,
 ): ElectronUtilityProcess {
@@ -379,6 +409,32 @@ export function spawnHostProcess(
       return;
     }
 
+    if (result.data.type === HostResponseTypes.PluginSandboxRegisterRequest) {
+      const request = result.data;
+      const register = dependencies.registerPluginSandbox;
+      const reply = (payload: PluginSandboxRegisterResultPayload) =>
+        child.postMessage({ type: HostMessageTypes.PluginSandboxRegisterResult, ...payload });
+      if (!register || win.isDestroyed() || request.ownerWebContentsId !== win.webContents.id) {
+        reply({
+          requestId: request.requestId,
+          ok: false,
+          error: "Plugin UI sandbox is unavailable.",
+        });
+        return;
+      }
+      void Promise.resolve()
+        .then(() => register(request))
+        .then((handle) => reply({ requestId: request.requestId, ok: true, ...handle }))
+        .catch((error: unknown) =>
+          reply({
+            requestId: request.requestId,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
+      return;
+    }
+
     if (result.data.type === HostResponseTypes.CuaOperationState) {
       // Main 只投影 Host 已经判定的 turn 状态，不在这里重复解析 session/tool 业务事件。
       dependencies.onCuaOperationStateChanged?.(child, result.data);
@@ -408,6 +464,138 @@ export function spawnHostProcess(
       return;
     }
 
+    if (result.data.type === HostResponseTypes.BotRemoteWorkspaceReconnectRequest) {
+      const request = result.data;
+      const handler = dependencies.handleBotRemoteWorkspaceReconnectRequest;
+      if (!handler) {
+        child.postMessage({
+          type: HostMessageTypes.BotRemoteWorkspaceReconnectResult,
+          requestId: request.requestId,
+          ok: false,
+          // Bugfix: /reconnect 需要 main 侧 bridge，缺 handler 时返回明确原因，避免继续显示笼统的不可访问。
+          error: "未注入 Bot 远端 workspace 重连处理器。",
+        });
+        return;
+      }
+
+      void handler({
+        win,
+        requestId: request.requestId,
+        workspacePath: request.workspacePath,
+        workspaceIdentity: request.workspaceIdentity,
+        target: request.target,
+      })
+        .then((reconnectResult) => {
+          child.postMessage({
+            type: HostMessageTypes.BotRemoteWorkspaceReconnectResult,
+            requestId: request.requestId,
+            ok: reconnectResult?.ok === true,
+            sessionId: reconnectResult?.sessionId,
+            error: reconnectResult?.error,
+          });
+        })
+        .catch((error) => {
+          child.postMessage({
+            type: HostMessageTypes.BotRemoteWorkspaceReconnectResult,
+            requestId: request.requestId,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      return;
+    }
+
+    if (result.data.type === HostResponseTypes.BotRemoteWorkspaceConnectionStatusRequest) {
+      const request = result.data;
+      const handler = dependencies.handleBotRemoteWorkspaceConnectionStatusRequest;
+      if (!handler) {
+        child.postMessage({
+          type: HostMessageTypes.BotRemoteWorkspaceConnectionStatusResult,
+          requestId: request.requestId,
+          ok: false,
+          error: "未注入 Bot 远端 workspace 连接状态处理器。",
+        });
+        return;
+      }
+
+      void handler({
+        win,
+        requestId: request.requestId,
+        workspacePath: request.workspacePath,
+        workspaceIdentity: request.workspaceIdentity,
+        target: request.target,
+      })
+        .then((statusResult) => {
+          child.postMessage({
+            type: HostMessageTypes.BotRemoteWorkspaceConnectionStatusResult,
+            requestId: request.requestId,
+            ok: statusResult?.ok === true,
+            connected: statusResult?.connected,
+            error: statusResult?.error,
+          });
+        })
+        .catch((error) => {
+          child.postMessage({
+            type: HostMessageTypes.BotRemoteWorkspaceConnectionStatusResult,
+            requestId: request.requestId,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      return;
+    }
+
+    if (result.data.type === HostResponseTypes.BotRemoteWorkspaceRuntimePortRequest) {
+      const request = result.data;
+      const handler = dependencies.handleBotRemoteWorkspaceRuntimePortRequest;
+      if (!handler) {
+        child.postMessage({
+          type: HostMessageTypes.BotRemoteWorkspaceRuntimePort,
+          requestId: request.requestId,
+          ok: false,
+          // Bugfix: 远端 Bot 不能在缺少 runtime bridge 时回落到本地 ZCode Agent，
+          // 否则会把 remote workspace 的任务写到本地并触发错误模型。
+          error: "未注入 Bot 远端 workspace runtime 处理器。",
+        });
+        return;
+      }
+
+      void handler({
+        win,
+        requestId: request.requestId,
+        workspacePath: request.workspacePath,
+        workspaceIdentity: request.workspaceIdentity,
+        target: request.target,
+      })
+        .then((runtimeResult) => {
+          if (runtimeResult.ok && runtimeResult.port) {
+            child.postMessage(
+              {
+                type: HostMessageTypes.BotRemoteWorkspaceRuntimePort,
+                requestId: request.requestId,
+                ok: true,
+              },
+              [runtimeResult.port],
+            );
+            return;
+          }
+          child.postMessage({
+            type: HostMessageTypes.BotRemoteWorkspaceRuntimePort,
+            requestId: request.requestId,
+            ok: false,
+            error: runtimeResult.error ?? "unknown",
+          });
+        })
+        .catch((error) => {
+          child.postMessage({
+            type: HostMessageTypes.BotRemoteWorkspaceRuntimePort,
+            requestId: request.requestId,
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      return;
+    }
     if (result.data.type === HostResponseTypes.BrowserExecuteRequest) {
       // browser-use：main 用 WebContentsView+CDP 执行命令（handleBrowserExecuteRequest）。
       // 缺省实现时返回 backend_unavailable，保证通道打通但不阻塞。

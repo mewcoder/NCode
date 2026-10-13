@@ -25,6 +25,10 @@ export {
 
 // Accessor
 export type { IServiceAccessor } from "./accessor.js";
+export { IOutputStyleService } from "./output-style/outputStyle.js";
+export { IGenUiService } from "./gen-ui/contract.js";
+export type { GenUiPrepareParams } from "./gen-ui/contract.js";
+export * from "./plugin-ui-bridge/index.js";
 export {
   ConversationShareServiceError,
   createUnsupportedConversationShareService,
@@ -299,3 +303,5 @@ export type {
   FeedbackTicketType,
 } from "@zcode/shared";
 export { IClientConfigService } from "./client-config/clientConfig.js";
+
+export { createBotsServiceRpcView, IBotsService } from "./bots/bots.js";

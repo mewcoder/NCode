@@ -67,6 +67,7 @@ export interface V4SessionRecordView {
   residencyFinalizationCount?: number;
   /** 当前正在执行的 automation 派发 turn；只在 turn 运行期间存在。 */
   activeAutomationId?: string;
+  activeBotDeliveryTarget?: import("@zcode/shared").ZCodeAutomationBotDeliveryTarget;
   /** 当前正在执行的闲时派发 turn；只在 turn 运行期间存在。 */
   activeOffPeakTaskId?: string;
   /** 恢复失败告警：存在时拒绝新 turn（历史损坏不能静默续写）。 */
@@ -236,6 +237,8 @@ export interface V4CommandCoreHost {
      * 缺省回落到进程级 workspace 结论，仍是 fail-closed。
      */
     dynamicWorkflowEnabled?: boolean;
+    dynamicWorkflowMode?: import("@zcode/shared").DynamicWorkflowMode;
+    permissionScope?: "session";
   }): Promise<{ sessionId: string }>;
   /** 从父会话稳定落盘边界创建隐藏 selection_side_chat child。 */
   createSelectionSideSession?(

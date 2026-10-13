@@ -1,3 +1,4 @@
+import { stripRemoteTargetSecrets } from "@zcode/shared";
 import { createLocalTtftExporter } from "./localTtftExporter.js";
 /* eslint-disable max-lines */
 import "./desktopEarlyDataBaseDirBootstrap.js";
@@ -22,6 +23,11 @@ import {
   installLocalMediaPreviewProtocol,
   registerLocalMediaPreviewScheme,
 } from "./localMediaPreviewProtocol.js";
+import {
+  PLUGIN_SANDBOX_PRIVILEGED_SCHEME,
+  getPluginSandboxHost,
+  installPluginSandboxHost,
+} from "./pluginSandbox/index.js";
 import { createDesktopBrowserScreenshotSurfaceCoordinator } from "./browserView/browserScreenshotSurfaceCoordinatorWiring.js";
 import { EMBEDDED_BROWSER_PARTITION } from "./browserDataManager.js";
 import { EmbeddedBrowserJavaScriptDialogController } from "./embeddedBrowserJavaScriptDialog.js";
@@ -244,7 +250,7 @@ import {
 } from "./windowsInstallResourceLocks.js";
 import { mainMemoryDiagnosticsRegistry } from "./mainMemoryDiagnostics.js";
 
-registerLocalMediaPreviewScheme(protocol);
+registerLocalMediaPreviewScheme(protocol, [PLUGIN_SANDBOX_PRIVILEGED_SCHEME]);
 const localMediaPreviewPathRegistry = createLocalMediaPreviewPathRegistry();
 
 // e2e 由 Chromedriver 管理远程调试端口；如果这里继续固定到 9229，
@@ -1705,7 +1711,82 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
           onCronSchedulerWakeRequested: wakeCronScheduler,
           onOffPeakSchedulerWakeRequested: wakeOffPeakScheduler,
           authorizeLocalMediaPreviewPath: localMediaPreviewPathRegistry.authorize,
+          registerPluginSandbox: (input) => {
+            const host = getPluginSandboxHost();
+            if (!host) throw new Error("Plugin UI sandbox host is not installed.");
+            const { requestId: _requestId, ...registerInput } = input;
+            return host.registerFromHost(registerInput);
+          },
           // browser-use：main 用 WebContentsView+CDP 执行命令。
+          handleBotRemoteWorkspaceReconnectRequest: async ({
+            win,
+            requestId,
+            workspacePath,
+            workspaceIdentity,
+            target,
+          }) => {
+            try {
+              const sessionId = await remoteSessionManager.reconnectBotRemoteWorkspaceSession(win, {
+                target,
+                workspacePath,
+                workspaceIdentity,
+                requestId,
+              });
+              if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+                win.webContents.send(PlatformChannels.BotRemoteWorkspaceReconnected, {
+                  sessionId,
+                  workspacePath,
+                  workspaceIdentity,
+                  target: stripRemoteTargetSecrets(target),
+                });
+              }
+              return { ok: true, sessionId };
+            } catch (error) {
+              return {
+                ok: false,
+                error: error instanceof Error ? error.message : String(error),
+              };
+            }
+          },
+          handleBotRemoteWorkspaceConnectionStatusRequest: async ({
+            win,
+            target,
+            workspacePath,
+            workspaceIdentity,
+          }) => ({
+            ok: true,
+            // Bugfix: Bot 远端连接状态必须按 workspaceIdentity/workspacePath 精确隔离。
+            // 只按 SSH target 判断会把同一台机器上的其他目录误判为当前 workspace 已连接。
+            connected: remoteSessionManager.hasRemoteWorkspaceSessionForTarget(win, target, {
+              workspacePath,
+              workspaceIdentity,
+            }),
+          }),
+          handleBotRemoteWorkspaceRuntimePortRequest: async ({
+            win,
+            requestId,
+            workspacePath,
+            workspaceIdentity,
+            target,
+          }) => {
+            try {
+              const port = await remoteSessionManager.createBotRemoteWorkspaceRuntimePort(
+                win,
+                {
+                  target,
+                  workspacePath,
+                  workspaceIdentity,
+                },
+                requestId,
+              );
+              return { ok: true, port };
+            } catch (error) {
+              return {
+                ok: false,
+                error: error instanceof Error ? error.message : String(error),
+              };
+            }
+          },
           handleBrowserExecuteRequest: ({ win: browserWin, ...request }) =>
             runBrowserCommandOnView({ win: browserWin, ...request }),
         },
@@ -1832,6 +1913,15 @@ app.whenReady().then(async () => {
   markMainLaunchAppReady();
   installLocalMediaPreviewProtocol(session.defaultSession.protocol, {
     isPathAuthorized: localMediaPreviewPathRegistry.isAuthorized,
+  });
+  installPluginSandboxHost({
+    preloadPath: join(import.meta.dirname, "../preload/pluginSandbox.cjs"),
+    rendererDir: join(import.meta.dirname, "../renderer"),
+    aliasDir: join(import.meta.dirname, "../plugin-sandbox"),
+    ...(!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]
+      ? { devServerUrl: process.env["ELECTRON_RENDERER_URL"] }
+      : {}),
+    logger: console,
   });
   installBrowserRestoreBootstrapProtocol(
     session.fromPartition(EMBEDDED_BROWSER_PARTITION).protocol,

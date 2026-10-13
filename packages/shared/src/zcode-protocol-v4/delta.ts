@@ -7,6 +7,7 @@
 // 按 (runId, siteId, ordinal) 的增量口子，语义仍是「键内整体替换，只是下探了两级」：
 // header 键整键替换、条目整条替换，没有任何字段级深合并。规则在 workflow-runs-delta.ts。
 import { z } from "zod";
+import { mcpAppInstanceSchema } from "../mcp-apps/instance.js";
 import { streamablePathSchema } from "./core.js";
 import { conversationRowSchema } from "./rows.js";
 import { sharedContextImportStateSchema } from "./shared-context-import.js";
@@ -61,6 +62,14 @@ export const statePatchSchema = z.object({
 });
 export type StatePatch = z.infer<typeof statePatchSchema>;
 
+export const pluginUiResourceSubscriberSchema = z
+  .object({
+    scopeId: z.string(),
+    generation: z.number().int().nonnegative(),
+    instance: mcpAppInstanceSchema,
+  })
+  .strict();
+
 /**
  * run 的 **header** = `workflowRunSchema` 减去 actors / nodes 两张按实例增量同步的表。
  *
@@ -106,6 +115,36 @@ export const conversationDeltaSchema = z.discriminatedUnion("op", [
     append: z.string(),
   }),
   z.object({ op: z.literal("state.updated"), patch: statePatchSchema }),
+  z.object({
+    op: z.literal("pluginUi.resourceUpdated"),
+    pluginId: z.string(),
+    serverName: z.string(),
+    uri: z.string(),
+    subscribers: z.array(pluginUiResourceSubscriberSchema),
+  }),
+  z.object({
+    op: z.literal("pluginUi.resourceListChanged"),
+    pluginId: z.string(),
+    serverName: z.string(),
+    subscribers: z.array(pluginUiResourceSubscriberSchema),
+  }),
+  z.object({
+    op: z.literal("pluginUi.instanceClosed"),
+    pluginId: z.string(),
+    serverName: z.string(),
+    subscribers: z.array(pluginUiResourceSubscriberSchema),
+  }),
+  z.object({
+    op: z.literal("pluginUi.appToolCall"),
+    activity: z.boolean().optional(),
+    cancelled: z.boolean().optional(),
+    pluginId: z.string(),
+    serverName: z.string(),
+    subscribers: z.array(pluginUiResourceSubscriberSchema),
+    callId: z.string(),
+    toolName: z.string(),
+    arguments: z.record(z.string(), z.unknown()),
+  }),
   /**
    * 一条 dwf run 的键级增量。`revision` 是**这次变化之后**的 `workflowRuns.revision`（绝对值）；
    * 一条引擎事件最多产生一条本 op（节点相位、派生的 actor 状态、用量、水位一起落地，原子）。
@@ -143,5 +182,14 @@ export const conversationDeltaSchema = z.discriminatedUnion("op", [
   }),
 ]);
 export type ConversationDelta = z.infer<typeof conversationDeltaSchema>;
+export type PluginUiResourceDelta = Extract<
+  ConversationDelta,
+  { op: "pluginUi.resourceUpdated" | "pluginUi.resourceListChanged" }
+>;
+export type PluginUiAppToolCallDelta = Extract<ConversationDelta, { op: "pluginUi.appToolCall" }>;
+export type PluginUiInstanceDelta =
+  | Extract<ConversationDelta, { op: "pluginUi.instanceClosed" }>
+  | PluginUiResourceDelta
+  | PluginUiAppToolCallDelta;
 export type WorkflowRunUpdatedDelta = Extract<ConversationDelta, { op: "workflowRun.updated" }>;
 export type WorkflowRunRemovedDelta = Extract<ConversationDelta, { op: "workflowRun.removed" }>;

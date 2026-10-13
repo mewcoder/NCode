@@ -1,5 +1,9 @@
+import { createBotTopicAdmission } from "./botTopicAdmission.js";
+import { readBotGroupRuntimeSnapshot, waitBotGroupExecutionEnd } from "./groupRuntimeSnapshot.js";
+import { uploadBotGroupAttachments } from "./groupAttachmentUpload.js";
+import { createZCodeAgentConnectionScope } from "./zcodeAgentConnectionScope.js";
 /* oxlint-disable eslint(max-lines) -- 迁移期需要在一个门面里集中维护旧 task projection 到 ZCode session 的协议适配。 */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -250,6 +254,21 @@ function resolveZCodeAgentCurrentLogFilePath(now = new Date()): string {
 export function createZCodeTaskServiceAdapter(
   options: CreateZCodeTaskServiceAdapterOptions,
 ): IZCodeTaskService {
+  const botConnectionScopes = new Map<string, ReturnType<typeof createZCodeAgentConnectionScope>>();
+  function botAgent(workspace: ZCodeAgentWorkspaceTarget) {
+    const key = JSON.stringify([resolveWorkspaceKey(workspace), workspace.remoteSessionId ?? ""]);
+    let scope = botConnectionScopes.get(key);
+    if (!scope) {
+      scope = createZCodeAgentConnectionScope(options.zcodeAgentService, {
+        connectionId: `bot-${randomUUID()}`,
+        clientMode: "desktop-continuous",
+        role: "trusted-host-relay",
+      });
+      botConnectionScopes.set(key, scope);
+    }
+    return scope.service;
+  }
+  const topicAdmission = createBotTopicAdmission();
   const errorEmitter = new Emitter<ZCodeError>();
   const taskEmitters = new Map<string, Emitter<ZCodeStreamEvent>>();
   const globalTaskEmitters = new Map<string, Emitter<ZCodeStreamEvent>>();
@@ -1728,6 +1747,11 @@ export function createZCodeTaskServiceAdapter(
   function disposeLocalTaskState(): void {
     taskIndexTerminalDisposable.dispose();
     taskIndexReadyDisposable.dispose();
+    for (const scope of botConnectionScopes.values())
+      void scope
+        .dispose()
+        .catch((error) => logger.warn(undefined, "Bot connection scope disposal failed", error));
+    botConnectionScopes.clear();
     taskIndexRepo.close();
     for (const emitter of taskEmitters.values()) emitter.dispose();
     for (const emitter of globalTaskEmitters.values()) emitter.dispose();
@@ -1828,29 +1852,64 @@ export function createZCodeTaskServiceAdapter(
         // v4 UI 在用），但 replayable createTask 需要 mcpServers/model/importedHistory
         // 载荷与 snapshot 返回值（task index 同步依赖），v4 命令面均未建模；
         // 迁移属 v4 生命周期收口。
-        snapshot = await options.zcodeAgentService.createSession({
-          ...target,
-          sessionTraceId: createSessionTraceId(),
-          mode: toZCodeMode(params.mode),
-          model: requestedSelection,
-          thoughtLevel: requestedSelection?.options?.reasoningLevel,
-          ...(params.automationId || params.deferPersistenceUntilFirstPrompt
-            ? {
-                // automation / 闲时任务新建空 session 后会立即 sendText。session_input 有
-                // session 外键，必须让 V4 admission 在首发前统一持久化 session 主记录；
-                // 否则 create 返回成功后第一条 prompt 会稳定触发 FOREIGN KEY constraint failed。
-                persistence: "deferred" as const,
-              }
-            : {}),
-          ...(params.automationId
-            ? {
-                titleGenerationEnabled: false,
-              }
-            : {}),
-          // replayable task facade 创建 session 时同样会启动 runtime；
-          // 之前这里丢掉 mcpServers，导致手机远控路径和 desktop-continuous 的 MCP 行为不一致。
-          mcpServers,
-        });
+        if (params.v4Create === true) {
+          const model = requestedSelection;
+          const ack = assertV4CommandAckOk(
+            "createSession",
+            await options.zcodeAgentService.sendConversationCommandV4({
+              ...target,
+              envelope: createHostCommandEnvelope({
+                type: "createSession",
+                sessionId: null,
+                payload: {
+                  workspaceId: target.workspaceIdentity?.trim() || target.workspacePath,
+                  ...(params.permissionScope ? { permissionScope: params.permissionScope } : {}),
+                  config: {
+                    ...(model ? { provider: model.providerId, model: model.modelId } : {}),
+                    ...(model?.options?.reasoningLevel
+                      ? { thought: model.options.reasoningLevel }
+                      : {}),
+                    ...(params.mode ? { mode: toZCodeMode(params.mode) } : {}),
+                  },
+                  ...(mcpServers ? { mcpServers } : {}),
+                },
+              }),
+            }),
+            `workspace=${target.workspacePath}`,
+          );
+          const sessionId = ack.result?.type === "createSession" ? ack.result.sessionId : undefined;
+          if (!sessionId) {
+            throw new Error("v4 createSession accepted without sessionId result");
+          }
+          snapshot = await options.zcodeAgentService.readSession({
+            ...target,
+            sessionId,
+          });
+        } else {
+          snapshot = await options.zcodeAgentService.createSession({
+            ...target,
+            sessionTraceId: createSessionTraceId(),
+            mode: toZCodeMode(params.mode),
+            model: requestedSelection,
+            thoughtLevel: requestedSelection?.options?.reasoningLevel,
+            ...(params.automationId || params.deferPersistenceUntilFirstPrompt
+              ? {
+                  // automation / 闲时任务新建空 session 后会立即 sendText。session_input 有
+                  // session 外键，必须让 V4 admission 在首发前统一持久化 session 主记录；
+                  // 否则 create 返回成功后第一条 prompt 会稳定触发 FOREIGN KEY constraint failed。
+                  persistence: "deferred" as const,
+                }
+              : {}),
+            ...(params.automationId
+              ? {
+                  titleGenerationEnabled: false,
+                }
+              : {}),
+            // replayable task facade 创建 session 时同样会启动 runtime；
+            // 之前这里丢掉 mcpServers，导致手机远控路径和 desktop-continuous 的 MCP 行为不一致。
+            mcpServers,
+          });
+        }
       }
       const baseMeta = snapshotToMeta(snapshot);
       const meta = await syncTaskIndexMeta({
@@ -1878,6 +1937,233 @@ export function createZCodeTaskServiceAdapter(
         ...meta,
         initialSlashCommands: snapshot.slashCommands ?? EMPTY_SLASH_COMMANDS,
       };
+    },
+
+    async readBotTopicSummaries(params) {
+      const target = taskTargets.get(params.taskId);
+      if (target && taskKey(target) !== taskKey(params))
+        throw new Error("Topic task workspace mismatch");
+      const messages = await options.zcodeAgentService.readSessionMessages({
+        workspacePath: params.workspacePath,
+        workspaceIdentity: params.workspaceIdentity,
+        remoteSessionId: params.remoteSessionId ?? target?.remoteSessionId,
+        sessionId: params.taskId,
+        limit: 200,
+      });
+      return messages
+        .flatMap(({ info, parts }) => {
+          if (info.role !== "user" || info.source !== "bot_topic_context") return [];
+          return [
+            {
+              checkpoint: String(info.metadata?.checkpoint ?? ""),
+              text:
+                typeof info.metadata?.displayText === "string"
+                  ? info.metadata.displayText
+                  : textFromParts(parts),
+            },
+          ];
+        })
+        .slice(-20);
+    },
+
+    async invalidateBotTopicInputs(params) {
+      const target = getTaskTarget(params.taskId);
+      if (taskKey(target) !== taskKey(params)) throw new Error("Group task workspace mismatch");
+      const key = JSON.stringify([
+        taskKey(params),
+        params.remoteSessionId ?? target.remoteSessionId ?? null,
+      ]);
+      await topicAdmission.invalidate(key);
+    },
+    async readBotTopicExecution(params) {
+      const target = getTaskTarget(params.taskId);
+      if (taskKey(target) !== taskKey(params)) throw new Error("Group task workspace mismatch");
+      const workspace = {
+        ...params,
+        remoteSessionId: params.remoteSessionId ?? target.remoteSessionId,
+      };
+      const snapshot = await readBotGroupRuntimeSnapshot(botAgent(workspace), {
+        ...workspace,
+        sessionId: params.taskId,
+      });
+      if (snapshot.control.stopState === "idle") return undefined;
+      const execution = snapshot.control.activeWorks.find((work) => work.foregroundExecutionId);
+      if (!execution?.foregroundExecutionId)
+        throw new Error("Topic execution identity is unavailable");
+      return {
+        executionId: execution.foregroundExecutionId,
+        sourceCommandId: execution.sourceCommandId,
+      };
+    },
+    async stopBotTopicExecution(params) {
+      const target = getTaskTarget(params.taskId);
+      if (taskKey(target) !== taskKey(params)) throw new Error("Group task workspace mismatch");
+      const workspace = {
+        workspacePath: params.workspacePath,
+        workspaceIdentity: params.workspaceIdentity,
+        remoteSessionId: params.remoteSessionId ?? target.remoteSessionId,
+      };
+      const agent = botAgent(workspace);
+      // 先注册终态监听再停止，避免快速结束发生在 ACK 与订阅之间。
+      const observation = new AbortController();
+      const ended = waitBotGroupExecutionEnd(
+        agent,
+        { ...workspace, sessionId: params.taskId },
+        params.executionId,
+        observation.signal,
+      );
+      void ended.catch(() => undefined);
+      try {
+        const ack = await agent.sendConversationCommandV4({
+          ...workspace,
+          envelope: createHostCommandEnvelope({
+            type: "stop",
+            sessionId: params.taskId,
+            payload: { expectedForegroundExecutionId: params.executionId },
+          }),
+        });
+        assertV4CommandAckOk("stop", ack, `session=${params.taskId}`);
+        await ended;
+      } finally {
+        observation.abort();
+      }
+    },
+
+    async getBotGroupTaskBlockReason(params) {
+      const target = taskTargets.get(params.taskId);
+      if (target && taskKey(target) !== taskKey({ ...params, taskId: params.taskId }))
+        throw new Error("Group task workspace mismatch");
+      const snapshot = await readBotGroupRuntimeSnapshot(botAgent(params), {
+        ...params,
+        ...((params.remoteSessionId ?? target?.remoteSessionId)
+          ? { remoteSessionId: params.remoteSessionId ?? target?.remoteSessionId }
+          : {}),
+        sessionId: params.taskId,
+      });
+      if (snapshot.pendingInteractions.length > 0) return "interaction";
+      if (snapshot.control.phase === "running" || snapshot.control.phase === "prewarming")
+        return "running";
+      if (snapshot.queue.items.length > 0) return "queued";
+      return null;
+    },
+    async cancelBotGroupInput(params) {
+      const target = getTaskTarget(params.taskId);
+      if (
+        params.workspacePath &&
+        taskKey(target) !== taskKey({ ...params, workspacePath: params.workspacePath })
+      )
+        throw new Error("Group task workspace mismatch");
+      const workspace = {
+        workspacePath: params.workspacePath ?? target.workspacePath,
+        workspaceIdentity: params.workspaceIdentity ?? target.workspaceIdentity,
+        ...((params.remoteSessionId ?? target.remoteSessionId)
+          ? { remoteSessionId: params.remoteSessionId ?? target.remoteSessionId }
+          : {}),
+      };
+      const snapshot = await readBotGroupRuntimeSnapshot(botAgent(workspace), {
+        ...workspace,
+        sessionId: target.taskId,
+      });
+      const item = snapshot.queue.items.find(
+        (entry) => entry.sourceCommandId === params.sourceCommandId,
+      );
+      if (!item || item.dispatch.state !== "queued") throw new Error("Input is no longer queued");
+      const source = item.botGroupSource;
+      if (
+        !source ||
+        source.botId !== params.botId ||
+        source.chatId !== params.chatId ||
+        (params.actorId !== params.ownerId && source.senderId !== params.actorId)
+      )
+        throw new Error("Queue cancellation is not authorized");
+      return botAgent(workspace).sendConversationCommandV4({
+        ...workspace,
+        envelope: createHostCommandEnvelope({
+          type: "deleteQueueItem",
+          sessionId: target.taskId,
+          commandId: params.commandId,
+          baseRevision: snapshot.revision,
+          payload: { queueItemId: item.queueItemId },
+        }),
+      });
+    },
+
+    async submitBotGroupInput(params) {
+      const target = getTaskTarget(params.taskId);
+      if (
+        params.workspacePath &&
+        taskKey(target) !== taskKey({ ...params, workspacePath: params.workspacePath })
+      )
+        throw new Error("Group task workspace mismatch");
+      const workspace = {
+        workspacePath: params.workspacePath ?? target.workspacePath,
+        workspaceIdentity: params.workspaceIdentity ?? target.workspaceIdentity,
+        ...((params.remoteSessionId ?? target.remoteSessionId)
+          ? { remoteSessionId: params.remoteSessionId ?? target.remoteSessionId }
+          : {}),
+      };
+      const admissionKey = JSON.stringify([
+        taskKey({ ...workspace, taskId: target.taskId }),
+        workspace.remoteSessionId ?? null,
+      ]);
+      const version = topicAdmission.capture(admissionKey);
+      // Bug 原因：Host 重启后任务索引仍在，但 CLI 尚未加载原会话；直接 admission
+      // 会返回 sessionNotFound。复用后台订阅的冷恢复屏障，不依赖 Desktop 打开任务。
+      await readBotGroupRuntimeSnapshot(botAgent(workspace), {
+        ...workspace,
+        sessionId: target.taskId,
+      });
+      const attachments = await uploadBotGroupAttachments(
+        botAgent(workspace),
+        { ...workspace, sessionId: target.taskId },
+        params.attachments ?? [],
+      );
+      // 停止可以发生在附件上传期间；完成上传不代表旧输入仍允许被接受。
+      if (params.source.threadId && version !== topicAdmission.capture(admissionKey)) {
+        throw new Error("Topic input was cancelled during preparation");
+      }
+      const envelope = createHostCommandEnvelope({
+        type: "sendText",
+        sessionId: target.taskId,
+        commandId: params.commandId,
+        clientId: `bot:${params.source.botId}:${params.source.chatId}:${params.source.senderId}`,
+        payload: {
+          text: params.content,
+          attachments,
+          requestedDelivery: params.source.threadId ? "startNow" : "queue",
+          botGroupSource: params.source,
+          conversationQuotes: params.conversationQuotes,
+          botDeliveryTarget: {
+            provider: params.source.provider,
+            botId: params.source.botId,
+            providerUserId: params.source.chatId,
+            chatType: "group",
+            ...(params.source.threadId
+              ? { threadId: params.source.threadId, rootMessageId: params.source.rootMessageId }
+              : {}),
+          },
+        },
+      });
+      const send = async () => {
+        try {
+          return await botAgent(workspace).sendConversationCommandV4({
+            ...workspace,
+            envelope,
+          });
+        } catch (error) {
+          // ACK 丢失时查询同一个命令，不能生成新 ID 重发输入。
+          const query = await botAgent(workspace)
+            .queryConversationCommandsV4({
+              ...workspace,
+              commands: [{ sessionId: target.taskId, commandId: params.commandId }],
+            })
+            .catch(() => null);
+          const result = query?.results[0]?.result;
+          if (result && result !== "unknown") return result;
+          throw error;
+        }
+      };
+      return params.source.threadId ? topicAdmission.run(admissionKey, version, send) : send();
     },
 
     async sendPrompt(params): Promise<void> {
@@ -3227,6 +3513,8 @@ function parseModelPickerValue(value: string): ModelSelection {
 
 function toZCodeMode(mode: ZCodeTaskMode | undefined): ZCodeSessionMode | undefined {
   switch (mode) {
+    case "guarded":
+      return "guarded";
     case "plan":
       return "plan";
     case "edit":
@@ -3417,7 +3705,7 @@ function getSnapshotGoalActiveIterationCount(snapshot: ZCodeSessionStateSnapshot
 }
 
 function toZCodeDeliveryKind(
-  deliveryKind: "continuous" | "replayable" | "mixed" | undefined,
+  deliveryKind: "continuous" | "replayable" | "mixed" | "bot-channel-continuous" | undefined,
 ): ZCodeDeliveryKind {
   return deliveryKind === "replayable" ? "web-remote-replayable" : "desktop-continuous";
 }

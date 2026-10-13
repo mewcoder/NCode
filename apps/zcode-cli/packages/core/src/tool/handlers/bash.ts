@@ -20,6 +20,7 @@ import {
   type ExecutionRequest,
   type ExecutionResult,
   type ExecutionRunOptions,
+  type ExecutionShellSelection,
   type TraceContext,
 } from "@zcode/contracts";
 import {
@@ -54,6 +55,7 @@ import {
 import { createBashProviderDescription } from "./bash-prompt.js";
 import { applyBashReadFileStateEffects } from "./bash-read-file-state.js";
 import { isRuntimeReadOnlyBashCommand } from "./bash-semantics.js";
+import { matchDangerousCommand } from "./guarded/command.js";
 import {
   attachToolExecutionTelemetry,
   classifyCommand,
@@ -74,11 +76,23 @@ const BASH_PROVIDER_DESCRIPTION = createBashProviderDescription({
   maxTimeoutMs: DEFAULT_BASH_TIMEOUT_POLICY.maxTimeoutMs,
 });
 
+/** session shell selection 尚未初始化时 guarded matcher 采用的文法；与 readonly 判定的假设一致。 */
+const GUARDED_DEFAULT_DIALECT: ExecutionShellSelection["dialect"] = "posix";
+
 function resolveBashPermissionCapability(
   input: unknown,
   context?: ToolRuntimePermissionCapabilityContext,
 ): ToolRuntimePermissionCapability | undefined {
   const command = readStringProperty(input, "command");
+  if (command && context?.mode === "guarded") {
+    // selection 缺失是基础设施状态而非语法边界；与下方 isRuntimeReadOnlyBashCommand 一致按 POSIX
+    // 文法匹配，避免 guarded 在 selection 尚未初始化时静默退回 YOLO。显式 legacy-shell 仍 unsupported。
+    const match = matchDangerousCommand(
+      command,
+      context.bashShellSelection?.dialect ?? GUARDED_DEFAULT_DIALECT,
+    );
+    if (match.status === "matched") return { userApprovalRule: match.ruleId };
+  }
   if (!command || !isRuntimeReadOnlyBashCommand(command, context)) return undefined;
   return {
     destructive: false,

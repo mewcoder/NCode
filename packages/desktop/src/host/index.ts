@@ -1,3 +1,6 @@
+import { createBotsServiceRpcView, IBotsService } from "@zcode/services";
+import { createWindowTopicResourceRelay } from "./windowTopicResourceRelay.js";
+import { connectServerRemote, type ServerRemoteConnection } from "./serverRemoteConnection.js";
 /* eslint-disable max-lines -- Host 入口集中编排 local/remote service wiring，本次退出保护需要在同一处桥接 host 上报。 */
 /* eslint-disable max-lines -- host process 入口集中维护 local/remote 初始化和资源回收，realtime bridge 接入后先保持同文件收口。 */
 /**
@@ -15,6 +18,7 @@
  */
 import { createHostDatabaseStartup } from "./hostDatabaseStartup.js";
 import { randomUUID } from "node:crypto";
+import { createPluginSandboxRegistrationBridge } from "./pluginSandbox/index.js";
 import {
   MessagePortProtocol,
   ChannelServer,
@@ -120,7 +124,10 @@ import {
   type RemoteMediaPreviewProxy,
 } from "./remoteMediaPreviewProxy.js";
 import { createHostRemoteWorkspaceProxyState } from "./hostRemoteWorkspaceProxyState.js";
-import { createRemoteWorkspaceServiceCollection } from "./remoteWorkspaceServiceCollection.js";
+import {
+  createRemoteWorkspaceServiceCollection,
+  createServerRemoteWorkspaceServiceCollection,
+} from "./remoteWorkspaceServiceCollection.js";
 import { getRemoteProviderProvisioningExecutor } from "./remoteProviderProvisioningService.js";
 import { createRemotePromptAttachmentTransferService } from "./promptAttachmentTransferService.js";
 import { shouldReportHostConsoleError, stringifyHostLogArg } from "./hostLog.js";
@@ -147,13 +154,14 @@ import {
   type WindowRemoteConnectionHandle,
 } from "./windowRemoteConnectionRegistry.js";
 import { createWindowHostControllerRuntime } from "./windowHostControllerService.js";
+import { watchCronRunBotDelivery } from "./cronBotDelivery.js";
 import { resolveAutomationSubmissionModelSelection } from "./automationModelSelection.js";
 import { createRemoteConnectionProgressContext } from "@zcode/server/remote/remoteConnectionProgressContext.js";
 import { startHostSelfResourceTelemetry } from "./hostSelfResourceTelemetry.js";
 type RemoteBackendHostConnection = RemoteConnection & {
   backend: IRemoteBackend;
 };
-type HostRemoteConnection = RemoteBackendHostConnection;
+type HostRemoteConnection = RemoteBackendHostConnection | ServerRemoteConnection;
 interface HostRemoteConnectionCapabilities {
   browserRecordingUploader?: Pick<IRemoteBackend, "upload">;
   remoteMediaPreviewFactory?: (
@@ -206,6 +214,13 @@ const pendingLocalMediaPreviewPathAuthorizations = new Map<
   string,
   PendingLocalMediaPreviewPathAuthorization
 >();
+
+const pluginSandboxRegistrationBridge = createPluginSandboxRegistrationBridge({
+  send: (message) => {
+    if (!parentPort) throw new Error("parentPort unavailable");
+    parentPort.postMessage(message);
+  },
+});
 
 function authorizeLocalMediaPreviewPath(path: string): Promise<string> {
   if (!parentPort) {
@@ -917,6 +932,27 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
         mode: request.mode,
       });
     }
+    const botsService = targetServices.getOptional(IBotsService);
+    if (botsService) {
+      try {
+        await watchCronRunBotDelivery({
+          automationId: request.automationId,
+          runId: promptTraceId,
+          workspaceKey,
+          workspacePath: request.workspacePath,
+          ...(request.workspaceIdentity ? { workspaceIdentity: request.workspaceIdentity } : {}),
+          taskId: task.taskId,
+          repo: cronAutomationRepo,
+          botsService,
+        });
+      } catch (error) {
+        // Bot 回推是 best-effort 辅助通道；配置/凭据/订阅失败不能阻断 automation 派发与结算。
+        logger.warn(
+          `automation Bot delivery subscription failed automation=${request.automationId} provider=unknown`,
+          error,
+        );
+      }
+    }
     trackedKey = cronRunSubscriptionKey(task.taskId, promptTraceId);
     trackCronRunOutcome({
       zcodeTaskService,
@@ -1566,6 +1602,8 @@ function formatRemoteTargetForLog(target: RemoteTarget): string {
     }
     case "docker":
       return `docker:${target.container}`;
+    case "server":
+      return `server:${target.name?.trim() || target.url}`;
   }
 }
 
@@ -1641,7 +1679,8 @@ async function resolveDesktopRemoteRuntimeNetwork(
 }
 
 async function disposeHostRemoteConnection(connection: HostRemoteConnection): Promise<void> {
-  await connection.disposeAndWait({ timeoutMs: 5_000 });
+  if ("disposeAndWait" in connection) await connection.disposeAndWait({ timeoutMs: 5_000 });
+  else connection.dispose();
 }
 
 async function createWindowRemoteConnectionHandle(params: {
@@ -1654,69 +1693,101 @@ async function createWindowRemoteConnectionHandle(params: {
   if (params.signal.aborted) {
     throw new Error("远程连接已取消");
   }
+  let peerServices: ServiceCollection | undefined;
+  const topicResourceRelay = createWindowTopicResourceRelay({
+    getPeerServices: () => peerServices,
+    resolveServices: (scope) => windowRemoteConnectionRegistry.resolveScopedServices(scope),
+    getBots: () => activeServices?.getOptional(IBotsService),
+  });
   const closeListeners = new Set<(event: WindowRemoteConnectionCloseEvent) => void>();
   const notifyClose = (event: WindowRemoteConnectionCloseEvent) => {
+    topicResourceRelay.dispose();
     for (const listener of closeListeners) {
       listener(event);
     }
   };
-  const connection = await setupRemoteConnection(
-    params.target,
-    params.remoteAssets,
-    { fetch: requireActiveHostApiNetworkTransport().fetch },
-    await resolveDesktopRemoteRuntimeNetwork(params.target),
-    (exitCode) => notifyClose({ exitCode, signal: null }),
-    params.target.kind === "ssh" ? "caller-serialized" : "remote",
-    params.target.kind === "ssh" ? params.signal : undefined,
-  );
+  let connection: HostRemoteConnection;
+  try {
+    connection =
+      params.target.kind === "server"
+        ? await connectServerRemote(params.target, {
+            topicResourceChannel: topicResourceRelay.channel,
+            onClose: ({ code, reason }) =>
+              notifyClose({ exitCode: code, signal: null, ...(reason ? { error: reason } : {}) }),
+          })
+        : await setupRemoteConnection(
+            params.target,
+            params.remoteAssets,
+            { fetch: requireActiveHostApiNetworkTransport().fetch },
+            await resolveDesktopRemoteRuntimeNetwork(params.target),
+            (exitCode) => notifyClose({ exitCode, signal: null }),
+            params.target.kind === "ssh" ? "caller-serialized" : "remote",
+            params.target.kind === "ssh" ? params.signal : undefined,
+            topicResourceRelay.channel,
+          );
+  } catch (error) {
+    topicResourceRelay.dispose();
+    throw error;
+  }
 
   if (params.signal.aborted) {
+    topicResourceRelay.dispose();
     await disposeHostRemoteConnection(connection);
     throw new Error("远程连接已取消");
   }
 
-  const backendConnection = connection;
-  const materializePromptAttachments = async (request: {
-    taskId: string;
-    traceId: TraceId | string;
-    content: string;
-    attachments?: ZCodePromptAttachment[];
-  }) => {
-    const result = await materializeRemotePromptAttachments(request, {
-      backend: backendConnection.backend,
-    });
-    return { content: result.content, attachments: result.attachments };
-  };
-  const promptAttachmentTransferService = createRemotePromptAttachmentTransferService(
-    backendConnection.backend,
-    {
-      onJanitorError: (error: unknown) =>
-        logger.warn("remote prompt attachment janitor failed", error),
-    },
-  );
-  const services = createRemoteWorkspaceServiceCollection({
-    clientConfigService,
-    connectionServices: backendConnection.services,
-    sourceServices: activeServices ?? undefined,
-    parentPort,
-    createRemotePromptAttachmentSessionService: (service) =>
-      createRemotePromptAttachmentSessionService(service, {
-        materializePromptAttachments,
-      }),
-    createRemotePromptAttachmentTaskService: (service) =>
-      createRemotePromptAttachmentTaskService(service, {
-        materializePromptAttachments,
-      }),
-    createReportingRemoteZCodeTaskService: (service) =>
-      createReportingRemoteZCodeTaskService(service, {
-        taskRealtimePort: activeSessionRealtimePort ?? undefined,
-      }),
-    promptAttachmentTransferService,
-    runtimePreferencesBridge: {
-      onError: (error: unknown) => logger.warn("remote runtime preferences bridge failed", error),
-    },
-  });
-
+  const services =
+    params.target.kind === "server"
+      ? createServerRemoteWorkspaceServiceCollection({
+          clientConfigService,
+          connectionServices: connection.services,
+          sourceServices: activeServices,
+        })
+      : (() => {
+          const backendConnection = connection as RemoteBackendHostConnection;
+          const materializePromptAttachments = async (request: {
+            taskId: string;
+            traceId: TraceId | string;
+            content: string;
+            attachments?: ZCodePromptAttachment[];
+          }) => {
+            const result = await materializeRemotePromptAttachments(request, {
+              backend: backendConnection.backend,
+            });
+            return { content: result.content, attachments: result.attachments };
+          };
+          const promptAttachmentTransferService = createRemotePromptAttachmentTransferService(
+            backendConnection.backend,
+            {
+              onJanitorError: (error: unknown) =>
+                logger.warn("remote prompt attachment janitor failed", error),
+            },
+          );
+          return createRemoteWorkspaceServiceCollection({
+            clientConfigService,
+            connectionServices: backendConnection.services,
+            sourceServices: activeServices ?? undefined,
+            parentPort,
+            createRemotePromptAttachmentSessionService: (service) =>
+              createRemotePromptAttachmentSessionService(service, {
+                materializePromptAttachments,
+              }),
+            createRemotePromptAttachmentTaskService: (service) =>
+              createRemotePromptAttachmentTaskService(service, {
+                materializePromptAttachments,
+              }),
+            createReportingRemoteZCodeTaskService: (service) =>
+              createReportingRemoteZCodeTaskService(service, {
+                taskRealtimePort: activeSessionRealtimePort ?? undefined,
+              }),
+            promptAttachmentTransferService,
+            runtimePreferencesBridge: {
+              onError: (error: unknown) =>
+                logger.warn("remote runtime preferences bridge failed", error),
+            },
+          });
+        })();
+  peerServices = services;
   let disposed = false;
   // 远端 workspace 的 CLI 与 MCP 样本走与本地同一条路径：远端 zcode-server → 本地 Host → main。
   // 订阅寿命等于这份远端 services 的寿命：由 connection handle 持有，registry 释放 entry
@@ -1724,25 +1795,33 @@ async function createWindowRemoteConnectionHandle(params: {
   const resourceTelemetry = registerHostServiceResourceTelemetry({
     services,
     postMessage: (message) => parentPort?.postMessage(message),
-    telemetrySupported: ZCODE_TELEMETRY_ENABLED,
+    telemetrySupported:
+      ZCODE_TELEMETRY_ENABLED &&
+      (params.target.kind !== "server" ||
+        ("serverInfo" in connection &&
+          connection.serverInfo.capabilities.processResourceTelemetry === true)),
     runtimeSurface: "remote",
-    environmentKey: resolveResourceTelemetryEnvironmentKey(params.target),
+    environmentKey: resolveResourceTelemetryEnvironmentKey(
+      params.target,
+      "serverInfo" in connection ? connection.serverInfo.serverId : undefined,
+    ),
     onError: (error) => logger.warn("remote resource telemetry subscription failed", error),
   });
-  const remoteMediaPreviewFactory = !remoteMediaRangePreviewEnabled
-    ? undefined
-    : (scope: Extract<WindowHostAttachmentScope, { kind: "remote" }>) =>
-        createRemoteMediaPreviewProxy({
-          fileService: services.get(IFileService),
-          logger: {
-            debug: (message, metadata) => {
-              if (process.env.NODE_ENV !== "production") logger.info(message, metadata);
+  const remoteMediaPreviewFactory =
+    params.target.kind === "server" || !remoteMediaRangePreviewEnabled
+      ? undefined
+      : (scope: Extract<WindowHostAttachmentScope, { kind: "remote" }>) =>
+          createRemoteMediaPreviewProxy({
+            fileService: services.get(IFileService),
+            logger: {
+              debug: (message, metadata) => {
+                if (process.env.NODE_ENV !== "production") logger.info(message, metadata);
+              },
+              warn: (message, metadata) => logger.warn(message, metadata),
             },
-            warn: (message, metadata) => logger.warn(message, metadata),
-          },
-          scope,
-          requestLimiter: hostRemoteMediaRequestLimiter,
-        });
+            scope,
+            requestLimiter: hostRemoteMediaRequestLimiter,
+          });
   return {
     services,
     capabilities:
@@ -1761,6 +1840,7 @@ async function createWindowRemoteConnectionHandle(params: {
         return;
       }
       disposed = true;
+      topicResourceRelay.dispose();
       closeListeners.clear();
       resourceTelemetry.dispose();
       await disposeServiceResourcesAndWait(services);
@@ -2045,6 +2125,11 @@ function exposeServicesOnMessagePort(
   if (connectionScope) {
     overrides.set(IZCodeAgentService.channelName, connectionScope.service);
   }
+  const botsService = services.getOptional(IBotsService);
+  if (botsService) {
+    // Inbound processing is internal; callbacks are invoked through HTTP with request headers.
+    overrides.set(IBotsService.channelName, createBotsServiceRpcView(botsService));
+  }
   const conversationShareService = services.getOptional(IConversationShareService);
   if (conversationShareService) {
     // Share service 若继续持有 raw Agent，会绕过当前 MessagePort 已握手的 trusted carrier，
@@ -2157,6 +2242,7 @@ async function disposeHostResources(reason: string): Promise<HostShutdownResult>
   disposeHostResourcesInFlight = (async () => {
     logger.info(`disposing host resources, reason=${reason}`);
 
+    pluginSandboxRegistrationBridge.dispose();
     stopHostNetworkTelemetry();
     hostSelfResourceTelemetry.stop();
     disposeLocalResourceTelemetry();
@@ -2228,6 +2314,7 @@ function disposeHostResourcesBestEffort(reason: string): void {
   startDeferredAgentWarmups = undefined;
 
   logger.info(`disposing host resources, reason=${reason}`);
+  pluginSandboxRegistrationBridge.dispose();
   stopHostNetworkTelemetry();
   disposeLocalResourceTelemetry();
   disposeAttachedServicePorts();
@@ -2318,6 +2405,14 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
 
   const msg = result.data;
   const port = e.ports[0];
+  if (
+    [
+      HostMessageTypes.BotRemoteWorkspaceReconnectResult,
+      HostMessageTypes.BotRemoteWorkspaceConnectionStatusResult,
+      HostMessageTypes.BotRemoteWorkspaceRuntimePort,
+    ].includes(msg.type as any)
+  )
+    return;
   if (msg.type === HostMessageTypes.DatabaseStartupControl) {
     if (msg.control.action === "snapshot") databaseStartup?.coordinator.publish();
     else if (msg.control.action === "retry")
@@ -2372,6 +2467,11 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
     } else {
       pending.reject(new Error(msg.error ?? "本地视频预览路径授权失败"));
     }
+    return;
+  }
+
+  if (msg.type === HostMessageTypes.PluginSandboxRegisterResult) {
+    pluginSandboxRegistrationBridge.accept(msg);
     return;
   }
 
@@ -2574,7 +2674,9 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
   }
 
   if (msg.type === HostMessageTypes.ConnectRemoteWorkspace) {
-    const workspacePath = msg.workspacePath ?? "/";
+    const workspacePath =
+      msg.workspacePath ??
+      (msg.target.kind === "server" ? msg.target.workspacePath?.trim() || "/" : "/");
     const workspaceIdentity =
       msg.workspaceIdentity ?? buildRemoteWorkspaceIdentity(workspacePath, msg.target);
     logger.info(
@@ -2857,6 +2959,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
               prepareLegacyAccountConnections,
               hostApiNetworkTransport,
               authorizeLocalMediaPreviewPath,
+              registerPluginSandbox: pluginSandboxRegistrationBridge.register,
               runtimeProcessEnvPatch: msg.runtimeProcessEnvPatch,
               agentRuntimeContext: {
                 getDeviceMid: () => msg.deviceMid,
@@ -2968,12 +3071,15 @@ async function setupRemoteConnection(
   onDidRemoteClose: (exitCode: number) => void,
   deployLockMode: DeployLockMode = "remote",
   signal?: AbortSignal,
-): Promise<HostRemoteConnection> {
+  topicResourceChannel?: ReturnType<typeof createWindowTopicResourceRelay>["channel"],
+): Promise<RemoteBackendHostConnection> {
+  if (target.kind === "server") throw new Error("server target requires dedicated connector");
   // 延迟加载 remote backend，避免 local 模式下因 ssh2 依赖链进入 asar 后崩溃
   const { createRemoteBackend, connectRemote, pickRemoteRuntimeEnv } =
     await import("@zcode/server/remote");
   const backend = await createRemoteBackend(target);
   const connection = await connectRemote(backend, {
+    topicResourceChannel,
     ...remoteAssets,
     remoteAssetNetwork,
     remoteRuntimeNetwork,

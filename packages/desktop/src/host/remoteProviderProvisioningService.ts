@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { ProviderProvisioningResult } from "@zcode/shared";
+import {
+  providerProvisioningErrorCodeSchema,
+  type ProviderProvisioningResult,
+  type ProviderProvisioningErrorCode,
+} from "@zcode/shared";
 import type { IProviderProvisioningTargetService, IServiceAccessor } from "@zcode/services";
 import {
   getProviderProvisioningSource,
@@ -36,9 +40,21 @@ function createRemoteProviderProvisioningExecutor(options: {
     if (!options.source || !options.target) {
       return unsupportedResult(syncId, "Local/Remote Provider Provisioning capability 不可用");
     }
+    let errorCode: ProviderProvisioningErrorCode = "source-read-failed";
     try {
       const envelope = await options.source.read(syncId);
-      return await options.target.apply(envelope);
+      errorCode = "target-call-failed";
+      const { errorCode: remoteErrorCode, ...result } = await options.target.apply(envelope);
+      if (result.status === "applied" || result.status === "already-applied") return result;
+      const parsedCode = providerProvisioningErrorCodeSchema.safeParse(remoteErrorCode);
+      return {
+        ...result,
+        errorCode: parsedCode.success
+          ? parsedCode.data
+          : result.status === "unsupported"
+            ? "capability-unavailable"
+            : "target-apply-failed",
+      };
     } catch (error) {
       return {
         syncId,
@@ -46,6 +62,7 @@ function createRemoteProviderProvisioningExecutor(options: {
         personalProviderCount: 0,
         credentialCount: 0,
         errorMessage: error instanceof Error ? error.message : String(error),
+        errorCode,
         rolledBack: true,
       } satisfies ProviderProvisioningResult;
     }
@@ -76,6 +93,7 @@ function unsupportedResult(syncId: string, errorMessage: string): ProviderProvis
     personalProviderCount: 0,
     credentialCount: 0,
     errorMessage,
+    errorCode: "capability-unavailable",
     rolledBack: false,
   };
 }

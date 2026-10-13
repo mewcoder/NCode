@@ -1,3 +1,4 @@
+import { IBotsService } from "@zcode/services";
 import { ProxyChannel, type IChannelClient } from "@zcode/rpc";
 import {
   IFileService,
@@ -35,6 +36,11 @@ import {
   ICommandsService,
   IHooksService,
   IMemoryService,
+  IGenUiService,
+  IPluginUiBridgeService,
+  IPluginUiSamplingService,
+  IPluginUiAppToolsService,
+  IOutputStyleService,
   ISettingsSyncService,
   IFeedbackService,
   IPromptAttachmentTransferService,
@@ -87,6 +93,12 @@ export class RemoteServiceAccess implements IServiceAccessor {
   readonly commandsService: ICommandsService;
   readonly hooksService: IHooksService;
   readonly memoryService: IMemoryService;
+  readonly botsService: IBotsService;
+  readonly outputStyleService: IOutputStyleService;
+  readonly genUiService: IGenUiService;
+  readonly pluginUiBridgeService: IPluginUiBridgeService;
+  readonly pluginUiSamplingService: IPluginUiSamplingService;
+  readonly pluginUiAppToolsService: IPluginUiAppToolsService;
   readonly settingsSyncService: ISettingsSyncService;
   readonly feedbackService: IFeedbackService;
   readonly promptAttachmentTransferService: IPromptAttachmentTransferService;
@@ -204,6 +216,24 @@ export class RemoteServiceAccess implements IServiceAccessor {
     );
     this.memoryService = ProxyChannel.toService<IMemoryService>(
       channelClient.getChannel(IMemoryService.channelName),
+    );
+    this.botsService = ProxyChannel.toService<IBotsService>(
+      channelClient.getChannel(IBotsService.channelName),
+    );
+    this.outputStyleService = ProxyChannel.toService<IOutputStyleService>(
+      channelClient.getChannel(IOutputStyleService.channelName),
+    );
+    this.genUiService = ProxyChannel.toService<IGenUiService>(
+      channelClient.getChannel(IGenUiService.channelName),
+    );
+    this.pluginUiBridgeService = ProxyChannel.toService<IPluginUiBridgeService>(
+      channelClient.getChannel(IPluginUiBridgeService.channelName),
+    );
+    this.pluginUiSamplingService = ProxyChannel.toService<IPluginUiSamplingService>(
+      channelClient.getChannel(IPluginUiSamplingService.channelName),
+    );
+    this.pluginUiAppToolsService = ProxyChannel.toService<IPluginUiAppToolsService>(
+      channelClient.getChannel(IPluginUiAppToolsService.channelName),
     );
     this.settingsSyncService = ProxyChannel.toService<ISettingsSyncService>(
       channelClient.getChannel(ISettingsSyncService.channelName),

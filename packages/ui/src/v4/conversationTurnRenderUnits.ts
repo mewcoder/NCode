@@ -1,3 +1,4 @@
+import type { BotTopicPreparation } from "@zcode/shared";
 import type {
   AssistantTextRow,
   ConversationRow,
@@ -30,6 +31,7 @@ export type {
 } from "@/v4/conversationTurnWorkSegments.js";
 
 export interface ConversationTurnRenderUnit {
+  topicPreparations?: BotTopicPreparation[];
   key: string;
   turnId: string;
   header?: TurnHeaderRow;
@@ -70,6 +72,7 @@ export interface ConversationTurnRenderUnit {
 }
 
 interface BuildConversationTurnRenderUnitsOptions {
+  pluginUiPinResolver?: import("@/plugin-ui/index.js").PluginUiRowPinResolver;
   nowMs?: number;
   sessionPhase?: SessionPhase;
 }
@@ -321,6 +324,7 @@ function materializeDraftUnit(
     forceOpenHistory,
     timelineOnly,
     nowMs: options.nowMs,
+    ...(options.pluginUiPinResolver ? { pluginUiPinResolver: options.pluginUiPinResolver } : {}),
   });
   const orderedAssistantHistoryRows = workSegments.flatMap(
     (segment) => segment.assistantHistoryRows,

@@ -1,3 +1,8 @@
+import type {
+  ZCodeAgentSaveSavedWorkflowFromRunParams,
+  ZCodeAgentFindSavedWorkflowForRunParams,
+} from "./zcodeAgentWorkflowParams.js";
+import type { ZCodeWorkflowsSaveResult, ZCodeWorkflowsForRunResult } from "@zcode/shared";
 import type { BackgroundBashOutputResult, SessionDebugSnapshot } from "@zcode/shared";
 /* eslint-disable max-lines -- ZCode agent service 接口集中声明 protocol/session/workspace 方法，拆分会增加 service descriptor 迁移成本。 */
 import type { Event, IDisposable } from "@zcode/rpc";
@@ -564,6 +569,12 @@ export interface ZCodeAgentStorageStartupSnapshot {
 }
 
 export interface IZCodeAgentService {
+  saveSavedWorkflowFromRun(
+    params: ZCodeAgentSaveSavedWorkflowFromRunParams,
+  ): Promise<ZCodeWorkflowsSaveResult>;
+  findSavedWorkflowForRun(
+    params: ZCodeAgentFindSavedWorkflowForRunParams,
+  ): Promise<ZCodeWorkflowsForRunResult>;
   /** 控制面不需要账号或模型，且不发送普通协议请求。 */
   prepareStorage(params: ZCodeAgentWorkspaceTarget): Promise<void>;
   getStorageStartupState(
@@ -616,6 +627,63 @@ export interface IZCodeAgentService {
   getSkillReferenceCatalog(
     params: ZCodeAgentSkillReferenceCatalogParams,
   ): Promise<ZCodeSkillsReferenceCatalogResult>;
+  openMcpUiInstance(
+    params: import("../plugin-ui-bridge/contract.js").PluginUiPrepareSandboxParams,
+  ): Promise<import("@zcode/shared/mcp-apps").McpAppInstance>;
+  validateMcpUiInstance(
+    params: import("../plugin-ui-bridge/contract.js").PluginUiPluginScope,
+  ): Promise<void>;
+  recycleMcpUiInstance(
+    params: import("../plugin-ui-bridge/contract.js").PluginUiPluginScope,
+  ): Promise<boolean>;
+  closeMcpUiInstance(
+    params: import("../plugin-ui-bridge/contract.js").PluginUiPluginScope,
+  ): Promise<void>;
+  readMcpResource(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentReadMcpResourceParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpReadResourceResult>;
+  sampleMcpApp(
+    params: import("../plugin-ui-bridge/samplingContract.js").PluginUiSamplingParams,
+  ): Promise<import("@zcode/shared/mcp-apps").McpAppsSamplingResult>;
+  cancelMcpAppSampling(
+    params: import("../plugin-ui-bridge/samplingContract.js").PluginUiCancelSamplingParams,
+  ): Promise<{ cancelled: boolean }>;
+  callMcpToolForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentCallMcpToolForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiCallToolResult>;
+  cancelMcpToolCallForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentCancelMcpToolCallForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiCancelCallResult>;
+  readMcpResourceForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentReadMcpResourceForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiReadResourceResult>;
+  listMcpResourcesForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentListMcpResourcesForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiListResourcesResult>;
+  listMcpResourceTemplatesForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentListMcpResourcesForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiListResourceTemplatesResult>;
+  subscribeMcpResourceForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentMcpResourceSubscriptionForUiParams,
+  ): Promise<void>;
+  unsubscribeMcpResourceForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentMcpResourceSubscriptionForUiParams,
+  ): Promise<void>;
+  registerAppToolsForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentRegisterAppToolsForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiRegisterAppToolsResult>;
+  unregisterAppToolsForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentAppToolInstanceForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiUnregisterAppToolsResult>;
+  claimAppToolCallForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentAppToolCallForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiAppToolAcceptedResult>;
+  resolveAppToolCallForUi(
+    params: import("./zcodeAgentPluginParams.js").ZCodeAgentResolveAppToolCallForUiParams,
+  ): Promise<import("@zcode/shared").ZCodeMcpUiAppToolAcceptedResult>;
+  listPluginUiSurfaces(
+    params: ZCodeAgentWorkspaceTarget,
+  ): Promise<import("@zcode/shared").ZCodePluginsListUiSurfacesResult>;
   // 已保存工作流的 GUI 中枢：workspace 级、无会话，每次调用现扫 `<cwd>/.zcode/workflows/`。
   // 全局档传 `scope: "global"`：带 workspace 就用它当载体，不带则由 services 层自选本机载体运行时。
   listSavedWorkflows(params: ZCodeAgentListSavedWorkflowsParams): Promise<ZCodeWorkflowsListResult>;

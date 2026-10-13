@@ -44,7 +44,10 @@ const ZCODE_AGENT_MODE_OPTIONS = [
     description: "Edit and run commands with fewer confirmations.",
   },
 ] as const satisfies readonly ZCodeTaskModeInfo[];
-const ZCODE_AGENT_MODE_ID_SET = new Set<string>(ZCODE_AGENT_MODE_OPTIONS.map((mode) => mode.id));
+const ZCODE_AGENT_MODE_ID_SET = new Set<string>([
+  ...ZCODE_AGENT_MODE_OPTIONS.map((mode) => mode.id),
+  "guarded",
+]);
 
 export function formatModelPickerValue(ref: ModelSelection | undefined): string {
   return formatSharedModelSelection(ref);

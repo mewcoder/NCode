@@ -1,3 +1,4 @@
+import { writeDynamicWorkflowActivationEntryIfActivated } from "./dynamic-workflow-activation.js";
 import type { WorkspaceId } from "@zcode/contracts";
 import { buildExecutionStateEntry, readRuntimeExecutionState } from "../execution-state.js";
 import {
@@ -612,6 +613,7 @@ export async function ensureSessionPersisted(
     await this.sessionStore.saveSessionEntry?.(
       buildExecutionStateEntry(this.sessionId, readRuntimeExecutionState(this)),
     );
+    await writeDynamicWorkflowActivationEntryIfActivated(this);
     this.sessionPersisted = true;
     this.logger?.debug("Session persisted", {
       ...traceContextToLogContext(traceContext),

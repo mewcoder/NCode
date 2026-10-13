@@ -157,6 +157,7 @@ export interface ZCodeAutomationCreateParams {
   workspaceIdentity?: string;
   /** 当前会话内创建时由 runtime 注入，模型不可控。 */
   targetTaskId?: string;
+  botDeliveryTarget?: import("./bots.js").ZCodeAutomationBotDeliveryTarget;
   recurring: boolean;
   maxRuns?: number;
   endAt?: number;

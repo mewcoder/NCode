@@ -1,4 +1,5 @@
 import { databaseStartupControlSchema, databaseStartupStateSchema } from "./database-startup.js";
+import { mcpAppInstanceSchema } from "./mcp-apps/instance.js";
 import {
   sessionCreateTelemetrySchema,
   automationSessionCreateTelemetrySchema,
@@ -9,6 +10,7 @@ import { zcodeProcessDiagnosticSchema } from "./process-diagnostic.js";
 import { browserCommandSchema } from "./browser-use/commands.js";
 import { browserCommandResultSchema } from "./browser-use/result.js";
 import { REMOTE_ASSET_INSTALL_MODES } from "./remoteAssetInstallMode.js";
+import { parseServerEndpointUrl } from "./remoteTarget.js";
 import { PROCESS_RESOURCE_CLI_LANES } from "./processResourceTelemetry.js";
 import { isKnownRemoteResourcePackageId } from "./remoteResourcePackages.js";
 import { zcodeProviderSchema } from "./providers.js";
@@ -93,10 +95,23 @@ export const dockerConnectOptionsSchema = z.object({
   container: nonEmptyStringSchema,
 });
 
+export const serverConnectOptionsSchema = z.object({
+  kind: z.literal("server"),
+  url: z
+    .string()
+    .url()
+    .refine((value) => parseServerEndpointUrl(value) !== null),
+  name: nonEmptyStringSchema.optional(),
+  token: z.string().optional(),
+  workspacePath: z.string().optional(),
+  serverId: nonEmptyStringSchema.optional(),
+});
+
 export const remoteTargetSchema = z.discriminatedUnion("kind", [
   sshConnectOptionsSchema,
   wslConnectOptionsSchema,
   dockerConnectOptionsSchema,
+  serverConnectOptionsSchema,
 ]);
 
 export const helloMessageSchema = z.object({
@@ -410,6 +425,32 @@ export const hostLocalMediaPreviewPathAuthorizeResultMessageSchema = z
   })
   .strict();
 
+export const hostPluginSandboxRegisterResultMessageSchema = z
+  .object({
+    type: z.literal("plugin-sandbox-register-result"),
+    requestId: nonEmptyStringSchema,
+    ok: z.boolean(),
+    instance: mcpAppInstanceSchema.optional(),
+    sandboxId: nonEmptyStringSchema.optional(),
+    initId: z.number().int().nonnegative().optional(),
+    shellUrl: nonEmptyStringSchema.optional(),
+    partition: nonEmptyStringSchema.optional(),
+    resourceMeta: z
+      .object({
+        prefersBorder: z.boolean().optional(),
+        heightHint: z.number().int().positive().optional(),
+        minFrameHeight: z.number().int().positive().optional(),
+        showInline: z.boolean().optional(),
+        permissions: z
+          .array(z.enum(["camera", "microphone", "geolocation", "clipboardWrite"]))
+          .optional(),
+      })
+      .strict()
+      .optional(),
+    error: z.string().optional(),
+  })
+  .strict();
+
 export const hostCuaPipFocusChangedMessageSchema = z
   .object({
     type: z.literal("cua-pip-focus-changed"),
@@ -444,7 +485,33 @@ export type HostResourceUsageSnapshotRequestMessage = z.infer<
   typeof hostResourceUsageSnapshotRequestMessageSchema
 >;
 
+export const hostBotRemoteWorkspaceReconnectResultMessageSchema = z.object({
+  type: z.literal("bot-remote-workspace-reconnect-result"),
+  requestId: nonEmptyStringSchema,
+  ok: z.boolean(),
+  sessionId: nonEmptyStringSchema.optional(),
+  error: z.string().optional(),
+});
+
+export const hostBotRemoteWorkspaceConnectionStatusResultMessageSchema = z.object({
+  type: z.literal("bot-remote-workspace-connection-status-result"),
+  requestId: nonEmptyStringSchema,
+  ok: z.boolean(),
+  connected: z.boolean().optional(),
+  error: z.string().optional(),
+});
+
+export const hostBotRemoteWorkspaceRuntimePortMessageSchema = z.object({
+  type: z.literal("bot-remote-workspace-runtime-port"),
+  requestId: nonEmptyStringSchema,
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+
 export const hostIncomingMessageSchema = z.discriminatedUnion("type", [
+  hostBotRemoteWorkspaceReconnectResultMessageSchema,
+  hostBotRemoteWorkspaceConnectionStatusResultMessageSchema,
+  hostBotRemoteWorkspaceRuntimePortMessageSchema,
   z
     .object({ type: z.literal("database-startup-control"), control: databaseStartupControlSchema })
     .strict(),
@@ -473,6 +540,7 @@ export const hostIncomingMessageSchema = z.discriminatedUnion("type", [
   hostOffPeakRunMessageSchema,
   hostBrowserExecuteResultMessageSchema,
   hostLocalMediaPreviewPathAuthorizeResultMessageSchema,
+  hostPluginSandboxRegisterResultMessageSchema,
   hostCuaPipFocusChangedMessageSchema,
   hostProviderProvisioningExecuteMessageSchema,
 ]);
@@ -811,6 +879,50 @@ export const hostFeedbackLogArchiveRequestResponseSchema = z.object({
   sourceDir: nonEmptyStringSchema,
 });
 
+export const hostPluginSandboxRegisterRequestResponseSchema = z
+  .object({
+    type: z.literal("plugin-sandbox-register-request"),
+    instance: mcpAppInstanceSchema,
+    requestId: nonEmptyStringSchema,
+    workspacePath: z.string().optional(),
+    workspaceIdentity: z.string().optional(),
+    ownerWebContentsId: z.number().int().nonnegative(),
+    sessionId: nonEmptyStringSchema,
+    contentKind: z.literal("gen-ui").optional(),
+    pluginId: nonEmptyStringSchema.optional(),
+    serverName: nonEmptyStringSchema.optional(),
+    scopeId: nonEmptyStringSchema,
+    html: z.string(),
+    csp: z
+      .object({
+        connectDomains: z.array(z.string()).optional(),
+        resourceDomains: z.array(z.string()).optional(),
+        frameDomains: z.array(z.string()).optional(),
+        baseUriDomains: z.array(z.string()).optional(),
+      })
+      .strict()
+      .optional(),
+    cspRelaxations: z
+      .object({ unsafeEval: z.boolean().optional(), wasmUnsafeEval: z.boolean().optional() })
+      .strict()
+      .optional(),
+    permissions: z
+      .array(z.enum(["camera", "microphone", "geolocation", "clipboardWrite"]))
+      .optional(),
+    prefersBorder: z.boolean().optional(),
+    heightHint: z.number().int().positive().optional(),
+    minFrameHeight: z.number().int().positive().optional(),
+    showInline: z.boolean().optional(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      value.contentKind === "gen-ui"
+        ? !value.pluginId && !value.serverName && !value.permissions?.length
+        : Boolean(value.pluginId && value.serverName),
+    "Invalid sandbox provenance",
+  );
+
 // host → main：定时任务派发结果。ok=已成功创建 session 且 prompt 已发出。
 export const hostCronRunResultResponseSchema = z.object({
   type: z.literal("cron-run-result"),
@@ -932,7 +1044,34 @@ export type HostResourceUsageSnapshotResultResponse = z.infer<
   typeof hostResourceUsageSnapshotResultResponseSchema
 >;
 
+export const hostBotRemoteWorkspaceReconnectRequestResponseSchema = z.object({
+  type: z.literal("bot-remote-workspace-reconnect-request"),
+  requestId: nonEmptyStringSchema,
+  workspacePath: nonEmptyStringSchema,
+  workspaceIdentity: nonEmptyStringSchema,
+  target: remoteTargetSchema,
+});
+
+export const hostBotRemoteWorkspaceConnectionStatusRequestResponseSchema = z.object({
+  type: z.literal("bot-remote-workspace-connection-status-request"),
+  requestId: nonEmptyStringSchema,
+  workspacePath: nonEmptyStringSchema,
+  workspaceIdentity: nonEmptyStringSchema,
+  target: remoteTargetSchema,
+});
+
+export const hostBotRemoteWorkspaceRuntimePortRequestResponseSchema = z.object({
+  type: z.literal("bot-remote-workspace-runtime-port-request"),
+  requestId: nonEmptyStringSchema,
+  workspacePath: nonEmptyStringSchema,
+  workspaceIdentity: nonEmptyStringSchema,
+  target: remoteTargetSchema,
+});
+
 export const hostResponseMessageSchema = z.discriminatedUnion("type", [
+  hostBotRemoteWorkspaceReconnectRequestResponseSchema,
+  hostBotRemoteWorkspaceConnectionStatusRequestResponseSchema,
+  hostBotRemoteWorkspaceRuntimePortRequestResponseSchema,
   z
     .object({ type: z.literal("database-startup-state"), state: databaseStartupStateSchema })
     .strict(),
@@ -972,6 +1111,7 @@ export const hostResponseMessageSchema = z.discriminatedUnion("type", [
   hostFeedbackLogArchiveRequestResponseSchema,
   hostBrowserExecuteRequestResponseSchema,
   hostLocalMediaPreviewPathAuthorizeRequestResponseSchema,
+  hostPluginSandboxRegisterRequestResponseSchema,
   hostNetworkTelemetryBatchResponseSchema,
   hostProviderProvisioningSourceChangedResponseSchema,
   hostProviderProvisioningExecutionResultResponseSchema,

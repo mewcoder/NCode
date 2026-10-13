@@ -130,6 +130,7 @@ export function createProtocolAutomationPort(
             ...(runtimeModelSelection ? { modelSelection: runtimeModelSelection } : {}),
             ...(runtimeMode ? { mode: runtimeMode === "auto" ? "build" : runtimeMode } : {}),
             ...(createContext?.sessionId ? { targetTaskId: createContext.sessionId } : {}),
+            ...(activeSession?.activeBotDeliveryTarget ? { botDeliveryTarget: activeSession.activeBotDeliveryTarget } : {}),
             ...(hasIntervalCarrier
               ? {
                   // 新建 carrier 不透传有限上限；create 协议没有 maxRuns=null 清除语义。
@@ -227,10 +228,16 @@ function normalizeCronAutomationMode(
       return undefined;
     case "plan":
     case "edit":
+    case "guarded":
     case "yolo":
     case "build":
       return mode;
+    case "dontAsk":
+    case "bypassPermissions":
+      return "yolo";
+    case "default":
     case "auto":
+    case "acceptEdits":
     case "autoEdit":
       return "build";
     default: {

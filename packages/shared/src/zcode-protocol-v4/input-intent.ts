@@ -1,3 +1,5 @@
+import { botGroupInputSourceSchema } from "../bots.js";
+import { conversationQuotesSchema } from "../conversationSelection.js";
 // CLI admission 后的自包含输入事实。
 // queue / guide / runtime / transcript 只能携带同一个 intent，不允许各层重建字段。
 import { z } from "zod";
@@ -6,6 +8,25 @@ import { attachmentRefSchema } from "./attachment-ref.js";
 import { modelSelectionSchema } from "../model-selection.js";
 import { submissionModeSchema } from "./submission.js";
 import { sharedContextRefSchema } from "./shared-context-ref.js";
+
+const pluginUiInputSourceSchema = z
+  .object({
+    kind: z.literal("pluginUi"),
+    pluginId: z.string().min(1),
+    toolCallId: z.string().min(1),
+  })
+  .strict();
+export const conversationInputSourceSchema = z.discriminatedUnion("kind", [
+  pluginUiInputSourceSchema,
+  z
+    .object({
+      kind: z.literal("genUi"),
+      path: z.string().min(1).max(4096),
+      title: z.string().max(250).optional(),
+    })
+    .strict(),
+]);
+export type ConversationInputSource = z.infer<typeof conversationInputSourceSchema>;
 
 export const conversationInputDeliverySchema = z
   .object({
@@ -38,6 +59,9 @@ export const conversationInputDispatchSchema = z
 
 export const conversationInputIntentSchema = z
   .object({
+    source: conversationInputSourceSchema.optional(),
+    botGroupSource: botGroupInputSourceSchema.optional(),
+    conversationQuotes: conversationQuotesSchema.optional(),
     sourceCommandId: z.string().min(1),
     queueItemId: z.string().min(1),
     clientId: z.string().min(1),

@@ -74,6 +74,7 @@ interface UploadQueueEntry {
 }
 
 interface ComposerAttachmentsApi {
+  addAttachmentFiles: (files: File[]) => string[];
   attachments: ComposerAttachmentUploadItem[];
   attachmentError: string | null;
   hasAttachments: boolean;
@@ -627,13 +628,13 @@ export function useComposerAttachments(
 
   const addPreparedAttachments = useCallback(
     (selectedAttachments: ChatComposerAttachment[]) => {
-      if (selectedAttachments.length === 0) return;
+      if (selectedAttachments.length === 0) return [];
       const current = readComposerAttachmentScope(scopeKey);
       const remainingSlots = MAX_CHAT_ATTACHMENTS - current.length;
       if (remainingSlots <= 0) {
         selectedAttachments.forEach(revokeChatComposerAttachment);
         showAttachmentLimitWarning();
-        return;
+        return [];
       }
       const accepted = selectedAttachments.slice(0, remainingSlots);
       selectedAttachments.slice(remainingSlots).forEach(revokeChatComposerAttachment);
@@ -673,13 +674,14 @@ export function useComposerAttachments(
       for (const item of items) {
         if (item.uploadStatus === "queued") enqueueUpload(scopeKey, item.id);
       }
+      return items.map((item) => item.id);
     },
     [commitScope, enqueueUpload, scopeKey, showAttachmentLimitWarning],
   );
 
   const addAttachmentFiles = useCallback(
     (selectedFiles: File[]) => {
-      addPreparedAttachments(
+      return addPreparedAttachments(
         selectedFiles.map((file) => {
           let localPath: string | undefined;
           try {
@@ -1063,6 +1065,7 @@ export function useComposerAttachments(
 
   return useMemo(
     () => ({
+      addAttachmentFiles,
       attachments,
       attachmentError,
       composerDragKind,
@@ -1087,6 +1090,7 @@ export function useComposerAttachments(
     }),
     [
       attachmentError,
+      addAttachmentFiles,
       adoptSentAttachments,
       attachments,
       composerDragKind,

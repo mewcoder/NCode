@@ -12,9 +12,11 @@ import {
   AUTOMATION_CREATE_LIMIT,
   AUTOMATION_CREATE_LIMIT_ERROR_CODE,
   resolveWorkspaceKey,
+  zcodeAutomationBotDeliveryTargetSchema,
   modelSelectionSchema,
   zcodeTaskModeSchema,
   type ZCodeAutomation,
+  type ZCodeAutomationBotDeliveryTarget,
   type ZCodeAutomationCreateParams,
   type ZCodeAutomationDispatchStatus,
   type ZCodeAutomationLifecycleStatus,
@@ -65,6 +67,7 @@ interface AutomationRow {
   workspace_path: string;
   workspace_identity: string | null;
   target_task_id: string | null;
+  bot_delivery_target?: string | null;
   location_kind: string;
   recurring: number;
   max_runs: number | null;
@@ -333,7 +336,7 @@ export class AutomationRepo {
       db.prepare(
         `INSERT INTO automations (
           automation_id, title, cron_expr, prompt, model, provider, model_selection,
-          workspace_key, workspace_path, workspace_identity, target_task_id, location_kind,
+          workspace_key, workspace_path, workspace_identity, target_task_id, bot_delivery_target, location_kind,
           recurring, max_runs, end_at, schedule_rule, schedule_edited_by_user,
           run_count, enabled, lifecycle_status,
           next_run_at, last_run_at, running, claimed_at,
@@ -342,7 +345,7 @@ export class AutomationRepo {
           created_at, updated_at
         ) VALUES (
           @automation_id, @title, @cron_expr, @prompt, @model, @provider, @model_selection,
-          @workspace_key, @workspace_path, @workspace_identity, @target_task_id, 'local',
+          @workspace_key, @workspace_path, @workspace_identity, @target_task_id, @bot_delivery_target, 'local',
           @recurring, @max_runs, @end_at, @schedule_rule, 0,
           0, @enabled, @lifecycle_status,
           @next_run_at, NULL, 0, NULL,
@@ -365,6 +368,9 @@ export class AutomationRepo {
         workspace_path: params.workspacePath,
         workspace_identity: params.workspaceIdentity ?? null,
         target_task_id: params.targetTaskId ?? null,
+        bot_delivery_target: params.botDeliveryTarget
+          ? JSON.stringify(params.botDeliveryTarget)
+          : null,
         recurring: params.recurring ? 1 : 0,
         max_runs: params.maxRuns ?? null,
         end_at: params.endAt ?? null,
@@ -418,6 +424,22 @@ export class AutomationRepo {
     const followsWorkspace = row.model_selection === "null";
     if (!followsWorkspace) throw new Error("Automation 模型选择不可用，请重新选择模型与思考档位");
     return undefined;
+  }
+
+  async getBotDeliveryTarget(
+    automationId: string,
+    workspaceKey?: string,
+  ): Promise<ZCodeAutomationBotDeliveryTarget | undefined> {
+    await this.ensureReady();
+    const raw = this.getRow(automationId, workspaceKey)?.bot_delivery_target;
+    if (!raw) return undefined;
+    try {
+      const parsed = zcodeAutomationBotDeliveryTargetSchema.safeParse(JSON.parse(raw));
+      return parsed.success ? parsed.data : undefined;
+    } catch {
+      // Bug 原因：历史/外部写入的脏 JSON 不能拖垮任务列表或 scheduler；无效来源按未配置处理。
+      return undefined;
+    }
   }
 
   async hasTaskBinding(scope: {

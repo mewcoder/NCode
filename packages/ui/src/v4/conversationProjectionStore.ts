@@ -11,6 +11,7 @@ import {
   parseConversationTopic,
   PROTOCOL_V4_LIMITS,
   SUBSCRIPTION_CONTENT_REJECTED,
+  type ConversationDelta,
   type ConversationRow,
   type ConversationSnapshot,
   type ConversationOpenTiming,
@@ -283,6 +284,7 @@ export class ConversationProjectionStore {
   private readonly modelTransitionListeners = new Set<
     (transition: SessionModelTransition) => void
   >();
+  private readonly liveDeltaListeners = new Set<(deltas: readonly ConversationDelta[]) => void>();
   private observedModelTransitionEventId: string | null = null;
   // 订阅代际：并发 connect 只认最新一代，过期结果立即退订防服务端悬挂。
   private generation = 0;
@@ -382,6 +384,11 @@ export class ConversationProjectionStore {
   onOnlineModelTransition(listener: (transition: SessionModelTransition) => void): () => void {
     this.modelTransitionListeners.add(listener);
     return () => this.modelTransitionListeners.delete(listener);
+  }
+
+  onLiveDeltas(listener: (deltas: readonly ConversationDelta[]) => void): () => void {
+    this.liveDeltaListeners.add(listener);
+    return () => this.liveDeltaListeners.delete(listener);
   }
 
   private setState(patch: Partial<ConversationStoreState>): void {
@@ -755,6 +762,7 @@ export class ConversationProjectionStore {
     this.reconcileAcceptedInputProjection(next);
     this.observeModelTransition(next, context.online);
     if (context.recovery) this.markRecoveryFrameSeen();
+    for (const listener of this.liveDeltaListeners) listener(frame.payload.deltas);
   }
 
   private observeModelTransition(snapshot: ConversationSnapshot, online: boolean): void {
@@ -1350,6 +1358,7 @@ export class ConversationProjectionStore {
     for (const timer of this.acceptedInputProjectionTimers.values()) clearTimeout(timer);
     this.acceptedInputProjectionTimers.clear();
     this.modelTransitionListeners.clear();
+    this.liveDeltaListeners.clear();
     this.discardRecovery();
     this.awaitingInitial = null;
     this.subscriptionHasAppliedBase = false;

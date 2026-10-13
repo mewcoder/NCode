@@ -1,3 +1,4 @@
+import type { DynamicWorkflowActivationSource } from "./methods/dynamic-workflow-activation.js";
 import { PermissionService, ToolScheduler } from "./deps.js";
 import type {
   Logger,
@@ -86,6 +87,8 @@ export interface AgentRuntimeInternal
   messageHistory: MessageHistory;
   readFileState: ReadFileStateMap;
   cachedTools: ModelToolContract[] | null;
+  dynamicWorkflowToolsActivated: boolean;
+  dynamicWorkflowActivationSource?: DynamicWorkflowActivationSource;
   contextBuilder: ContextBuilder | null;
   contextInitialized: boolean;
   contextSourceSnapshot?: ContextSourceSnapshot;
@@ -100,6 +103,9 @@ export interface AgentRuntimeInternal
   residencyBlockingWorkCount: number;
   mcpInitialized: boolean;
   mcpToolsRegistered: boolean;
+  registeredMcpToolNames?: string[];
+  mcpToolsSignature?: string;
+  mcpToolListRevision?: number;
   subagentPort?: SubagentPort;
   dynamicWorkflowRunPort?: DynamicWorkflowRunPort;
   modelCatalogPort?: ModelCatalogPort;

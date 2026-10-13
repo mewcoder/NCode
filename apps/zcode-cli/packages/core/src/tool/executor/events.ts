@@ -142,7 +142,11 @@ export async function emitPermissionRequested(
   reason: string | undefined,
   suggestedPermissionUpdates: PermissionUpdate[],
   traceContext: TraceContext,
-  approval?: { display?: ToolResultDisplayPayload; optionsPolicy?: PermissionOptionsPolicy },
+  approval?: {
+    display?: ToolResultDisplayPayload;
+    optionsPolicy?: PermissionOptionsPolicy;
+    approvalMode?: "user-once";
+  },
 ): Promise<void> {
   await deps.emitEvent({
     id: crypto.randomUUID() as any,
@@ -160,9 +164,12 @@ export async function emitPermissionRequested(
       reason: reason ?? `Tool ${toolCall.name} requires approval`,
       input,
       suggestedPermissionUpdates,
+      ...(approval?.approvalMode ? { approvalMode: approval.approvalMode } : {}),
       ...(approval?.display ? { display: approval.display } : {}),
       ...(approval?.optionsPolicy ? { optionsPolicy: approval.optionsPolicy } : {}),
-      ...(deps.sessionModePort?.supportsPermissionFullAccess?.()
+      // user-once 是「只批准这一次」，不能顺带声明支持永久全量放行。
+      ...(approval?.approvalMode !== "user-once" &&
+      deps.sessionModePort?.supportsPermissionFullAccess?.()
         ? { fullAccessSupported: true }
         : {}),
     },

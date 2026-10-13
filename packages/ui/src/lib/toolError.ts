@@ -89,6 +89,12 @@ export function getToolCallErrorText(
     return taggedRawOutputError;
   }
 
+  if (rawStatus === "failed") {
+    // Write 失败可能只留下 rawOutput 文本，顶层卡片 status 仍是 completed。
+    const rawOutputText = readNonEmptyString(toolCall.raw.rawOutput);
+    if (rawOutputText) return normalizeWrappedErrorText(rawOutputText);
+  }
+
   if (toolCall.status === "failed" || rawStatus === "failed") {
     const contentBlocks = Array.isArray(toolCall.raw.content) ? toolCall.raw.content : [];
     for (const block of contentBlocks) {

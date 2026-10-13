@@ -1,3 +1,4 @@
+import { withWorkflowSettingsAdjustment } from "./workflow-settings-answer.js";
 import { raceClientRequestWithV4Interaction } from "./interaction-response-race.js";
 import {
   ASK_USER_QUESTION_TOOL_NAME,
@@ -92,14 +93,19 @@ async function requestPermission(
     // v4 answer → ZCodePermissionResponse：optionId 语义来自 v4 reducer 合成的
     // allowOnce/allowAlways/deny（见 product-projection onPermissionRequested）。
     (answer) => {
-      const response = v4AnswerToPermissionResponse(answer, permissionOptions, request.toolName);
+      const response = withWorkflowSettingsAdjustment(
+        v4AnswerToPermissionResponse(answer, permissionOptions, request.toolName),
+        answer,
+        request.toolName,
+      );
       return response.decision === "deny" && answer.freeText?.trim()
         ? { ...response, preserveReasonFormatting: true }
         : response;
     },
     {
       ...createInteractionRegistrationOptions(request, "other"),
-      ...(!request.origin &&
+      ...(request.approvalMode !== "user-once" &&
+      !request.origin &&
       !request.optionsPolicy &&
       options?.claimResponse &&
       context.deps?.sessionStore?.commitPermissionFullAccess

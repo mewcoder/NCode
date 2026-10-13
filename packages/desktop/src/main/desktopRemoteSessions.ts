@@ -1,3 +1,4 @@
+import { resolveWorkspaceKey } from "@zcode/shared";
 /* eslint-disable max-lines -- Main 的完整薄转发契约集中维护请求与端口关联。 */
 import { randomUUID } from "node:crypto";
 import { BrowserWindow, MessageChannelMain } from "electron";
@@ -104,6 +105,34 @@ function closeMessagePort(port: MessagePortMain | undefined): void {
   }
 }
 
+function isSameRemoteTarget(left: RemoteTarget, right: RemoteTarget): boolean {
+  if (left.kind !== right.kind) return false;
+  switch (left.kind) {
+    case "ssh":
+      return (
+        right.kind === "ssh" &&
+        left.host.trim().toLowerCase() === right.host.trim().toLowerCase() &&
+        (left.port ?? 22) === (right.port ?? 22) &&
+        left.username.trim() === right.username.trim() &&
+        (left.privateKeyPath ?? "") === (right.privateKeyPath ?? "")
+      );
+    case "wsl":
+      return (
+        right.kind === "wsl" &&
+        (left.distro?.trim() || "default") === (right.distro?.trim() || "default") &&
+        (left.user?.trim() ?? "") === (right.user?.trim() ?? "")
+      );
+    case "docker":
+      return right.kind === "docker" && left.container === right.container;
+    case "server":
+      return (
+        right.kind === "server" &&
+        normalizeServerRemoteUrlForComparison(left.url) ===
+          normalizeServerRemoteUrlForComparison(right.url)
+      );
+  }
+}
+
 export function createRemoteWorkspaceSessionManager(options: {
   logger: {
     info: (...args: unknown[]) => void;
@@ -133,6 +162,7 @@ export function createRemoteWorkspaceSessionManager(options: {
 }) {
   const pendingByRequestKey = new Map<string, PendingConnect>();
   const routesBySessionId = new Map<string, RemoteAttachmentRoute>();
+  const reconnectsByWorkspaceKey = new Map<string, Promise<string>>();
   const listenedHosts = new WeakSet<ElectronUtilityProcess>();
   const pendingProviderProvisioningExecutions = new Map<
     string,
@@ -891,8 +921,88 @@ export function createRemoteWorkspaceSessionManager(options: {
     return { process, port: port1, remoteKind: descriptor.target.kind };
   }
 
+  function hasRemoteWorkspaceSessionForTarget(
+    win: BrowserWindow,
+    target: RemoteTarget,
+    context?: RemoteWorkspaceSessionContext,
+  ): boolean {
+    const workspaceKey = context ? resolveWorkspaceKey(context) : undefined;
+    return Array.from(routesBySessionId.values()).some(
+      (route) =>
+        route.webContentsId === win.webContents.id &&
+        route.attachmentState === "attachable" &&
+        isSameRemoteTarget(route.descriptor.target, target) &&
+        (!workspaceKey ||
+          resolveWorkspaceKey({
+            workspacePath: route.descriptor.workspacePath ?? "",
+            workspaceIdentity: route.descriptor.workspaceIdentity,
+          }) === workspaceKey),
+    );
+  }
+
+  function reconnectBotRemoteWorkspaceSession(
+    win: BrowserWindow,
+    params: {
+      target: RemoteTarget;
+      workspacePath: string;
+      workspaceIdentity: string;
+      requestId?: string;
+    },
+  ): Promise<string> {
+    const existing = Array.from(routesBySessionId.entries()).find(([, route]) => {
+      return (
+        route.webContentsId === win.webContents.id &&
+        route.attachmentState === "attachable" &&
+        route.descriptor.workspacePath === params.workspacePath &&
+        route.descriptor.workspaceIdentity === params.workspaceIdentity &&
+        isSameRemoteTarget(route.descriptor.target, params.target)
+      );
+    });
+    if (existing) return Promise.resolve(existing[0]);
+    const key = `${win.webContents.id}\0${params.workspaceIdentity}`;
+    const pending = reconnectsByWorkspaceKey.get(key);
+    if (pending) return pending;
+    const reconnect = createRemoteWorkspaceSession(win, params.target, params.requestId, params);
+    reconnectsByWorkspaceKey.set(key, reconnect);
+    const cleanup = () => {
+      if (reconnectsByWorkspaceKey.get(key) === reconnect) reconnectsByWorkspaceKey.delete(key);
+    };
+    void reconnect.then(cleanup, cleanup);
+    return reconnect;
+  }
+
+  async function createBotRemoteWorkspaceRuntimePort(
+    win: BrowserWindow,
+    params: { target: RemoteTarget; workspacePath: string; workspaceIdentity: string },
+    _requestId?: string,
+  ): Promise<MessagePortMain> {
+    const routeEntry = Array.from(routesBySessionId.entries()).find(([, route]) => {
+      return (
+        route.webContentsId === win.webContents.id &&
+        route.attachmentState === "attachable" &&
+        route.descriptor.workspacePath === params.workspacePath &&
+        route.descriptor.workspaceIdentity === params.workspaceIdentity &&
+        isSameRemoteTarget(route.descriptor.target, params.target)
+      );
+    });
+    if (!routeEntry) {
+      throw new Error("未找到可供 Bot attachment 的远程 logical session");
+    }
+    return attachRemoteWorkspaceSessionHost({
+      windowId: win.id,
+      remoteSessionId: routeEntry[0],
+      workspacePath: params.workspacePath,
+      workspaceIdentity: params.workspaceIdentity,
+      workspaceKey: params.workspaceIdentity,
+      clientMode: "web-remote-replayable",
+    }).port;
+  }
+
   return {
     createRemoteWorkspaceSession,
+    reconnectBotRemoteWorkspaceSession,
+    createBotRemoteWorkspaceRuntimePort,
+    hasRemoteWorkspaceSessionForTarget,
     attachRemoteWorkspaceSessionHost,
     bindRemoteWorkspaceSessionContext,
     confirmRendererAttachmentReady,

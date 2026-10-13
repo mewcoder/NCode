@@ -1,3 +1,5 @@
+import { parsePluginUiSurfaces } from "./ui-surfaces.js";
+import type { PluginUiSurfaceDefinition } from "@zcode/contracts";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type {
@@ -104,12 +106,7 @@ const DEFAULT_VERSION = "0.0.0";
 const FIRST_PLUGIN_PRIORITY = 1_000;
 const PRIORITY_STEP = 10;
 const PLUGIN_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,127}$/;
-const UNSUPPORTED_COMPONENT_KEYS = [
-  "channels",
-  "lspServers",
-  "outputStyles",
-  "settings",
-] as const;
+const UNSUPPORTED_COMPONENT_KEYS = ["channels", "lspServers", "outputStyles", "settings"] as const;
 const SUPPORTED_HOOK_EVENTS = new Set<string>(Object.values(HookEventNameValue));
 
 interface PluginHookInspection {
@@ -218,6 +215,11 @@ export class NodePluginAdapter implements PluginPort {
           enabled,
           Object.keys(mcpServerDefinitions),
           request.config.options[loaded.id] ?? {},
+          parsePluginUiSurfaces({
+            loaded,
+            declaredMcpServerNames: Object.keys(mcpServerDefinitions),
+            diagnostics,
+          }),
         ),
       );
     }
@@ -295,6 +297,7 @@ function createPluginMetadata(
   enabled: boolean,
   declaredMcpServerNames: string[],
   configuredOptions: Record<string, string | number | boolean>,
+  uiSurfaces: PluginUiSurfaceDefinition[],
 ): PluginMetadata {
   // manifest 的 author/homepage 作为详情页信息区的回退来源（商店 listing 优先）。
   const author = normalizeAuthorValue(loaded.manifest.author);
@@ -328,6 +331,7 @@ function createPluginMetadata(
     skillCount: component.skillCount,
     skillRootCount: component.skillRoots.length,
     source: loaded.source,
+    ...(uiSurfaces.length > 0 ? { uiSurfaces } : {}),
     userConfig: loaded.manifest.userConfig,
     version: loaded.manifest.version,
   };

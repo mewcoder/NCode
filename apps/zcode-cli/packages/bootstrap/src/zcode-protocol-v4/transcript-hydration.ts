@@ -409,6 +409,9 @@ function inputIntentOfMessage(message: MessageWithParts): TurnInputIntentMetadat
         : {}),
       ...(value.attachments.length > 0 ? { attachmentRefs: value.attachments } : {}),
       ...(value.provenance ? { provenance: value.provenance } : {}),
+      ...(value.botGroupSource ? { botGroupSource: value.botGroupSource } : {}),
+      ...(value.conversationQuotes ? { conversationQuotes: value.conversationQuotes } : {}),
+      ...(value.source ? { source: value.source } : {}),
     };
   }
 

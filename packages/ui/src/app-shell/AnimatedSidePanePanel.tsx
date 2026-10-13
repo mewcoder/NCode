@@ -45,6 +45,7 @@ import { SubagentDirectorySidePane } from "@/app-shell/SubagentDirectorySidePane
 import { SelectionSideChatPane } from "@/app-shell/SelectionSideChatPane.js";
 import { BackgroundBashOutputSidePane } from "@/app-shell/BackgroundBashOutputSidePane.js";
 import { PlanDetailSidePane } from "@/app-shell/PlanDetailSidePane.js";
+import { PluginUiLauncherItems, PluginUiSidePane, useOpenPluginUi } from "@/plugin-ui/index.js";
 import { WorkflowRunSidePane } from "@/app-shell/WorkflowRunSidePane.js";
 import { WorkflowRunDirectorySidePane } from "@/app-shell/WorkflowRunDirectorySidePane.js";
 import { WorkflowActorSessionSidePane } from "@/app-shell/WorkflowActorSessionSidePane.js";
@@ -403,6 +404,7 @@ export function AnimatedSidePanePanel({
 }) {
   const { intl } = useZCodeIntl();
   const isOfficeMode = useIsOfficeMode();
+  const onOpenPluginUi = useOpenPluginUi();
   const developerToolsEnabled = useDeveloperToolsVisibility();
   const isDragCollapsible = !isVisible;
   const isResizeDisabled = !isVisible;
@@ -757,6 +759,16 @@ export function AnimatedSidePanePanel({
             <span>{intl.formatMessage({ id: "developerTools.title" })}</span>
           </DropdownMenuItem>
         ) : null}
+        {onOpenPluginUi ? (
+          <PluginUiLauncherItems
+            variant="menu"
+            workspacePath={workspaceAbsPath}
+            workspaceIdentity={workspaceIdentity}
+            remoteSessionId={workspaceRemoteSessionId}
+            sessionId={activeTaskId}
+            onOpenPluginUi={onOpenPluginUi}
+          />
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -852,6 +864,16 @@ export function AnimatedSidePanePanel({
                 </button>
               );
             })}
+            {onOpenPluginUi ? (
+              <PluginUiLauncherItems
+                workspacePath={workspaceAbsPath}
+                workspaceIdentity={workspaceIdentity}
+                remoteSessionId={workspaceRemoteSessionId}
+                sessionId={activeTaskId}
+                onOpenPluginUi={onOpenPluginUi}
+                itemClassName="side-pane-open-tab-button flex h-12 min-w-0 items-center gap-3 rounded-xl bg-surface px-3 text-ui-base font-medium text-foreground transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            ) : null}
           </div>
         </div>
       </div>
@@ -899,6 +921,7 @@ export function AnimatedSidePanePanel({
         workflowActorTitle: intl.formatMessage({ id: "sidePane.workflowActor" }),
         workflowScriptTitle: intl.formatMessage({ id: "sidePane.workflowScript" }),
         workflowArtifactTitle: intl.formatMessage({ id: "sidePane.workflowArtifact" }),
+        pluginUiTitle: intl.formatMessage({ id: "sidePane.pluginUi" }),
       }}
       onActivateTab={onActivateTab}
       onCloseTab={onCloseTab}
@@ -1127,6 +1150,12 @@ export function AnimatedSidePanePanel({
                             onOpenCodeViewer={onOpenCodeViewer}
                             onOpenFileLink={onOpenFileLink}
                             onUnavailable={onCloseTab}
+                          />
+                        ) : tab.type === "plugin-ui" ? (
+                          <PluginUiSidePane
+                            tab={tab}
+                            onOpenBrowserUrl={onOpenBrowserUrl}
+                            onCloseTab={onCloseTab}
                           />
                         ) : tab.type === "plan-detail" ? (
                           <PlanDetailSidePane

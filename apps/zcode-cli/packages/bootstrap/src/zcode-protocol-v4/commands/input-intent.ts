@@ -5,6 +5,9 @@ import type { SubmissionMode } from "@zcode/shared/zcode-protocol-v4";
 import { commandAdmissionOf } from "./executor.js";
 
 interface CanonicalCommandIntent {
+  botGroupSource?: TurnInputIntentMetadata["botGroupSource"];
+  conversationQuotes?: TurnInputIntentMetadata["conversationQuotes"];
+  source?: TurnInputIntentMetadata["source"];
   kind: "sendText" | "sendGoalCommand";
   text: string;
   modelSelection?: ModelSelection;
@@ -24,6 +27,9 @@ interface CanonicalCommandIntent {
 export function inputIntentMetadata(
   envelope: CommandEnvelope,
   options: {
+    botGroupSource?: TurnInputIntentMetadata["botGroupSource"];
+    conversationQuotes?: TurnInputIntentMetadata["conversationQuotes"];
+    source?: TurnInputIntentMetadata["source"];
     text: string;
     requestedDelivery: TurnInputIntentMetadata["requestedDelivery"];
     admittedDelivery?: TurnInputIntentMetadata["admittedDelivery"];
@@ -37,6 +43,9 @@ export function inputIntentMetadata(
 ): TurnInputIntentMetadata {
   const admission = commandAdmissionOf(envelope);
   return {
+    ...(options.botGroupSource ? { botGroupSource: options.botGroupSource } : {}),
+    ...(options.conversationQuotes ? { conversationQuotes: options.conversationQuotes } : {}),
+    ...(options.source ? { source: options.source } : {}),
     sourceCommandId: envelope.commandId,
     queueItemId: admission.queueItemId,
     clientId: envelope.clientId || "cli",
@@ -78,6 +87,9 @@ export function inputIntentMetadataFromCanonical(
   const originalSourceCommandId =
     canonical.provenance?.sourceCommandId ?? canonical.sourceCommandId;
   return {
+    ...(canonical.botGroupSource ? { botGroupSource: canonical.botGroupSource } : {}),
+    ...(canonical.conversationQuotes ? { conversationQuotes: canonical.conversationQuotes } : {}),
+    ...(canonical.source ? { source: canonical.source } : {}),
     sourceCommandId: envelope.commandId,
     queueItemId: admission.queueItemId,
     clientId: envelope.clientId || canonical.clientId || "cli",
@@ -111,6 +123,9 @@ export function inputIntentMetadataFromQueueItem(
   canonicalText: string,
 ): TurnInputIntentMetadata {
   return {
+    ...(item.botGroupSource ? { botGroupSource: item.botGroupSource } : {}),
+    ...(item.conversationQuotes ? { conversationQuotes: item.conversationQuotes } : {}),
+    ...(item.source ? { source: item.source } : {}),
     sourceCommandId: item.sourceCommandId,
     queueItemId: item.queueItemId,
     clientId: item.clientId,

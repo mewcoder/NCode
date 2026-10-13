@@ -1,3 +1,8 @@
+import { createRootTraceContext } from "@zcode/contracts";
+import { runPreToolUseHooks } from "./hook-flow.js";
+import { resolveToolPermission } from "./permission-flow.js";
+import { validateInput } from "./validation.js";
+import type { ToolEntry } from "../types.js";
 import type { TraceContext, TurnId } from "@zcode/contracts";
 import { createDenyPermissionBroker } from "../../permission/broker.js";
 import type { ToolSchedule } from "../scheduler.js";
@@ -51,6 +56,7 @@ export class ToolExecutorImpl implements ToolExecutor {
       artifactStore: options.artifactStore,
       automationPort: options.automationPort,
       offPeakPort: options.offPeakPort,
+      topicResourcePort: options.topicResourcePort,
       sessionStore: options.sessionStore,
       sessionModePort: options.sessionModePort,
       workflowPort: options.workflowPort,
@@ -84,6 +90,49 @@ export class ToolExecutorImpl implements ToolExecutor {
       hookRunner: options.hookRunner,
     };
     this.backgroundTasks = new BackgroundTaskTracker(this.deps);
+  }
+
+  async authorizeAppTool(
+    toolCall: ExecutableToolCall,
+    entry: ToolEntry,
+    options?: ToolExecuteOptions,
+  ): Promise<unknown> {
+    options?.signal?.throwIfAborted();
+    const trace =
+      options?.traceContext ??
+      this.deps.traceContext ??
+      createRootTraceContext({ sessionId: this.deps.sessionId });
+    const mode = this.deps.getMode();
+    const invalid = validateInput(toolCall.input, entry);
+    if (invalid) throw new Error(invalid.message);
+    const hooks = await runPreToolUseHooks(
+      this.deps,
+      toolCall,
+      toolCall.input,
+      entry,
+      mode,
+      trace,
+      options?.signal,
+    );
+    if (hooks.preventContinuation || hooks.permissionBehavior === "deny")
+      throw new Error(hooks.stopReason ?? "Tool denied by host hook");
+    const input = hooks.updatedInput ?? toolCall.input;
+    const updatedInvalid = validateInput(input, entry);
+    if (updatedInvalid) throw new Error(updatedInvalid.message);
+    const decision = await resolveToolPermission(
+      this.deps,
+      toolCall,
+      entry,
+      input,
+      hooks,
+      mode,
+      trace,
+      options?.signal,
+    );
+    options?.signal?.throwIfAborted();
+    if (!decision.allowed)
+      throw new Error(decision.result.error?.message ?? "Tool denied by host policy");
+    return decision.executionInput;
   }
 
   execute(

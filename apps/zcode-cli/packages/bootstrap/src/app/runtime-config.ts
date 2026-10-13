@@ -1,3 +1,4 @@
+import { GEN_UI_OUTPUT_ROOT_ENV } from "@zcode/shared/node";
 import type { ConfigResult } from "@zcode/adapters/config";
 import { resolveInitialModelSelection, type ModelSelectionOptions } from "@zcode/provider";
 import { resolveBashTimeoutPolicy, type AgentProfile, type AgentRuntimeConfig } from "@zcode/core";
@@ -116,6 +117,7 @@ export function resolveAppRuntimeConfig(input: {
   const runtimeBuiltInModelSelectionOverrides =
     options.runtimeConfig?.subagents?.builtInModelSelectionOverrides ?? {};
   const runtimeConfig: AgentRuntimeConfig = {
+    genUiOutputRoot: (options.env ?? process.env)[GEN_UI_OUTPUT_ROOT_ENV],
     ...options.runtimeConfig,
     bashTimeoutPolicy:
       options.runtimeConfig?.bashTimeoutPolicy ??

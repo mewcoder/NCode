@@ -116,6 +116,24 @@ function readAnswers(input: unknown): ZCodeUserQuestionAnswers | undefined {
   return isPlainRecord(answers) ? answers : undefined;
 }
 
+function parseClaudeAskUserQuestionOutput(output: unknown): ZCodeUserQuestionAnswers | undefined {
+  if (typeof output !== "string" || output.trim().length === 0) {
+    return undefined;
+  }
+
+  const answers: ZCodeUserQuestionAnswers = {};
+  const answerPattern = /"([^"]+)"="([^"]*)"/g;
+  for (const match of output.matchAll(answerPattern)) {
+    const question = match[1]?.trim();
+    if (!question) {
+      continue;
+    }
+    answers[question] = match[2] ?? "";
+  }
+
+  return Object.keys(answers).length > 0 ? answers : undefined;
+}
+
 function parseJsonRecord(output: unknown): Record<string, unknown> | undefined {
   if (isPlainRecord(output)) {
     return output;
@@ -131,10 +149,20 @@ function parseJsonRecord(output: unknown): Record<string, unknown> | undefined {
   }
 }
 
-function readNestedAskUserQuestionAnswers(input: unknown): ZCodeUserQuestionAnswers | undefined {
-  const record = parseJsonRecord(input);
+function readNestedAskUserQuestionAnswers(
+  output: unknown,
+  questionInput: unknown,
+): ZCodeUserQuestionAnswers | undefined {
+  const record = parseJsonRecord(output);
   if (!record) {
-    return undefined;
+    // Claude 历史可能以 `"问题"="答案"` 的文本形式保存。
+    return parseClaudeAskUserQuestionOutput(output);
+  }
+  // ZCode 自由文本可以包含 Claude 格式的片段，明确的输出类型必须优先。
+  const isZCodeAnswer = record.type === "answered" || record.type === "answered_custom";
+  if (isZCodeAnswer) {
+    const answers = parseZCodeAskUserQuestionOutput(record, questionInput);
+    if (answers) return answers;
   }
 
   const directAnswers = readAnswers(record);
@@ -142,26 +170,32 @@ function readNestedAskUserQuestionAnswers(input: unknown): ZCodeUserQuestionAnsw
     return directAnswers;
   }
 
-  const contentAnswers = readNestedAskUserQuestionAnswers(record.content);
+  const contentAnswers = readNestedAskUserQuestionAnswers(record.content, questionInput);
   if (contentAnswers) {
     return contentAnswers;
   }
 
   if (Array.isArray(record.content)) {
     for (const item of record.content) {
-      const itemAnswers = readNestedAskUserQuestionAnswers(item);
+      const itemAnswers = readNestedAskUserQuestionAnswers(item, questionInput);
       if (itemAnswers) {
         return itemAnswers;
       }
     }
   }
 
-  const rawOutputAnswers = readNestedAskUserQuestionAnswers(record.rawOutput);
+  // 明确的 ZCode text 是自由文本；解析失败时仍可读结构化回退，不能重解释其内容。
+  const textAnswers = isZCodeAnswer ? undefined : parseClaudeAskUserQuestionOutput(record.text);
+  if (textAnswers) {
+    return textAnswers;
+  }
+
+  const rawOutputAnswers = readNestedAskUserQuestionAnswers(record.rawOutput, questionInput);
   if (rawOutputAnswers) {
     return rawOutputAnswers;
   }
 
-  return readNestedAskUserQuestionAnswers(record.output);
+  return readNestedAskUserQuestionAnswers(record.output, questionInput);
 }
 
 function parseZCodeAskUserQuestionOutput(
@@ -284,47 +318,19 @@ export function readAskUserQuestionAnswers(value: {
   output?: unknown;
   raw?: unknown;
 }): ZCodeUserQuestionAnswers | undefined {
-  const nestedOutputAnswers = readNestedAskUserQuestionAnswers(value.output);
-  if (nestedOutputAnswers) {
-    return nestedOutputAnswers;
-  }
-  const parsedZCodeOutputAnswers = parseZCodeAskUserQuestionOutput(
-    value.output,
-    readAskUserQuestionInput(value),
-  );
-  if (parsedZCodeOutputAnswers) {
-    return parsedZCodeOutputAnswers;
-  }
+  const questionInput = readAskUserQuestionInput(value);
+  const outputAnswers = readNestedAskUserQuestionAnswers(value.output, questionInput);
+  if (outputAnswers) return outputAnswers;
   if (isPlainRecord(value.input) && isPlainRecord(value.input.answers)) {
     return value.input.answers;
   }
   if (isPlainRecord(value.raw)) {
-    const nestedRawOutputAnswers = readNestedAskUserQuestionAnswers(value.raw.rawOutput);
-    if (nestedRawOutputAnswers) {
-      return nestedRawOutputAnswers;
-    }
-    const parsedRawZCodeOutputAnswers = parseZCodeAskUserQuestionOutput(
-      value.raw.rawOutput,
-      readAskUserQuestionInput(value),
-    );
-    if (parsedRawZCodeOutputAnswers) {
-      return parsedRawZCodeOutputAnswers;
-    }
-    const nestedRawAnswers = readNestedAskUserQuestionAnswers(value.raw.output);
-    if (nestedRawAnswers) {
-      return nestedRawAnswers;
-    }
-    const parsedRawZCodeAnswers = parseZCodeAskUserQuestionOutput(
-      value.raw.output,
-      readAskUserQuestionInput(value),
-    );
-    if (parsedRawZCodeAnswers) {
-      return parsedRawZCodeAnswers;
-    }
-    const nestedRawContentAnswers = readNestedAskUserQuestionAnswers(value.raw.content);
-    if (nestedRawContentAnswers) {
-      return nestedRawContentAnswers;
-    }
+    const rawOutputAnswers = readNestedAskUserQuestionAnswers(value.raw.rawOutput, questionInput);
+    if (rawOutputAnswers) return rawOutputAnswers;
+    const rawAnswers = readNestedAskUserQuestionAnswers(value.raw.output, questionInput);
+    if (rawAnswers) return rawAnswers;
+    const rawContentAnswers = readNestedAskUserQuestionAnswers(value.raw.content, questionInput);
+    if (rawContentAnswers) return rawContentAnswers;
   }
   return undefined;
 }

@@ -1,5 +1,5 @@
 import type { AppSettings, RemoteWorkspaceSessionEntry } from "@zcode/shared";
-import { resolveStartupLocalWorkspaceSessionIndex } from "@zcode/shared";
+import { parseServerEndpointUrl, resolveStartupLocalWorkspaceSessionIndex } from "@zcode/shared";
 import {
   buildPersistedWorkspaceSessionEntries,
   buildRemoteWorkspaceSessionEntryMap,
@@ -147,7 +147,22 @@ export function restorePersistedRemoteWorkspaceSessions({
       continue;
     }
 
-    const workspaceIdentity = resolveRemoteWorkspaceSessionIdentity(persistedEntry);
+    let workspaceIdentity: string;
+    try {
+      if (
+        persistedEntry.target.kind === "server" &&
+        !parseServerEndpointUrl(persistedEntry.target.url)
+      ) {
+        throw new Error("Invalid saved Server URL.");
+      }
+      workspaceIdentity = resolveRemoteWorkspaceSessionIdentity(persistedEntry);
+    } catch (error) {
+      logger.warn("[Root] 跳过无效的远程 workspace 历史项", {
+        workspacePath: persistedEntry.workspacePath,
+        error: error instanceof Error ? error.message : "Invalid saved remote target.",
+      });
+      continue;
+    }
     const workspaceKey = workspaceIdentity?.trim() || persistedEntry.workspacePath;
     if (seenRemoteWorkspaceKeys.has(workspaceKey)) {
       logger.warn("[Root] 跳过身份冲突的远程 workspace 恢复", {

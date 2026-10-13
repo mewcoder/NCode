@@ -730,3 +730,13 @@ export const TID_START_PLAN_RECOMMENDATION_DIALOG = "start-plan-recommendation-d
 
 /** 用户反馈的诊断日志授权开关 */
 export const TID_FEEDBACK_LOGS_OPT_IN = "feedback-logs-opt-in";
+
+export const TID_PLUGIN_UI_CARD = "plugin-ui-card";
+export const TID_PLUGIN_UI_OPEN_SIDE_PANE = "plugin-ui-open-side-pane";
+export const TID_PLUGIN_UI_WEBVIEW = "plugin-ui-webview";
+
+export const TID_REMOTE_KIND_SERVER = "remote-kind-server";
+export const TID_SERVER_URL_INPUT = "server-url-input";
+export const TID_SERVER_NAME_INPUT = "server-name-input";
+export const TID_SERVER_TOKEN_INPUT = "server-token-input";
+export const TID_SERVER_WORKSPACE_PATH_INPUT = "server-workspace-path-input";

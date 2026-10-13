@@ -8,6 +8,7 @@ import type {
   SaveCliMcpToUserDirectoryRequest,
 } from "./index.js";
 import type { OAuthStateRegistration } from "./oauth.js";
+import type { PluginSandboxCaptureRequest } from "./mcp-apps/contract.js";
 import type { AppSettings, Locale } from "./protocol.js";
 import type { StorageCleanRequest, StorageCleanResult, StorageUsageSnapshot } from "./storage.js";
 import type {
@@ -72,6 +73,7 @@ import type {
 
 /** RPC 服务频道名。与 ServiceDescriptor.channelName 对应。 */
 export const ServiceChannels = {
+  Bots: "bots",
   File: "file",
   MediaPreview: "media-preview",
   System: "system",
@@ -128,6 +130,9 @@ export const ServiceChannels = {
   Plugins: "plugins",
   /** 设置页插件管理服务（UI 平台能力面收敛，不再直触 zcodeAgentService） */
   PluginManagement: "plugin-management",
+  PluginUiBridge: "plugin-ui-bridge",
+  PluginUiSampling: "plugin-ui-sampling",
+  PluginUiAppTools: "plugin-ui-app-tools",
   /** Subagents 管理服务 */
   Subagents: "subagents",
   /** Commands 管理服务 */
@@ -136,6 +141,8 @@ export const ServiceChannels = {
   Hooks: "hooks",
   /** Memory 管理服务 */
   Memory: "memory",
+  /** Output style 管理服务 */
+  OutputStyle: "output-style",
   /** 首次启动设置同步服务 */
   SettingsSync: "settings-sync",
   /** 用户反馈工单服务 */
@@ -156,6 +163,12 @@ export type ServiceChannelName = (typeof ServiceChannels)[keyof typeof ServiceCh
 
 /** Electron IPC 频道名。仅在 preload ↔ main 之间使用。 */
 export const PlatformChannels = {
+  MaterializeWorkflowArtifactFile: "platform:materialize-workflow-artifact-file",
+  BotRemoteWorkspaceReconnected: "zcode:bot-remote-workspace-reconnected",
+  PluginSandboxDispose: "zcode:plugin-sandbox-dispose",
+  PluginSandboxCopyImage: "zcode:plugin-sandbox-copy-image",
+  PluginSandboxConsumeUserGesture: "zcode:plugin-sandbox-consume-user-gesture",
+  PluginSandboxOwnerWebContentsId: "zcode:plugin-sandbox-owner-web-contents-id",
   /** 打开系统目录选择框 */
   SelectDirectory: "zcode:select-directory",
   /** 打开系统文件选择框 */
@@ -490,6 +503,12 @@ export const InternalChannels = {
   ScopedServicePortReady: "zcode:scoped-service-port-ready",
   /** preload → renderer：主进程已确认系统通知展示，renderer 可播放提示音 */
   TaskNotificationSound: "zcode:task-notification-sound",
+  PluginSandboxPorts: "zcode:plugin-sandbox-ports",
+} as const;
+
+/** 沙箱 relay guest 使用的 main → guest 消息频道；不经过 window.zcode。 */
+export const PluginSandboxChannels = {
+  Init: "zcode:plugin-sandbox-init",
 } as const;
 
 /** @deprecated `/ws` 已忽略该头；保留常量仅供旧客户端兼容。 */
@@ -503,6 +522,13 @@ export const ZCODE_RPC_HOST_CAPABILITY_HEADER = "x-zcode-rpc-host-capability";
 
 /** main → host process 的初始化消息类型 */
 export const HostMessageTypes = {
+  BotRemoteWorkspaceReconnected: "zcode:bot-remote-workspace-reconnected",
+  BotRemoteWorkspaceReconnectResult: "bot-remote-workspace-reconnect-result",
+  BotRemoteWorkspaceConnectionStatusResult: "bot-remote-workspace-connection-status-result",
+  BotRemoteWorkspaceRuntimePort: "bot-remote-workspace-runtime-port",
+  BotRemoteWorkspaceReconnectRequest: "bot-remote-workspace-reconnect-request",
+  BotRemoteWorkspaceConnectionStatusRequest: "bot-remote-workspace-connection-status-request",
+  BotRemoteWorkspaceRuntimePortRequest: "bot-remote-workspace-runtime-port-request",
   DatabaseStartupControl: "database-startup-control",
   /** 初始化本地服务 */
   InitLocal: "init-local",
@@ -546,6 +572,7 @@ export const HostMessageTypes = {
   BrowserExecuteResult: "browser-execute-result",
   /** main → host：本地视频 canonical path 授权结果 */
   LocalMediaPreviewPathAuthorizeResult: "local-media-preview-path-authorize-result",
+  PluginSandboxRegisterResult: "plugin-sandbox-register-result",
   /** Main → Host：全局前台 ZCode 窗口派生的 producer focus fact。 */
   CuaPipFocusChanged: "cua-pip-focus-changed",
   /** main → host：要求 Host 现读本地 Source，并同步指定 Remote Environment。 */
@@ -557,6 +584,9 @@ export const HostMessageTypes = {
 
 /** host process → main process 的反馈消息类型 */
 export const HostResponseTypes = {
+  BotRemoteWorkspaceReconnectRequest: "bot-remote-workspace-reconnect-request",
+  BotRemoteWorkspaceConnectionStatusRequest: "bot-remote-workspace-connection-status-request",
+  BotRemoteWorkspaceRuntimePortRequest: "bot-remote-workspace-runtime-port-request",
   DatabaseStartupState: "database-startup-state",
   /** window Host → main：按 requestId 上报远程连接过程日志 */
   RemoteWorkspaceConnectionLog: "remote-workspace-connection-log",
@@ -637,6 +667,7 @@ export const HostResponseTypes = {
   BrowserExecuteRequest: "browser-execute-request",
   /** host → main：请求授权 Agent 已精确校验的本地视频路径 */
   LocalMediaPreviewPathAuthorizeRequest: "local-media-preview-path-authorize-request",
+  PluginSandboxRegisterRequest: "plugin-sandbox-register-request",
   /** host → main：RPC 网络遥测批次（channel.command 成功率/耗时） */
   NetworkTelemetryBatch: "network-telemetry-batch",
   /** host → main：本地 Provisioning Source 成功持久化。 */
@@ -651,6 +682,22 @@ export const HostResponseTypes = {
 
 /** 平台频道的请求/响应类型映射 */
 export interface PlatformChannelMap {
+  [PlatformChannels.PluginSandboxDispose]: {
+    request: { sandboxId: string; initId?: number };
+    response: void;
+  };
+  [PlatformChannels.PluginSandboxCopyImage]: {
+    request: PluginSandboxCaptureRequest;
+    response: void;
+  };
+  [PlatformChannels.PluginSandboxConsumeUserGesture]: {
+    request: string;
+    response: boolean;
+  };
+  [PlatformChannels.PluginSandboxOwnerWebContentsId]: {
+    request: void;
+    response: number;
+  };
   [PlatformChannels.SelectDirectory]: {
     request: void;
     response: string | null;

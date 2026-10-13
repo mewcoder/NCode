@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { PluginUiToolBinding } from "@/plugin-ui/contract.js";
 import type { WorkflowRunState } from "@zcode/shared/zcode-protocol-v4";
 import type { MessageFileLinkTarget } from "@/components/ai-elements/message.js";
 import type { CodePreviewSettings } from "@/lib/codePreviewSettings.js";
@@ -204,6 +205,7 @@ export interface ToolCallBlockRenderContext {
   isOfficeMode?: boolean;
   toolCallNode: TaskChatToolCallTreeNode;
   workspacePath: string;
+  pluginUi?: PluginUiToolBinding;
   /**
    * 应用主题（store 耦合剥离）：由构建 render context 的宿主
    * （ToolCallBlock / PermissionDialog 等）从上层状态传入，供
