@@ -173,13 +173,8 @@ export function useV4SessionQuotaBanner(params: {
   }, [dismissKey, dismissed, params.sessionId]);
 
   const upgradeProviderId = resolveQuotaBannerUpgradeProviderId(activeProviderId);
-  const shouldCheckTerminalPlan =
-    state.visible &&
-    upgradeProviderId !== null &&
-    // 不提供升级入口的提示（如 MCP 今日额度用完）无需判断是否已是顶配套餐，
-    // 省掉一次 refreshOnMount 的 entitlement 请求。
-    shouldOfferQuotaBannerUpgrade(state.kind) &&
-    !isStartPlanModelProviderId(upgradeProviderId);
+  // NCode 已隐藏套餐升级入口，不再为升级资格查询权益。
+  const shouldCheckTerminalPlan = false;
   const upgradeEntitlement = useUsageEntitlementWithService(params.usageStatsService, {
     enabled: shouldCheckTerminalPlan,
     includeSubscription: true,
