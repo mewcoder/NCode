@@ -2450,7 +2450,10 @@ export function createLocalServices(options: {
           settingService,
           credentialService,
         }),
-        runStartupBackgroundTasks: !isDesktopAttachedRemote,
+        // NCode 已移除机器人入口，不再启动 Bot 后台任务：10s 私有会话恢复轮询、
+        // Telegram/微信/飞书 runtime 长连接刷新与存储迁移后的同步全部停掉。
+        // 交互入口仍保留实现，恢复时改回 !isDesktopAttachedRemote。
+        runStartupBackgroundTasks: false,
       }),
     )
     .register(IFileWatcherService, createFileWatcherService())

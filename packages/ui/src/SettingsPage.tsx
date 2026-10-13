@@ -1,4 +1,3 @@
-import { BotsDialog } from "@/BotsDialog.js";
 /* oxlint-disable eslint(max-lines) */
 import { ArrowLeft, Rocket, type LucideIcon } from "lucide-react";
 import {
@@ -313,7 +312,6 @@ export function SettingsPage({
   const isLinuxDesktop = Boolean(isDesktop && !isMacDesktop && !isWindowsDesktop);
   const usesInlineWindowControls = Boolean(isWindowsDesktop || isLinuxDesktop);
   const platform = usePlatform();
-  const [botsDialogOpen, setBotsDialogOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSectionId>(() => {
     const initialSection = consumeInitialSettingsSection("general");
     const visibleInitialSection = resolveSettingsSectionForPlatform(
@@ -1692,15 +1690,6 @@ export function SettingsPage({
                         {activeSection === "general" ? (
                           <>
                             <GeneralSectionHeader localePreference={localePreference} />
-                            <Button variant="outline" onClick={() => setBotsDialogOpen(true)}>
-                              {intl.formatMessage({ id: "bots.title" })}
-                            </Button>
-                            <BotsDialog
-                              open={botsDialogOpen}
-                              onOpenChange={setBotsDialogOpen}
-                              workspacePath={activeWorkspacePath ?? captionWorkspacePath ?? ""}
-                              workspaceIdentity={activeWorkspaceIdentity}
-                            />
                           </>
                         ) : null}
                       </div>

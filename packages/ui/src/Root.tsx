@@ -1,4 +1,3 @@
-import { useBotBroadcastEffects } from "@/root/useBotBroadcastEffects.js";
 /* eslint-disable max-lines -- Root 当前集中编排启动和 workspace shell wiring，先保持入口收口避免跨层状态拆散。 */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LucideProvider, RefreshCw } from "lucide-react";
@@ -384,7 +383,8 @@ function RootInner({
   const addTab = useTabStore((state) => state.addTab);
   const activateTabByPath = useTabStore((state) => state.activateTabByPath);
   const tabStoreApi = useTabStoreApi();
-  useBotBroadcastEffects(services, tabStoreApi);
+  // NCode 已移除机器人入口，不再订阅 bots:task / bots:task-stream 广播。
+  // useBotBroadcastEffects(services, tabStoreApi);
   const refreshProviderState = useRootProviderStateRefresh(services);
   useRootProviderSettingsSnapshot(services);
   useEffect(() => {
