@@ -1795,7 +1795,6 @@ describe("deployServer legacy agent node-script bundle deployment", () => {
     expect(REMOTE_AGENT_OFFICIAL_PLUGIN_REQUIRED_RELATIVE_PATHS).toEqual(
       expect.arrayContaining([
         ...BROWSER_USE_REQUIRED_RELATIVE_PATHS,
-        "image-search-plugin/.mcp.json",
         "documents-plugin/agents/visual-judge.md",
         "documents-plugin/skills/docx/SKILL.md",
         "pdf-plugin/agents/visual-judge.md",

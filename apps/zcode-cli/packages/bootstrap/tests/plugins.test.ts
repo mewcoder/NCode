@@ -223,7 +223,7 @@ describe("ZCode plugins", () => {
     ).toEqual([OFFICIAL_BROWSER_USE_REQUIRED_SEED_PATHS.at(-1)]);
   });
 
-  it("can disable one document plugin without disabling the other formats or search", async () => {
+  it("can disable one document plugin without disabling the other formats", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-document-toggle-"));
     try {
       const userConfigPath = join(root, "config.json");
@@ -240,7 +240,7 @@ describe("ZCode plugins", () => {
         workingDirectory: root,
       });
       expect(outcome.plugins.find((plugin) => plugin.name === "documents")?.enabled).toBe(false);
-      for (const name of ["pdf", "presentations", "spreadsheets", "image-search"])
+      for (const name of ["pdf", "presentations", "spreadsheets"])
         expect(outcome.plugins.find((plugin) => plugin.name === name)?.enabled).toBe(true);
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -614,7 +614,7 @@ describe("ZCode plugins", () => {
             id: "zcode-plugins-official",
             isOfficial: true,
             name: "zcode-plugins-official",
-            pluginCount: 14,
+            pluginCount: 13,
             source: {
               source: "github",
               repo: "zai-org/zcode-plugins",
@@ -2383,7 +2383,7 @@ describe("ZCode plugins", () => {
       expect(
         overview.marketplaces.find((marketplace) => marketplace.id === "zcode-plugins-official"),
       ).toMatchObject({
-        pluginCount: 14,
+        pluginCount: 13,
         source: {
           source: "github",
           repo: "zai-org/zcode-plugins",

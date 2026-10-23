@@ -122,13 +122,6 @@ const officialPluginPackages = [
     stagedPath: "packages/documents-plugin",
   },
   {
-    packageName: "@zcode/image-search-plugin",
-    relativePath: "apps/zcode-cli/packages/image-search-plugin",
-    requiresRuntime: false,
-    requiredSeedPaths: [".mcp.json"],
-    stagedPath: "packages/image-search-plugin",
-  },
-  {
     packageName: "@zcode/pdf-plugin",
     relativePath: "apps/zcode-cli/packages/pdf-plugin",
     requiresRuntime: true,
