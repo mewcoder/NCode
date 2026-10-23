@@ -24,6 +24,16 @@ Host 已启用插件 → usePluginUiSurfaces → 空白页按钮 / + 菜单项
                          useOpenPluginUi → 既有 side pane tab owner
 ```
 
+## UI 行为
+
+- NCode 默认显示应用内「开发者工具」入口，开发版和安装版共用 `developerToolsPreference` 读取规则。`zcode:developer-tools:enabled` 与兼容键 `zcode:token-debug:enabled` 都未设置或无法读取时默认启用；已有值仍沿用任一启用即启用的规则，`0` / `false` / `off` / `no` 表示关闭。不写入默认值，不自动打开面板。验收覆盖空存储可见、显式关闭、旧键兼容，以及清除开关后从 side pane 打开请求诊断面板。
+
+- tab strip 的「+」直接创建并激活一个「新标签页」（New tab），不再弹出应用菜单。每次点击生成独立 id，允许同时保留多个新标签页。
+- 新标签页是统一 registry 中的 `new-tab` 类型，归属创建时的工作区与对话；聚焦、拖拽排序、关闭、关闭其他/全部沿用现有 tab 操作（新标签页不进入最近关闭），不维护第二套局部 tab 状态。
+- 新标签页复用标准 tab trigger，使用空白文件图标与关闭按钮，宽度沿用其他标签（最小 60px、最大 156px）；标题不拉伸填满剩余区域。
+- 内容复用空态的新标签页入口与推荐应用插件；选择工具或应用沿用既有打开动作，并在原位置替换当前新标签页；已打开的单例只激活既有标签并移除当前新标签页。查看所有插件仍保留来源新标签页供返回。插件宿主支持边界与去重规则保持不变。
+- 推荐插件安装、恢复或启用期间，仅当前插件的入口在加载文案旁显示旋转图标，并标记 `aria-busy`；其他插件保留自己的安装、启用或打开文案。同一插件的多个 surface 共享进度。推荐列表继续禁用至当前操作结束，成功或失败后清除图标与忙碌状态并恢复可操作；成功后仍需用户另点打开。空态与新标签页、桌面与手机布局遵循同一规则；系统要求减少动画时保留静态加载图标和文案。
+
 - 右侧面板顶部使用项目现有 `Tabs` 组件渲染 tab strip
 - 切换 tab 时保留已打开 pane 的实例，避免 Browser webview 被销毁
 - Browser tab 会跟随 webview 的 `page-title-updated` / `page-favicon-updated` 事件显示网页 title 和 favicon；事件未返回时回退到默认 Browser 标题和 Globe 图标

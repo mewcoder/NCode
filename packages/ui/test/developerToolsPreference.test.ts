@@ -29,6 +29,20 @@ function createStorage(values: Record<string, string>): Storage {
 }
 
 describe("developerToolsPreference", () => {
+  it("enables developer tools by default without persisting a preference", () => {
+    const storage = createStorage({});
+    expect(readDeveloperToolsEnabled(storage)).toBe(true);
+    expect(storage.length).toBe(0);
+  });
+
+  it("uses the enabled default when storage cannot be read", () => {
+    const storage = createStorage({});
+    storage.getItem = () => {
+      throw new Error("storage unavailable");
+    };
+    expect(readDeveloperToolsEnabled(storage)).toBe(true);
+  });
+
   it("enables developer tools when either supported localStorage key exists", () => {
     expect(
       readDeveloperToolsEnabled(
@@ -49,6 +63,12 @@ describe("developerToolsPreference", () => {
   it("treats explicit off values as disabled", () => {
     for (const value of ["0", "false", "off", "no"]) {
       expect(isDeveloperToolsStorageValueEnabled(value)).toBe(false);
+      expect(
+        readDeveloperToolsEnabled(createStorage({ "zcode:developer-tools:enabled": value })),
+      ).toBe(false);
+      expect(readDeveloperToolsEnabled(createStorage({ "zcode:token-debug:enabled": value }))).toBe(
+        false,
+      );
     }
     expect(isDeveloperToolsStorageValueEnabled(null)).toBe(false);
     expect(isDeveloperToolsStorageValueEnabled("true")).toBe(true);
