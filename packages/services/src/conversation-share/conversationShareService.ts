@@ -279,6 +279,57 @@ const importedConversationShareFileSchema = z
   })
   .strip();
 
+// 分享关闭态只需按需读取历史副本，不能为只读展示构造会扫描索引/清理目录的完整服务。
+export async function readImportedConversation(
+  input: { workspacePath: string; contextId: string },
+  logger: ServiceLogger = createServiceLogger("conversation-share"),
+): Promise<ImportedConversationShare | null> {
+  const shareRoot = join(input.workspacePath, ".zcode-share");
+  let entries: Dirent[];
+  try {
+    entries = await readdir(shareRoot, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(
+        await readFile(join(shareRoot, entry.name, "shared-conversation.json"), "utf8"),
+      );
+    } catch {
+      continue;
+    }
+    const validated = importedConversationShareFileSchema.safeParse(parsed);
+    if (!validated.success || validated.data.contextId !== input.contextId) continue;
+    const decoded = decodeConversationShareRows(validated.data.rows);
+    // formatVersion 比本端新（用户在新版导入后回退到旧版）时，认不出的行照样计入
+    // unsupportedRowCount，让 UI 出软提示——不能静默少内容。
+    const unsupportedRowCount =
+      decoded.unsupportedCount +
+      (validated.data.formatVersion > IMPORTED_CONVERSATION_SHARE_FORMAT_VERSION ? 1 : 0);
+    if (unsupportedRowCount > 0) {
+      logger.info(undefined, "imported conversation share has content this build can't read", {
+        formatVersion: validated.data.formatVersion,
+        kinds: decoded.unsupportedKinds,
+        droppedCount: decoded.unsupportedCount,
+        keptCount: decoded.rows.length,
+      });
+    }
+    return {
+      shareId: validated.data.shareId,
+      contextId: validated.data.contextId,
+      title: validated.data.title,
+      rows: decoded.rows,
+      contentBlocks: validated.data.content_blocks,
+      artifacts: validated.data.artifacts,
+      unsupportedRowCount,
+    };
+  }
+  return null;
+}
+
 interface ConversationRowsRead {
   rows: ConversationRow[];
   revision: number;
@@ -1741,7 +1792,7 @@ export class ConversationShareService implements IConversationShareService {
    * importRoot 并比对文件内的 contextId —— 不额外维护索引，历史导入也能被读到。
    * 内容来自磁盘，属跨存储边界，必须过 schema 再交给渲染层。
    */
-  async getImportedConversation(input: {
+  getImportedConversation(input: {
     workspacePath: string;
     contextId: string;
   }): Promise<ImportedConversationShare | null> {
