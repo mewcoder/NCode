@@ -611,7 +611,35 @@ describe("ZCode plugins", () => {
     }
   });
 
-  it("includes the merged ZCode official marketplace and Claude marketplace for empty storage", async () => {
+  it("keeps the ui component type on a suppressed bundled document plugin", async () => {
+    const root = await mkdtemp(join(tmpdir(), "zcode-bootstrap-restorable-ui-"));
+    const pluginStorageRoot = join(root, "plugins");
+    const userConfigPath = join(root, "config.json");
+    const documentsId = "documents@zcode-plugins-official";
+
+    try {
+      await writeFile(
+        userConfigPath,
+        JSON.stringify({ plugins: { enabled: true, suppressedBuiltins: [documentsId] } }),
+      );
+      const overview = getZCodePluginsOverview({
+        pluginStorageRoot,
+        userConfigPath,
+        workingDirectory: root,
+      });
+      // UI 合并时优先保留目录条目的 summary，所以目录条目与可恢复条目都必须带 "ui"。
+      expect(
+        overview.availablePlugins.find((plugin) => plugin.id === documentsId)?.componentTypes,
+      ).toContain("ui");
+      expect(
+        overview.restorableBuiltins.find((plugin) => plugin.id === documentsId)?.componentTypes,
+      ).toEqual(["ui"]);
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("includes only the merged ZCode official marketplace for empty storage", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-bootstrap-default-marketplace-"));
 
     try {
@@ -631,31 +659,19 @@ describe("ZCode plugins", () => {
             name: "zcode-plugins-official",
             pluginCount: 14,
             source: {
-              source: "url",
-              url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
-            },
-          }),
-          expect.objectContaining({
-            id: "claude-plugins-official",
-            isOfficial: true,
-            name: "claude-plugins-official",
-            pluginCount: 0,
-            source: {
-              repo: "anthropics/claude-plugins-official",
               source: "github",
+              repo: "zai-org/zcode-plugins",
             },
           }),
         ]),
       );
+      expect(overview.marketplaces).toHaveLength(1);
       expect(
         JSON.parse(await readFile(join(pluginStorageRoot, "known_marketplaces.json"), "utf8")),
       ).toMatchObject({
         marketplaces: [
           expect.objectContaining({
             id: "zcode-plugins-official",
-          }),
-          expect.objectContaining({
-            id: "claude-plugins-official",
           }),
         ],
       });
@@ -2390,8 +2406,8 @@ describe("ZCode plugins", () => {
       ).toMatchObject({
         pluginCount: 14,
         source: {
-          source: "url",
-          url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+          source: "github",
+          repo: "zai-org/zcode-plugins",
         },
       });
       expect(overview.diagnostics).toEqual(

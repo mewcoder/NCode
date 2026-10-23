@@ -558,10 +558,8 @@ describe("NodePluginAdapter", () => {
     const storageRoot = join(dir, "storage");
 
     try {
-      // Both reserved ids must be protected via the untrusted (user-facing) path.
-      // claude-plugins-official is a DEFAULT marketplace (always seeded as "known"),
-      // so a known-state heuristic would never fire for it — the explicit trusted
-      // flag is what closes that hole.
+      // Both reserved ids remain protected via the untrusted (user-facing) path,
+      // regardless of whether the marketplace is registered by default.
       for (const reservedId of ["zcode-plugins-official", "claude-plugins-official"]) {
         const sourceDir = join(dir, `evil-${reservedId}`);
         await writeMarketplaceManifest(sourceDir, { name: reservedId, plugins: [] });
@@ -662,7 +660,7 @@ describe("NodePluginAdapter", () => {
     }
   });
 
-  it("seeds Claude official marketplace without overwriting an existing record", async () => {
+  it("preserves an existing Claude marketplace while registering the default ZCode market", async () => {
     const dir = await mkdtemp(join(tmpdir(), "zcode-plugin-default-marketplace-"));
     const storageRoot = join(dir, "storage");
 
@@ -681,8 +679,7 @@ describe("NodePluginAdapter", () => {
 
       const known = ensureDefaultPluginMarketplaces(storageRoot);
 
-      // 默认市场现在有两个：claude-plugins-official（已有记录不被覆盖）+ 唯一 ZCode
-      // 官方市场 zcode-plugins-official（缺失时补种）。
+      // Claude 不再默认补种，但已有自定义记录仍保留。
       expect(known).toHaveLength(2);
       const claude = known.find((record) => record.id === "claude-plugins-official");
       expect(claude).toMatchObject({
@@ -2095,6 +2092,63 @@ describe("NodePluginAdapter", () => {
       expect(existsSync(join(storageRoot, "cache", "zip-slip-market", "zip-slip"))).toBe(false);
     } finally {
       await closeServer(server);
+      await rm(dir, { force: true, recursive: true });
+    }
+  });
+
+  it("loads the default official GitHub archive and installs a relative plugin without system Git", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ncode-official-github-"));
+    const storageRoot = join(dir, "storage");
+    const archive = createStoredZip([
+      {
+        path: "zcode-plugins-main/marketplace.json",
+        content: JSON.stringify({
+          name: "zcode-plugins-official",
+          plugins: [{ name: "github", source: "./plugins/github", version: "1.0.0" }],
+        }),
+      },
+      {
+        path: "zcode-plugins-main/plugins/github/.claude-plugin/plugin.json",
+        content: JSON.stringify({ name: "github", version: "1.0.0" }),
+      },
+      { path: "zcode-plugins-main/plugins/github/skills/demo/SKILL.md", content: "# demo" },
+    ]);
+    const requestedUrls: string[] = [];
+    try {
+      vi.stubEnv("PATH", join(dir, "no-system-git"));
+      vi.stubEnv("HTTP_PROXY", "");
+      vi.stubEnv("HTTPS_PROXY", "");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string | URL | Request) => {
+          requestedUrls.push(String(url));
+          return new Response(archive, {
+            status: 200,
+            headers: { "content-type": "application/zip" },
+          });
+        }),
+      );
+      const [updated] = await updateMarketplace({
+        marketplace: "zcode-plugins-official",
+        storageRoot,
+      });
+      expect(updated?.source).toEqual({ source: "github", repo: "zai-org/zcode-plugins" });
+      const install = await installMarketplacePlugin({
+        marketplace: "zcode-plugins-official",
+        name: "github",
+        storageRoot,
+      });
+      expect(install.installed[0]?.id).toBe("github@zcode-plugins-official");
+      expect(
+        await readFile(
+          join(install.installed[0]?.installPath ?? "", "skills", "demo", "SKILL.md"),
+          "utf8",
+        ),
+      ).toBe("# demo");
+      expect(requestedUrls).toEqual([
+        "https://api.github.com/repos/zai-org/zcode-plugins/zipball/HEAD",
+      ]);
+    } finally {
       await rm(dir, { force: true, recursive: true });
     }
   });

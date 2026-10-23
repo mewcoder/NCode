@@ -16,6 +16,7 @@ import {
   KNOWN_CATEGORY_LABEL_IDS,
   canUpdatePluginItem,
   groupItemsByCategory,
+  resolveStoreCategory,
   isPublicStoreMarketplaceId,
   resolveItemDisplayName,
   selectFeaturedItems,
@@ -64,7 +65,13 @@ export function PluginStoreListView({
   // 旧版会话恢复入口退出市场；统一过滤所有浏览投影，旧缓存/精选也不能重新露出。
   // 完整 ID 只命中官方插件，插件管理页继续使用原始条目管理已有安装。
   const items = useMemo(
-    () => allItems.filter((item) => item.id !== RETIRED_STORE_PLUGIN_ID),
+    // NCode 在生成搜索、精选和分类结果前过滤金融插件。
+    () =>
+      allItems.filter(
+        (item) =>
+          item.id !== RETIRED_STORE_PLUGIN_ID &&
+          resolveStoreCategory(item.listing?.category) !== "finance",
+      ),
     [allItems],
   );
 

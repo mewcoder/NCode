@@ -115,6 +115,82 @@ describe("marketplace store listing", () => {
     expect(parseEntryStoreListing({ name: "x", author: "Acme" })).toEqual({ author: "Acme" });
   });
 
+  it("fills missing publisher metadata for official source directories when reading cached catalogs", async () => {
+    const storageRoot = await makeStorageRoot("ncode-marketplace-publishers-");
+    const plugins = [
+      { name: "github", source: "./plugins/github" },
+      { name: "excalidraw", source: "./external_plugins/excalidraw", category: "productivity" },
+      { name: "craft", source: "external_plugins/craft/" },
+      {
+        name: "explicit-community",
+        source: "./plugins/explicit-community",
+        publisherType: "community",
+      },
+      {
+        name: "explicit-official",
+        source: "./external_plugins/explicit-official",
+        publisherType: "official",
+      },
+      { name: "bundled", source: "filesystem" },
+      { name: "unknown", source: "./other/unknown" },
+      { name: "traversal", source: "./plugins/../external_plugins/traversal" },
+      { name: "nested", source: "./plugins/nested/plugin" },
+      { name: "remote", source: { source: "github", repo: "example/plugin" } },
+    ];
+    for (const marketplace of ["zcode-plugins-official", "personal-market"]) {
+      const directory = join(storageRoot, "marketplaces", marketplace);
+      await mkdir(directory, { recursive: true });
+      await writeFile(
+        join(directory, "marketplace.json"),
+        JSON.stringify({ name: marketplace, plugins }),
+      );
+    }
+    const official = loadMarketplaceManifestSync(storageRoot, "zcode-plugins-official");
+    expect(official?.plugins.map((entry) => entry.listing?.publisherType)).toEqual([
+      "official",
+      "community",
+      "community",
+      "community",
+      "official",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(official?.plugins[1]?.listing?.category).toBe("productivity");
+    expect(official?.raw.plugins).toEqual(
+      plugins.map((plugin, index) =>
+        index < 3 ? { ...plugin, publisherType: index === 0 ? "official" : "community" } : plugin,
+      ),
+    );
+    expect(
+      loadMarketplaceManifestSync(storageRoot, "personal-market")?.plugins.map(
+        (entry) => entry.listing?.publisherType,
+      ),
+    ).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      "community",
+      "official",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("preserves publisher classification independently of usage category", () => {
+    expect(parseEntryStoreListing({ publisherType: "community", category: "productivity" }))
+      .toEqual({ publisherType: "community", category: "productivity" });
+    expect(parseEntryStoreListing({ publisherType: "official" }))
+      .toEqual({ publisherType: "official" });
+    expect(parseEntryStoreListing({ publisherType: "personal" })).toBeUndefined();
+    expect(parseEntryStoreListing({ publisherType: true })).toBeUndefined();
+  });
+
   it("returns manifest display metadata from describeMarketplacePlugin for installed plugins", async () => {
     const storageRoot = await makeStorageRoot("zcode-describe-metadata-");
     const pluginRoot = join(storageRoot, "cache", "hello-market", "hello", "1.2.3");
