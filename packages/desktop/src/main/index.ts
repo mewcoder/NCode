@@ -950,7 +950,8 @@ const webRemoteControlManager = createWebRemoteControlManager({
       });
     },
   },
-  featureGate: createWebRemoteControlFeatureGate(),
+  // NCode 关闭远控 manager 的运行入口及 relay 自动连接。
+  featureGate: createWebRemoteControlFeatureGate(NCODE_FEATURE_POLICY.webRemoteControl),
   logger,
   relayMessageLogger: webRemoteControlRelayLogger,
   platformHandlers: {

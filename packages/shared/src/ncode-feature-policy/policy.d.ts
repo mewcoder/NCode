@@ -14,6 +14,7 @@ export const NCODE_FEATURE_POLICY: Readonly<{
   remoteClientConfigs: false;
   officialAccountQueries: false;
   desktopContextPrompt: true;
+  webRemoteControl: false;
   offPeakAvailability: false;
   /** 与 shared 的 DynamicWorkflowMode 取值一致，内联以保持本模块 requires 为空。 */
   dynamicWorkflowMode: "disabled" | "onDemand" | "alwaysOn";

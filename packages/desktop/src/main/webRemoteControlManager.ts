@@ -1506,6 +1506,8 @@ export function createWebRemoteControlManager(dependencies: WebRemoteControlMana
       windowId: number,
       candidates: WebRemoteControlContext[],
     ): Promise<boolean> {
+      // NCode 关闭远控时，不读取或恢复旧配对上下文。
+      if (!dependencies.featureGate.isEnabled()) return false;
       if (startupRestoreClaimed || runtimes.has(windowId)) {
         return false;
       }

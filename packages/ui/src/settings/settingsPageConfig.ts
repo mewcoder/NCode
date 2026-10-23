@@ -201,3 +201,12 @@ export function resolveSettingsSectionForPlatform(
 }
 
 export type { SettingsSectionId };
+
+export function isSettingsSectionAvailable(
+  section: SettingsSectionId,
+  isDesktop: boolean,
+): boolean {
+  void isDesktop;
+  // NCode 在所有平台隐藏「远程设备」分区，历史导航由 resolveSettingsSection 回落。
+  return section !== "remoteDevices";
+}

@@ -7,7 +7,9 @@ import type {
   ModelSelection,
   ZCodeStreamEvent,
 } from "@zcode/shared";
-import { createBotsService, type IModelSelectionService } from "@zcode/services/node";
+// NCode 关闭 Bot/群聊后 node.ts 不再导出 createBotsService（宿主打包图不含飞书
+// provider）；E2E harness 改走 ./bots 独立公开入口，仅测试消费，不进入生产包。
+import { createBotsService, type IModelSelectionService } from "@zcode/services/bots";
 import { resolveE2ERuntimePath } from "../../helpers/e2e-runtime-paths.js";
 
 const E2E_BOT_WORKSPACE = resolveE2ERuntimePath("bots", "e2e-bot-workspace");

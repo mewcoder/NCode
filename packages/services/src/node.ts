@@ -138,7 +138,10 @@ export type {
   CuaHelperInstaller,
   CuaHelperInstallerOptions,
 } from "./cua-permission-broker/index.js";
-export { createBotsService } from "./bots/botsService.js";
+export { createProjectWorkspaceNavigation } from "#src/project-workspace-navigation/index.js";
+// NCode 关闭 Bot/群聊：不导出 Bot 服务装配，宿主打包图因此不含 feishu provider，
+// @larksuiteoapi/node-sdk（约 9.2MB 双份）不再进入生产 app.asar。宿主对
+// IBotsService 的 getOptional 防御性查找保留，上游实现仍在源码内。
 export { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 export { createOAuthService } from "./oauth/oauthService.js";
 export { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
@@ -372,8 +375,10 @@ import { createZCodeTaskServiceAdapter } from "./zcode-agent/zcodeTaskServiceAda
 import { createZCodeSessionService } from "./zcode-session/zcodeSessionService.js";
 import { createZCodeTaskIndexSyncer } from "./zcode-agent/zcodeTaskIndexSyncer.js";
 import { TaskIndexRepo } from "./session/taskIndexRepo.js";
-import { createBotsService } from "./bots/botsService.js";
-import { createBotRemoteWorkspaceService } from "./bots/botRemoteWorkspaceBridge.js";
+import { AutomationRepo } from "#src/session/automationRepo.js";
+import type { AppSettings } from "@zcode/shared";
+import type { BotProjectConnection } from "#src/bot-project-runtime/contract.js";
+export type { BotProjectConnection } from "#src/bot-project-runtime/contract.js";
 import type { SessionMessageSendRequested } from "#src/session/sessionMailbox.js";
 import { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 import { createOAuthService } from "./oauth/oauthService.js";
@@ -2211,11 +2216,7 @@ export function createLocalServices(options: {
     settingService,
     cuaProductMcpServerResolver,
   });
-  const botRemoteWorkspaceService = createBotRemoteWorkspaceService({
-    parentPort: options?.parentPort,
-    settingService,
-    credentialService,
-  });
+
   const oauthService = createOAuthService(credentialService, {
     apiClient,
     onProviderLogout: handleOAuthProviderLogout,
@@ -2324,20 +2325,6 @@ export function createLocalServices(options: {
     .register(ICuaPermissionService, cuaPermissionService)
     .register(ICuaPipSessionService, cuaPipSessionService)
     .register(IConversationShareService, conversationShareService)
-    .register(
-      IBotsService,
-      createBotsService({
-        credentialService,
-        zcodeTaskService,
-        broadcastService,
-        settingService,
-        modelSelectionService: providerRuntime.modelSelection,
-        remoteWorkspaceService: botRemoteWorkspaceService,
-        // 远端与本地 Bot 都读取所属 Environment 的 Model Selection View。
-        // 远端启动期不再轮询旧 Preset，避免重新制造一套模型候选事实。
-        runStartupBackgroundTasks: !isDesktopAttachedRemote,
-      }),
-    )
     .register(IFileWatcherService, createFileWatcherService())
     .register(IOAuthService, oauthService)
     .register(
