@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "caseName": "ncode-workflow-policy",
+  "spec": "./test/e2e/ncode/ncode-workflow-policy.test.ts",
+  "providerFixtures": [
+    "./test/e2e/fixtures/upstream/common.json",
+    "./test/e2e/fixtures/upstream/ncode/ncode-workflow-policy.json"
+  ],
+  "fileFixtures": [],
+  "requests": [
+    {
+      "id": "ncode-workflow-title",
+      "kind": "common",
+      "timingPolicy": "fast-text",
+      "source": "synthetic",
+      "syntheticReason": "仅观察真实 CLI 工具集，固定文本结束每个 turn，不调用 CreateWorkflow 或外部模型。"
+    },
+    {
+      "id": "ncode-workflow-ordinary",
+      "kind": "main",
+      "timingPolicy": "fast-text",
+      "source": "synthetic",
+      "syntheticReason": "仅观察真实 CLI 工具集，固定文本结束每个 turn，不调用 CreateWorkflow 或外部模型。"
+    },
+    {
+      "id": "ncode-workflow-command",
+      "kind": "main",
+      "timingPolicy": "fast-text",
+      "source": "synthetic",
+      "syntheticReason": "仅观察真实 CLI 工具集，固定文本结束每个 turn，不调用 CreateWorkflow 或外部模型。"
+    }
+  ]
+}

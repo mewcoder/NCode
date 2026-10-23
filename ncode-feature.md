@@ -383,7 +383,7 @@ sequenceDiagram
 - [ ] 打开偏好菜单后，语言、主题、界面模式及缩放仍可操作；关闭和重新打开菜单正常。
 - [ ] 新建任务、自动化、插件市场及本地项目入口可用；无 Bot、手机远控入口。
 - [ ] 任务右键菜单无反馈、发布分享入口，其余任务操作正常。
-- [ ] 帮助菜单首项为“导出日志”，其上方无孤立分隔线；菜单内无反馈、社群、产品文档、漏洞提交入口。
+- [x] 帮助菜单首项为“导出日志”，其上方无孤立分隔线；菜单内无反馈、社群、产品文档、漏洞提交入口。
 
 ### 4. 会话详情与输入区
 
@@ -483,7 +483,7 @@ sequenceDiagram
 
 - [ ] 桌面构建后检查安装图标、应用图标、macOS DMG 背景及关于窗口资源。
 - [x] 打包后运行 `pnpm ncode:artifact:audit -- --app <产物路径>`，遥测依赖、上报端点、升级 feed、image-search、品牌标记与关键运行时依赖逐项通过；规则与发布 runbook 见 [spec](docs/ncode-artifact-audit.spec.md)。（2026-10-24 macOS arm64 实测 19/19 通过，见第六节）
-- [ ] Web 启动后检查标题和 favicon；当前平台无法验证的项目记录为未验证。
+- [x] Web 启动后检查标题和 favicon；当前平台无法验证的项目记录为未验证。
 
 配套执行 `pnpm typecheck`、`pnpm lint` 和 `pnpm architecture:check --changed`，按修改范围运行相关测试。静态检查通过与页面实测结果分别记录。
 
@@ -519,3 +519,14 @@ sequenceDiagram
 - **回归工具**（见 [closure spec](docs/ncode-closure-regression.spec.md)）：关闭项锚点（37 项 + 策略值）与 E2E 基线（43 spec）纳入 vitest；`pnpm ncode:closure:impact --base <ref>` 输出上游 diff 命中的关闭项，`--validate [--ref <ref>]` 可对任意 git ref 预检（v3.15.1 演练：4/37 通过即差距清单，diff 模式与 18 笔实际适配提交一一对应）；关闭方式分类盘点与上游回提候选清单同文维护。
 - **飞书 SDK 移除与体积复测**：app.asar 100MB→88.8MB（larksuite 条目 0）、NCode.app 424MB→408MB、zip 138.6MiB，审计 19/19 通过（含新增的关闭项依赖禁止规则）。体积/进程/网络/官方残留基线与候选见 [footprint](docs/ncode-runtime-footprint.md)。
 - **分支策略落地**：仓库收敛为 `main` / `ncode`（最新已验收快照，验收后**覆盖式**指向当版 tip，不合并不留旧提交）/ `ncode-v<版本号>`（含演练用 `ncode-v3.15.1`）；临时与备份分支已清理（含远端 `origin/dev`）。
+
+## 七、NCode 定向补验（2026-10-24）
+
+- 按用户明确范围，只验证 NCode 定制改动面，不把通用供应商/MCP 全链路作为本轮门槛；执行细节与早期失败记录见 [补验记录](docs/analysis/ncode-acceptance-2026-10-24.md)。
+- `desktop-e2e-20261023-231902-932`：NHELP-01 与 NWF-01 两条 E2E 均通过。帮助菜单只有导出日志、资源管理器、关于 NCode，无分隔线；关于窗口显示 NCode 3.16.2，深色底 N 标识清晰，已保存截图。普通消息不暴露 CreateWorkflow，`/workflow` 后暴露；回放只返回文本，不调用 CreateWorkflow。
+- Web 实际标题与 favicon 已核对；未连接远控后端，不扩大为 Web 全链路验收。
+- 首轮候选保留 `manual-review/pending`，当时尚未获得审阅委托，未执行转正、Docker 准入或全量 E2E。旧工作流模式的重启矩阵仍未验证。
+- 正式 production 身份 macOS arm64 DMG/ZIP 已重新生成，ZIP 138.6 MiB。正式 `.app` 审计 19/19 通过，包内 buildCommitId 为 `d1c4644d`，确认包含最新分享关闭代码；包内图标与源文件一致。本地包未签名，未实际安装；没有把安装后视觉项全勾选。
+- 补齐 NCode case-local fixture 与 manifest；现有 checker 和默认回放已识别 `ncode` 领域。`desktop-e2e-20261023-235951-930` 在未指定 fixture 路径的 strict 模式下 2/2 通过；两个 case 的 fixture check 通过，66 项相关根 UT 与 4 项工作流清单测试通过。该轮候选尚为 pending，不视为正式准入。
+- 后续用户以「你决定」委托审阅。Codex 核对上述截图、请求断言和 fixture 合同后，决定将 NHELP-01 / NWF-01 转入 `packages/desktop/test/e2e/ncode/` 正式目录；复用现有迁移事务，dry run 后 apply，两个正式 fixture check、默认正式集合发现与工作流清单检查通过。没有新增测试框架，也未加入 Docker 套件。最终正式回放及代码检查结果见补验记录。
+- 正式回放 `desktop-e2e-20261024-010650-751` 在未启用 manual-review、未指定 fixture 路径的 strict 模式下 **2/2 通过**；66 项相关根 UT、4 项工作流清单检查、根与 E2E 类型检查及架构检查通过。Lint 0 errors / 87 条既有 warnings。

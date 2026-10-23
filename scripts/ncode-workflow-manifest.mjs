@@ -31,7 +31,11 @@ export const NCODE_WORKFLOW_FILES = [
 ];
 
 /** NCode 专属 E2E 场景目录（含 manual-review 流程子目录），整体随新分支复制。 */
-export const NCODE_WORKFLOW_DIRS = ["packages/desktop/test/e2e/ncode"];
+export const NCODE_WORKFLOW_DIRS = [
+  "packages/desktop/test/e2e/ncode",
+  "packages/desktop/test/e2e/fixtures/upstream/ncode",
+  "packages/desktop/test/e2e/fixtures/cases/ncode",
+];
 
 /** 根 package.json 必须提供的命令入口。 */
 export const NCODE_WORKFLOW_SCRIPTS = [

@@ -18,7 +18,28 @@ ncode-feature.md「一、关闭功能」的每个条目至少登记一个自动�
 - **清单**：`packages/desktop/scripts/ncode-e2e-baseline.mjs` 登记每个被排除的正式 spec 及其对应的 ncode-feature.md 关闭项；只有「断言已关闭功能存在或依赖其 mock/凭据」的 spec 才进清单。防御性引用（如 `skipOccupationOnboardingIfPresent`）与断言关闭态的 spec（如 highspeed 指示默认关闭、metric probe absence）不排除。
 - **接线**：`run-windows-e2e-shards.mjs` 的默认正式集合过滤清单条目；`wdio.conf.ts` 在非定向运行时把清单 spec 加入 `exclude`，与 SSH 环境门禁（`resolveEnvironmentGatedFormalSpecExcludes`）同一模式。分片权重、manual-review 目录规则与上游 spec 选择语义不变。
 - **漂移检测**：清单条目必须对应磁盘上真实存在的 spec（上游删除后清单同步清理）；默认正式集合中文件名命中关闭项特征模式（off-peak、highspeed、coding-plan、marketing-touch、bots/feishu、share-popover、官方 oauth 登录、client-config、bot worker、telemetry roles）的 spec 必须已登记，防止上游新增同类 spec 静默进入 NCode 基线。
-- **部分引用 spec**：对同时覆盖保留与已关闭行为的 spec（如 help 菜单标签），先整份排除并在清单 reason 标注「部分引用」；保留行为的替代 spec 属于后续独立工作，不在本套件内补写。
+- **部分引用 spec**：对同时覆盖保留与已关闭行为的 spec（如 help 菜单标签），整份排除并在清单 reason 标注「部分引用」；保留行为由 NCode 专属 spec 补足，帮助菜单对应下表 NHELP-01。
+
+### NCode 专属候选的夹具合同
+
+NCode 候选位于 `packages/desktop/test/e2e/ncode/manual-review/pending/`，只覆盖 NCode 改动。复用现有 fixture checker 与 WDIO 回放发现逻辑，不建立独立 runner。
+
+- case-local 回放放在 `test/e2e/fixtures/upstream/ncode/<case>.json`，manifest 放在 `test/e2e/fixtures/cases/ncode/<case>.json`；两者 `spec` 均使用 `./test/e2e/ncode/<case>.test.ts` 的正式目标身份。
+- checker 识别 NCode pending/formal 路径，并沿用已有身份、请求分类及 syntheticReason 校验。WDIO 从同一标准目录发现回放；strict 模式缺 manifest 或 fixture 必须失败，不以历史共享池替代。没有 fixture 的候选继续采用既有 capture 规则。
+- 纯 UI 用例显式声明 `providerRequestPolicy: "none"`，保留空 case-local fixture，运行时断言 provider 捕获为空。发送消息的用例逐项登记 synthetic 请求及原因。
+- 三个 NCode 目录（spec、upstream fixture、case manifest）随工作流清单整体带入下一版本。此接线不改变其他领域的目录、匹配与 capture/replay 规则。
+- 候选通过截图、请求断言和夹具合同审阅后，移动到 `test/e2e/ncode/` 正式目录，修正 helper 相对路径；fixture 与 manifest 的正式身份不变。默认正式集合必须发现两条用例，pending 路径不得进入默认集合。
+- 2026-10-24 用户以「你决定」委托本轮审阅；由 Codex 审阅既有截图及 strict 回放证据并决定转正，不记作用户亲自视觉验收。只转正 NHELP-01 / NWF-01，不涉及 Docker 准入。
+- 复用已有 `runPromotionAuditTransaction` 与 helper 路径重写函数执行这次迁移；先 dry run，检查 pending 合同与目标冲突，再 apply。两条用例作为一次事务迁移，正式 fixture check 与默认发现检查失败时回滚；不新增 NCode runner 或通用 promotion 框架。
+
+| Case     | Setup / Action                                    | Assert                                                   |
+| -------- | ------------------------------------------------- | -------------------------------------------------------- |
+| NHELP-01 | 隔离 HOME，打开帮助菜单及关于窗口                 | 仅本地工具、无分隔线；NCode 与产品版本；零 provider 请求 |
+| NWF-01   | 隔离 HOME 与本地 replay，普通消息后发送 /workflow | 先无后有 CreateWorkflow；两轮正常结束，不实际调用该工具  |
+
+验证入口：`pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/ncode/manual-review/pending/<case>.test.ts`；随后用相同 `--spec` 及 `ZCODE_E2E_MANUAL_REVIEW=1` 运行桌面 E2E，默认发现 case-local 回放，无需指定 fixture 环境变量。
+
+本轮正式目标：`./test/e2e/ncode/ncode-help-menu-retained.test.ts` 与 `./test/e2e/ncode/ncode-workflow-policy.test.ts`。转正后使用正式路径执行 checker 与定向 WDIO，去掉 `ZCODE_E2E_MANUAL_REVIEW`，并以 `E2E_PROVIDER_REPLAY_FIXTURE_MODE=strict-case-local` 验证默认 case-local 回放。
 
 ## 状态所有者与接口
 

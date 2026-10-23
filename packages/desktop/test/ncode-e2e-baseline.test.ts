@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import {
   NCODE_CLOSED_E2E_NAME_PATTERNS,
@@ -9,12 +11,32 @@ import {
 import { listDefaultFormalE2ESpecs } from "../scripts/run-windows-e2e-shards.mjs";
 
 const desktopDir = resolve(process.cwd(), "packages/desktop");
+const execFileAsync = promisify(execFile);
 
 function listFormalSpecs(env: Record<string, string | undefined> = {}) {
   return listDefaultFormalE2ESpecs(desktopDir, env);
 }
 
 describe("NCode E2E 基线清单", () => {
+  it.each(["ncode-help-menu-retained", "ncode-workflow-policy"])(
+    "正式用例 %s 进入默认集合并通过标准 case-local 合同校验",
+    async (caseName) => {
+      const spec = `./test/e2e/ncode/${caseName}.test.ts`;
+      expect(listFormalSpecs()).toContain(spec);
+      expect(listFormalSpecs()).not.toContain(
+        `./test/e2e/ncode/manual-review/pending/${caseName}.test.ts`,
+      );
+      const { stdout } = await execFileAsync(process.execPath, [
+        join(desktopDir, "scripts/check-e2e-fixtures.mjs"),
+        "--spec",
+        join(desktopDir, spec),
+      ]);
+      expect(stdout).toContain(`Case: ${caseName}`);
+      expect(stdout).toContain("Fixture check passed");
+      expect(stdout).toContain(join("fixtures", "cases", "ncode", `${caseName}.json`));
+    },
+  );
+
   it("清单条目必须对应磁盘上真实存在的正式 spec", () => {
     const missing = NCODE_CLOSED_E2E_SPECS.filter(
       (entry) => !existsSync(join(desktopDir, entry.spec)),
