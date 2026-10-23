@@ -27,6 +27,7 @@ const captured = vi.hoisted(() => ({
     disabled?: boolean;
     onSelect: (() => void | Promise<void>) | undefined;
   }>,
+  updateMenuArguments: [] as boolean[],
   updateMenu: {
     visible: true,
     disabled: false,
@@ -84,11 +85,15 @@ vi.mock("@/feedback/feedbackStore.js", () => ({
 }));
 
 vi.mock("@/hooks/useDesktopUpdateMenu.js", () => ({
-  useDesktopUpdateMenu: (isDesktop: boolean) => ({
-    ...captured.updateMenu,
-    visible: isDesktop && captured.updateMenu.visible,
-    checkForUpdates: () => captured.executeDesktopCommand(DesktopCommandIds.CheckForUpdates),
-  }),
+  // NCode 在消费方传入 false 关闭更新入口；mock 记录入参以验证关闭点本身生效。
+  useDesktopUpdateMenu: (isDesktop: boolean) => {
+    captured.updateMenuArguments.push(isDesktop);
+    return {
+      ...captured.updateMenu,
+      visible: isDesktop && captured.updateMenu.visible,
+      checkForUpdates: () => captured.executeDesktopCommand(DesktopCommandIds.CheckForUpdates),
+    };
+  },
 }));
 
 vi.mock("@/hooks/usePlatform.js", () => ({
@@ -116,48 +121,22 @@ describe("WorkspaceHelpMenuButton", () => {
     return renderToStaticMarkup(createElement(WorkspaceHelpMenuButton, { isDesktop }));
   }
 
-  it("桌面和 Web 的漏洞入口紧跟问题上报，打开配置地址；缺失时隐藏", async () => {
+  it("NCode 关闭官方帮助跳转后不再渲染漏洞提交入口", async () => {
     for (const desktop of [true, false]) {
       captured.zsrcUrl = "https://security.example.test/report";
       captured.openExternal.mockClear();
       try {
-        await render(desktop);
-        const index = captured.menuItems.findIndex(
-          (item) => item.label === "workspaceHeader.help.reportVulnerability",
-        );
-        expect(index).toBeGreaterThan(0);
-        expect(captured.menuItems[index - 1]?.label).toBe("workspaceHeader.help.issueReport");
-        await captured.menuItems[index]?.onSelect?.();
-        expect(captured.openExternal).toHaveBeenCalledExactlyOnceWith(captured.zsrcUrl);
+        const html = await render(desktop);
+        expect(html).not.toContain("workspaceHeader.help.reportVulnerability");
+        expect(
+          captured.menuItems.some(
+            (item) => item.label === "workspaceHeader.help.reportVulnerability",
+          ),
+        ).toBe(false);
+        expect(captured.openExternal).not.toHaveBeenCalled();
       } finally {
         captured.zsrcUrl = null;
       }
-      expect(await render(desktop)).not.toContain("workspaceHeader.help.reportVulnerability");
-    }
-  });
-
-  it("冷缓存加载项不可触发外链，有效配置到达时保留原位置与文案", async () => {
-    captured.loading = true;
-    captured.openExternal.mockClear();
-    try {
-      await render(true);
-      const before = captured.menuItems.map((item) => item.label);
-      const item = captured.menuItems.find(
-        (item) => item.label === "workspaceHeader.help.reportVulnerability",
-      );
-      expect(item).toMatchObject({ disabled: true, onSelect: undefined });
-      captured.loading = false;
-      captured.zsrcUrl = "https://security.example.test/report";
-      await render(true);
-      expect(captured.menuItems.map((item) => item.label)).toEqual(before);
-      expect(
-        captured.menuItems.find((item) => item.label === "workspaceHeader.help.reportVulnerability")
-          ?.disabled,
-      ).toBe(false);
-      expect(captured.openExternal).not.toHaveBeenCalled();
-    } finally {
-      captured.loading = false;
-      captured.zsrcUrl = null;
     }
   });
 
@@ -207,27 +186,13 @@ describe("WorkspaceHelpMenuButton", () => {
     }
   });
 
-  it("资源管理器之后显示检查更新，点击执行已有命令", async () => {
-    await render(true);
-    const index = captured.menuItems.findIndex(
-      (entry) => entry.label === "titleBar.menu.help.checkForUpdates",
-    );
-    expect(index).toBeGreaterThan(0);
-    expect(captured.menuItems[index - 1]?.testId).toBe(TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER);
-    await captured.menuItems[index]?.onSelect?.();
-    expect(captured.executeDesktopCommand).toHaveBeenCalledExactlyOnceWith(
-      DesktopCommandIds.CheckForUpdates,
-    );
-  });
+  it("NCode 停用应用内升级，桌面端也不显示检查更新", async () => {
+    captured.updateMenuArguments.length = 0;
 
-  it("Web 与 Preview 不显示检查更新", async () => {
+    expect(await render(true)).not.toContain("titleBar.menu.help.checkForUpdates");
     expect(await render(false)).not.toContain("titleBar.menu.help.checkForUpdates");
-    captured.updateMenu.visible = false;
-    try {
-      expect(await render(true)).not.toContain("titleBar.menu.help.checkForUpdates");
-    } finally {
-      captured.updateMenu.visible = true;
-    }
+    // 关闭点本身：桌面端也向 hook 传 false，因此不会订阅更新状态。
+    expect(captured.updateMenuArguments).toEqual([false, false]);
   });
 
   it("桌面导出日志复用平台导出及共享提示", async () => {
@@ -251,28 +216,24 @@ describe("WorkspaceHelpMenuButton", () => {
     }
   });
 
-  it("桌面两组一条分隔线，导出日志位于桌面组首项，Web 仅帮助组", async () => {
+  it("NCode 帮助菜单只保留本地桌面动作", async () => {
     for (const desktop of [true, false]) {
       const html = await render(desktop);
-      expect(captured.menuItems.map((item) => item.label)).toEqual([
-        "workspaceHeader.help.docs",
-        "workspaceHeader.help.community",
-        "workspaceHeader.help.issueReport",
-        "workspaceHeader.help.productRequest",
-        ...(desktop
+      expect(captured.menuItems.map((item) => item.label)).toEqual(
+        desktop
           ? [
               "titleBar.menu.help.exportLogs",
               "titleBar.menu.help.resourceManager",
-              "titleBar.menu.help.checkForUpdates",
               "titleBar.menu.help.about",
             ]
-          : []),
-      ]);
-      expect((html.match(/<hr/g) ?? []).length).toBe(desktop ? 1 : 0);
+          : [],
+      );
+      // 导出日志已是菜单首项，上游那条分组分隔线随官方入口一起移除，桌面端也不再渲染 <hr>。
+      expect((html.match(/<hr/g) ?? []).length).toBe(0);
     }
   });
 
-  it("桌面端与 Web 端都保留原有帮助项", async () => {
+  it("桌面端与 Web 端都不再渲染官方反馈、社群与产品文档入口", async () => {
     for (const isDesktop of [true, false]) {
       const html = await render(isDesktop);
       for (const id of [
@@ -281,7 +242,7 @@ describe("WorkspaceHelpMenuButton", () => {
         "workspaceHeader.help.community",
         "workspaceHeader.help.docs",
       ]) {
-        expect(html).toContain(id);
+        expect(html, id).not.toContain(id);
       }
     }
   });

@@ -5,7 +5,6 @@ import {
   DesktopCommandIds,
   desktopMenuMessageIds,
   getDesktopMenuMessage,
-  ZCODE_PRODUCT_FLAVOR,
   type DesktopCommandId,
   type Locale,
 } from "@zcode/shared";
@@ -99,15 +98,7 @@ export function createDesktopTray(options: {
           click: () => executeTrayCommand(DesktopCommandIds.OpenWorkspace),
         },
         { type: "separator" },
-        // 更新入口跟随产品身份：Preview（含生产后端的 Preview）禁用更新器，托盘也不能露出入口。
-        ...(ZCODE_PRODUCT_FLAVOR === "production"
-          ? [
-              {
-                label: getLabel(desktopMenuMessageIds.helpCheckForUpdates),
-                click: () => executeTrayCommand(DesktopCommandIds.CheckForUpdates),
-              },
-            ]
-          : []),
+        // NCode 停用应用内更新入口，托盘不再露出「检查更新」。
         {
           label: getLabel(desktopMenuMessageIds.helpAbout),
           click: () => executeTrayCommand(DesktopCommandIds.ShowAbout),

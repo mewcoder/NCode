@@ -188,7 +188,6 @@ import type { ConversationDropTargetController } from "@/v4/composer/conversatio
 import { shouldIgnoreEscapeForStopGeneration } from "@/v4/composer/escapeStop.js";
 import { useConversationPanePresentation } from "@/side-pane-full-view/index.js";
 import { ConversationDraftEmptyState } from "@/v4/ConversationDraftEmptyState.js";
-import { ConversationDraftSuggestedPromptsContainer } from "@/v4/ConversationDraftSuggestedPromptsContainer.js";
 import { ConversationHeader, type PaneWorkspaceBadge } from "@/v4/ConversationHeader.js";
 import { ConversationQueuePanel } from "@/v4/ConversationQueuePanel.js";
 import { projectPendingGuideQueue } from "@/v4/pendingGuideProjection.js";
@@ -5628,26 +5627,6 @@ export function SessionPane({
         />
       ) : null}
       {composerNode}
-      {/* 办公模式显示主动任务推荐；编程模式保留原有小型场景入口。 */}
-      {/* 完整视图浮窗只露出输入框，草稿推荐提示不进入浮窗。 */}
-      {isDraft &&
-      !isFloatingPresentation &&
-      (!isOfficeMode || sharedSettings?.proactiveSuggestionsEnabled === true) ? (
-        <ConversationDraftSuggestedPromptsContainer
-          className={isOfficeMode ? "mt-4" : "mt-6"}
-          proactive={isOfficeMode}
-          onOpenAutomations={
-            onOpenAutomationsMain && !compactForRemoteControl
-              ? (automationTab) => onOpenAutomationsMain(undefined, automationTab)
-              : undefined
-          }
-          workspacePath={workspacePath}
-          workspaceIdentity={workspaceIdentity}
-          remoteSessionId={remoteSessionId ?? undefined}
-          isWebRemoteControl={compactForRemoteControl}
-          isDesktop={isDesktop}
-        />
-      ) : null}
     </>
   );
   // 插件 ui/message 的图片走与粘贴截图相同的 v4 attachmentPut；草稿（无 sessionId）没有插件 UI。

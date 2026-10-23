@@ -386,8 +386,13 @@ describe("createLocalServices remote authority", () => {
       dispose: vi.fn(),
       disposeAndWait: vi.fn(async () => {}),
     };
-    const [{ createLocalServices, disposeServiceResources }, { IClientScenesService }] =
-      await Promise.all([import("../src/node.js"), import("../src/index.js")]);
+    const [{ createLocalServices, disposeServiceResources }, { IClientScenesService }, apiModule] =
+      await Promise.all([
+        import("../src/node.js"),
+        import("../src/index.js"),
+        import("../src/providers/api/nodeApiClient.js"),
+      ]);
+    const createApiClient = vi.spyOn(apiModule, "createNodeApiClient");
     const services = createLocalServices({
       hostApiNetworkTransport: transport,
       serviceAuthorityMode: "desktop-attached-remote",
@@ -398,7 +403,16 @@ describe("createLocalServices remote authority", () => {
         code: 0,
         data: [],
       });
+      // 场景推荐已关闭，不能再借它证明 transport 接线；使用实际装配的 ApiClient 发通用请求。
+      expect(transport.fetch).not.toHaveBeenCalled();
+      expect(createApiClient).toHaveBeenCalledOnce();
+      const apiClient = createApiClient.mock.results[0]!.value;
+      const response = await apiClient.request("https://provider.example.test/models");
+      await expect(response.json()).resolves.toMatchObject({ code: 0, data: [] });
       expect(transport.fetch).toHaveBeenCalledOnce();
+      expect(String(transport.fetch.mock.calls[0]![0])).toBe(
+        "https://provider.example.test/models",
+      );
     } finally {
       disposeServiceResources(services);
     }

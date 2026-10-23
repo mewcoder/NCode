@@ -37,6 +37,23 @@ describe("model provider navigation loading indicator", () => {
     );
 
     expect(html).not.toContain("Custom Providers");
+    expect(html).not.toContain("Preset");
+    expect(html).toContain("settings.modelProvider.providersEmpty");
+    expect(html).not.toContain("common.loading");
+  });
+
+  it("空列表加载期间显示加载提示，不显示缺省提示", () => {
+    const html = renderWithTooltipProvider(
+      createElement(ModelProviderSectionNavigation, {
+        navigationGroups: [],
+        selectedNodeKey: null,
+        presetLoading: false,
+        customLoading: true,
+        onSelectNavItem: vi.fn(),
+      }),
+    );
+    expect(html).toContain("common.loading");
+    expect(html).not.toContain("settings.modelProvider.providersEmpty");
   });
 
   it("只对 Settings View 允许项启用拖拽", () => {
@@ -139,6 +156,7 @@ describe("model provider navigation loading indicator", () => {
     );
 
     expect(html).toContain('aria-label="Provider A"');
+    expect(html).not.toContain("settings.modelProvider.providersEmpty");
     expect(html).toMatch(
       /data-testid="model-provider-nav-item-custom:provider-a"[^>]*aria-roledescription="sortable"[\s\S]*Provider A/,
     );

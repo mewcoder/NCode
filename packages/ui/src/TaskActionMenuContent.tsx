@@ -30,7 +30,6 @@ export function TaskActionMenuContent({
   onStartRenameTask,
   onArchiveTask,
   onMarkTaskAsUnread,
-  onOpenTaskFeedback,
   onOpenTaskPathInFileManager,
   onCopyWorkspacePath,
   onCopyTaskPath,
@@ -38,6 +37,7 @@ export function TaskActionMenuContent({
   onCopySessionId,
   onViewModelTrajectory,
   onOpenProviderConfig,
+  onOpenTaskFeedback: _onOpenTaskFeedback,
 }: {
   intl: {
     formatMessage: (desc: { id: string }, values?: Record<string, string>) => string;
@@ -64,7 +64,6 @@ export function TaskActionMenuContent({
   onStartRenameTask: () => void;
   onArchiveTask: () => void;
   onMarkTaskAsUnread: () => void;
-  onOpenTaskFeedback?: () => void;
   onOpenTaskPathInFileManager: () => void;
   onCopyWorkspacePath: () => void;
   onCopyTaskPath: () => void;
@@ -72,6 +71,8 @@ export function TaskActionMenuContent({
   onCopySessionId?: () => void;
   onViewModelTrajectory?: () => void;
   onOpenProviderConfig: () => void;
+  /** NCode 关闭问题反馈，本项不再渲染；保留参数契约以免影响既有调用方。 */
+  onOpenTaskFeedback?: () => void;
 }) {
   const taskTargetActionsDisabled = disableTaskActions || disableTaskTargetActions;
 
@@ -202,16 +203,7 @@ export function TaskActionMenuContent({
           </Item>
         </>
       ) : null}
-      {onOpenTaskFeedback ? (
-        <>
-          <Separator />
-          <Item disabled={taskTargetActionsDisabled} onSelect={onOpenTaskFeedback}>
-            {/* Bugfix: 任务菜单之前只有复制日志/路径，用户遇到任务问题时还要手动回到反馈中心。
-                “反馈问题”不是任务管理动作，单独放在菜单底部更符合兜底求助入口的层级。 */}
-            {intl.formatMessage({ id: "taskList.feedback" })}
-          </Item>
-        </>
-      ) : null}
+      {/* NCode 关闭问题反馈，任务菜单不再提供反馈入口。 */}
     </>
   );
 }

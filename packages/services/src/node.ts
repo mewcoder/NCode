@@ -1,3 +1,4 @@
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import {
   createRemoteProjectService,
   IRemoteProjectService,
@@ -50,13 +51,7 @@ export {
   materializeZCodeBuiltinProviderConfig,
   ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV,
 } from "@zcode/provider-node";
-import { randomUUID } from "node:crypto";
-import { getAppConfigDir as getContentAppConfigDir } from "#src/paths.js";
 import { ICloudContentService } from "#src/cloud-content/cloudContent.js";
-import { createCloudContentService } from "#src/cloud-content/cloudContentService.js";
-import { IMarketingTouchService } from "#src/marketing-touch/marketingTouch.js";
-import { createMarketingTouchService } from "#src/marketing-touch/marketingTouchService.js";
-import { createMarketingAssetRegistry } from "#src/marketing-touch/marketingAssetRegistry.js";
 import type { IChannel } from "@zcode/rpc";
 import {
   readTopicResourceFromRelay,
@@ -465,7 +460,6 @@ import { AccountProviderApiClient } from "./model-provider/accountProviderApiCli
 import { createAccountProjectTokenClient } from "./model-provider/accountProjectTokenClient.js";
 import { AccountProviderApiKeyResolver } from "./model-provider/accountProviderApiKeyResolver.js";
 import { createProviderConfigRuntime } from "./model-provider/providerConfigRuntime.js";
-import { fetchZCodeBuiltinRemoteRelease } from "./model-provider/zcodeBuiltinRemoteConfig.js";
 import {
   createProviderRuntimeFromConfigRuntime,
   type ProviderRuntime,
@@ -485,7 +479,6 @@ import {
 import { createProviderProvisioningTarget } from "./model-provider/providerProvisioningTarget.js";
 import { IProviderProvisioningTargetService } from "./model-provider/providerProvisioning.js";
 import { buildOffPeakModelSelectionView } from "./model-provider/offPeakModelSelectionView.js";
-import { resolveClientConfigPlatform } from "./runtime-tools/clientPlatform.js";
 import {
   createAccountRequestAuthService,
   type IAccountRequestAuthService,
@@ -540,14 +533,7 @@ import { ensureAppCaCert } from "./runtime-tools/appCaCert.js";
 import { buildHelperOpenArgs, isCuaLocalDevelopmentRuntime } from "@zcode/zcode-cua/broker/server";
 import { createServiceLogger, type ServiceLogger } from "#src/logger/serviceLogger.js";
 import { IOffPeakTaskService } from "./session/offPeakTask.js";
-import type { HighspeedMockScenario } from "@zcode/shared";
 import { IHighspeedCardService } from "./highspeed/highspeedCard.js";
-import {
-  buildHighspeedCodingPlanAuthHeaders,
-  HighspeedCardService,
-  createHighspeedHttpTransport,
-} from "./highspeed/highspeedCardService.js";
-import { createHighspeedMockTransport } from "./highspeed/highspeedMockTransport.js";
 import { OffPeakTaskService } from "./session/offPeakTaskService.js";
 import { OffPeakTaskRepo } from "./session/offPeakTaskRepo.js";
 import { createOffPeakServerClient } from "./session/offPeakServerClient.js";
@@ -562,10 +548,6 @@ import {
   createOfficialMcpAuthHeadersResolver,
   resolveOfficialMcpCredentials,
 } from "./official-mcp/officialMcpCredentials.js";
-import {
-  createOfficialMcpTrustedOriginRegistry,
-  OFFICIAL_MCP_DEV_TRUSTED_ORIGINS_ENV,
-} from "@zcode/shared";
 import {
   BROKER_SOCKET_ENV,
   BROKER_UNAVAILABLE_ENV,
@@ -633,7 +615,6 @@ import {
   zcodeAccountAccessSchema,
   zcodeProviderAccountAccessSchema,
   ZCODE_VERSION,
-  ZCODE_ENV,
   buildRuntimeZCodeApiUrl,
 } from "@zcode/shared";
 
@@ -1504,31 +1485,9 @@ export function createLocalServices(options: {
     }),
   );
   const providerConfigLog = createServiceLogger("provider-config");
-  const clientConfigPlatform = resolveClientConfigPlatform();
   const providerConfigRuntime = createProviderConfigRuntime({
     zcodeBuiltinFilePath: options.zcodeBuiltinProviderConfigFilePath,
-    zcodeBuiltinEnvironment: {
-      environmentConfigRoot: resolveAppConfigDir(),
-      platform: clientConfigPlatform,
-      appVersion: ZCODE_VERSION,
-      resolveEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
-      onRefreshResult: (event) => {
-        if (event.result === "updated")
-          providerConfigLog.info(undefined, "ZCode Built-in CDN 配置已更新", event);
-        else providerConfigLog.debug(undefined, "ZCode Built-in 刷新检查", event);
-      },
-      fetchRelease: (endpointOrigin, signal) =>
-        fetchZCodeBuiltinRemoteRelease({
-          apiClient,
-          endpointOrigin,
-          signal,
-          appVersion: ZCODE_VERSION,
-          platform: clientConfigPlatform,
-        }),
-    },
-    onZCodeBuiltinRefreshError: (error) => {
-      providerConfigLog.warn(undefined, "ZCode Built-in Config 远端刷新失败", { error });
-    },
+
     onPersonalConfigRecovery: (event) => {
       providerConfigLog.warn(
         undefined,
@@ -1560,7 +1519,9 @@ export function createLocalServices(options: {
         forceRefresh,
       });
     },
-    loadAccountIdentity,
+    loadAccountIdentity: NCODE_FEATURE_POLICY.officialAccountQueries
+      ? loadAccountIdentity
+      : async () => null,
     resolveFamilyAvailability: createCodingPlanFamilyAvailabilityResolver({
       apiClient,
       credentialService,
@@ -1638,14 +1599,7 @@ export function createLocalServices(options: {
   // 必须共用这一份实现，否则两处对"当前选中的 Coding Plan 连接"的判定会分叉。
   // 额度侧注入的是凭证解析而非 resolveHeaders：归属校验需要 providerFamily，
   // 而身份头里没有 family；身份头仍由同一个 buildOfficialMcpAuthHeaders 构造。
-  const officialMcpCredentialSource = {
-    resolve: () =>
-      resolveOfficialMcpCredentials({
-        accountRequestAuthService,
-        credentialService,
-        modelSelectionService: providerRuntime.modelSelection,
-      }),
-  };
+
   // mcpSync/hooks 里引用 zcodeAgentService 的闭包是惰性调用，声明顺序不影响初始化。
   const skillsService = createSkillsService({ isDesktopRuntime: true });
   const mcpSyncService = createMcpSyncService({
@@ -2301,20 +2255,13 @@ export function createLocalServices(options: {
     },
     // 官方 Server MCP 身份头：host 是唯一身份权威，Agent 经反向请求索取。
     // Provider 存在性读取正式 Model Selection View；不恢复旧 Provider Snapshot。
-    officialMcpAuthHeadersResolver: createOfficialMcpAuthHeadersResolver({
-      accountRequestAuthService,
-      credentialService,
-      modelSelectionService: providerRuntime.modelSelection,
-    }),
+
     // host 是身份权威边界：provenance/origin 必须在这里再校验一次，不能只依赖 agent
     // adapter 的 fetch wrapper。判定实现与 CLI 侧共用 @zcode/shared 的同一份，避免分叉。
     // origin 解析复用 resolveCurrentZCodeEndpointOrigin——与闲时任务同口径（含 settings
     // 覆盖），否则会出现"闲时任务能连、官方 MCP 连不上"。
     // dev 开关必须同样传入，否则本地自测会被 host 单方面拒绝。
-    officialMcpTrustedOrigins: createOfficialMcpTrustedOriginRegistry({
-      devTrustedOriginsRaw: process.env[OFFICIAL_MCP_DEV_TRUSTED_ORIGINS_ENV],
-      resolveZCodeApiOrigin: resolveCurrentZCodeEndpointOrigin,
-    }),
+
     cuaOperationStateReporter: shouldEnableCuaOperationStateReporter({
       serviceAuthorityMode: options?.serviceAuthorityMode,
       hasReporter: Boolean(options?.cuaOperationStateReporter),
@@ -2637,30 +2584,9 @@ export function createLocalServices(options: {
   // 注册链上的懒工厂（如 OffPeak）会各自创建 tasks-index sqlite repo；先收集到本数组，
   // services 集合建好后在 return 前统一登记进 sharedSqliteRepos 侧表
   const sqliteReposToClose: Array<{ close(): void }> = [];
-  const marketingAssets = createMarketingAssetRegistry({
-    allowLoopback: ZCODE_ENV === "test" || process.env.NODE_ENV === "development",
-  });
   const services = new ServiceCollection()
-    .register(
-      IMarketingTouchService,
-      createMarketingTouchService({
-        apiClient,
-        getToken: () => credentialService.load("zcodejwttoken"),
-        getDeviceMid: () => options?.agentTelemetry?.getDeviceMid?.(),
-        baseUrl: buildRuntimeZCodeApiUrl(process.env, "/"),
-        appVersion: ZCODE_VERSION,
-        onSnapshot: (snapshot) => marketingAssets.accept(snapshot),
-      }),
-    )
     .register(IFileService, fileService)
     .register(IMediaPreviewService, mediaPreviewService)
-    .register(
-      ICloudContentService,
-      createCloudContentService({
-        publishedAssets: marketingAssets,
-        cacheRoot: join(getContentAppConfigDir(), "cache", "content-bundles", randomUUID()),
-      }),
-    )
     .register(IGitService, gitService)
     .register(IGitCheckpointService, gitCheckpointService)
     .register(ISystemService, systemService)
@@ -2708,7 +2634,7 @@ export function createLocalServices(options: {
         accountRequestAuthService,
         credentialService,
         zcodeAgentService,
-        officialMcpCredentialSource,
+        // NCode 不解析官方 MCP 账号凭证。
       }),
     )
     .register(ICodingPlanSubscriptionService, codingPlanSubscriptionService)
@@ -2806,103 +2732,14 @@ export function createLocalServices(options: {
         return offPeakTaskService;
       })(),
     )
-    .register(
-      IHighspeedCardService,
-      (() => {
-        const origin = resolveRuntimeZCodeEndpointOrigin(process.env);
-        const rawMockScenario = process.env.ZCODE_HIGHSPEED_MOCK_SCENARIO;
-        const mockScenarios = new Set<HighspeedMockScenario>([
-          "hit-fast",
-          "miss",
-          "hit-after-timeout",
-          "hit-invalid-model",
-          "hit-queue-edit",
-          "existing-foreign-task-card",
-          "expired-card",
-        ]);
-        const mockScenario = mockScenarios.has(rawMockScenario as HighspeedMockScenario)
-          ? (rawMockScenario as HighspeedMockScenario)
-          : null;
-        const resolveHighspeedLoginHeaders = async (): Promise<Record<string, string>> => {
-          const jwt = (await credentialService.load("zcodejwttoken"))?.trim() ?? "";
-          if (!jwt) throw new Error("highspeed request requires zcode jwt");
-          return { Authorization: /^Bearer\s/i.test(jwt) ? jwt : `Bearer ${jwt}` };
-        };
-        const transport = mockScenario
-          ? createHighspeedMockTransport({ scenario: mockScenario })
-          : createHighspeedHttpTransport({
-              drawUrl: `${origin}/api/v1/highspeed/draw`,
-              healthyBaseUrl: `${origin}/api/v1/highspeed/`,
-              logger: createServiceLogger("highspeed"),
-              drawHeaders: async () => {
-                const credentials = await resolveOffPeakCredentials(offPeakCredentialResolverDeps, {
-                  allowMockCredentials: false,
-                });
-                const codingPlanAuthorization =
-                  (
-                    await credentialService.load(`oauth:${credentials.providerFamily}:access_token`)
-                  )?.trim() ?? "";
-                return buildHighspeedCodingPlanAuthHeaders({
-                  zcodeJwt: credentials.jwt,
-                  codingPlanAuthorization,
-                  targetType:
-                    credentials.organizationId && credentials.projectId ? "TEAM" : "PERSONAL",
-                  ...(credentials.organizationId
-                    ? { organizationId: credentials.organizationId }
-                    : {}),
-                  ...(credentials.projectId ? { projectId: credentials.projectId } : {}),
-                });
-              },
-              healthyHeaders: resolveHighspeedLoginHeaders,
-            });
-        return new HighspeedCardService({
-          transport,
-          // 普通 mock 只验证抽卡 UI，不依赖隐藏执行 Provider；目录外模型与队列编辑场景
-          // 必须走真实 Highspeed execution Selection，才能覆盖创建期退回和队列模型隔离。
-          inferenceMode:
-            mockScenario &&
-            mockScenario !== "hit-invalid-model" &&
-            mockScenario !== "hit-queue-edit"
-              ? "session-default"
-              : "highspeed",
-          // 规则 11：draw 只对 Coding Plan 用户开放；mock 场景放行以便本地验证。
-          resolveCodingPlanSupported: mockScenario
-            ? async () => true
-            : async () =>
-                (await resolveOffPeakCodingPlanSupport(offPeakCredentialResolverDeps)).supported,
-          // 规则 14：会话模型必须属于所选 Coding Plan Provider 的模型目录（Built-in Provider
-          // Config 投影）才发起新 draw；mock 场景放行以便本地验证。
-          resolveModelCovered: mockScenario
-            ? async () => true
-            : async (providerId, modelId) => {
-                const view = await providerRuntime.modelSelection.getView();
-                const provider = view.providers.find((item) => item.providerId === providerId);
-                return provider?.models.some((model) => model.modelId === modelId) ?? false;
-              },
-          // 加速推理与 draw 走同一 highspeed 网关、同一 Coding Plan 双 JWT 契约：必须携带
-          // zcode JWT + Coding Plan 业务 JWT + Team 身份头。此前只发 zcode JWT + 卡 ID，网关
-          // 无法校验 Coding Plan 权益，返回 401 auth_failed。与 draw 头复用同一次 selected
-          // connection 解析，避免把 ZAI 身份的卡打到 BigModel 加速 Provider。
-          resolveInferenceAuth: async () => {
-            const credentials = await resolveOffPeakCredentials(offPeakCredentialResolverDeps, {
-              allowMockCredentials: false,
-            });
-            const codingPlanAuthorization =
-              (
-                await credentialService.load(`oauth:${credentials.providerFamily}:access_token`)
-              )?.trim() ?? "";
-            return {
-              zcodeJwt: credentials.jwt,
-              family: credentials.providerFamily,
-              codingPlanAuthorization,
-              targetType: credentials.organizationId && credentials.projectId ? "TEAM" : "PERSONAL",
-              ...(credentials.organizationId ? { organizationId: credentials.organizationId } : {}),
-              ...(credentials.projectId ? { projectId: credentials.projectId } : {}),
-            };
-          },
-        });
-      })(),
-    )
+    .register(IHighspeedCardService, {
+      prepareTurn: async () => ({ kind: "fallback", reason: "unavailable", nextDrawAt: null }),
+      getSnapshot: async () => ({ card: null, nextDrawAt: null, drawing: false }),
+      invalidateCard: async () => false,
+      healthy: async () => {
+        throw new Error("NCode Highspeed is disabled");
+      },
+    })
     .register(ISkillsService, skillsService)
     .register(ISkillSyncService, createSkillSyncService())
     .register(IMcpSyncService, mcpSyncService)

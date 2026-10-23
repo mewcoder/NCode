@@ -1417,7 +1417,7 @@ describe("Start Plan context balance panel", () => {
     expect(html).not.toContain("750K");
     expect(html).not.toContain("1M");
     expect(html).not.toContain("settings.modelProvider.startPlan.balance.used");
-    expect(html).toContain("chat.quota.action.upgrade");
+    expect(html).not.toContain("chat.quota.action.upgrade");
     expect(html).toContain("billing-discount-info");
   });
 

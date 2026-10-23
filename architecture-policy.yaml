@@ -288,6 +288,17 @@ modules:
     layers:
       app: "."
     owner: plugin
+  - id: ncode-feature-policy
+    roots: [packages/shared/src/ncode-feature-policy]
+    managed: true
+    requires: []
+    publicEntrypoints:
+      - packages/shared/src/ncode-feature-policy/index.ts
+      - packages/shared/src/ncode-feature-policy/contract.ts
+      - packages/shared/src/ncode-feature-policy/policy.js
+    layers:
+      contract: "."
+    owner: ncode
   - id: plugin-ui-bridge
     roots: [packages/services/src/plugin-ui-bridge]
     managed: true

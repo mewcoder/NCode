@@ -149,7 +149,7 @@ describe("WorkspaceHeaderActionSection", () => {
     expect(html).toContain("sidePane.expand");
   });
 
-  it("只在 Desktop local/SSH/WSL/Docker 已有任务显示分享入口", async () => {
+  it("NCode 关闭会话分享后，任何平台与登录态都不渲染分享入口", async () => {
     const { WorkspaceHeaderActionSection } =
       await import("@/WorkspaceHeaderSections/WorkspaceHeaderActionSection.js");
     const renderSection = (extra: Record<string, unknown>) =>
@@ -167,33 +167,18 @@ describe("WorkspaceHeaderActionSection", () => {
         }),
       );
 
-    expect(renderSection({})).toContain("conversationShare.trigger");
-    expect(renderSection({ remoteTarget: { kind: "ssh" } })).toContain("conversationShare.trigger");
-    expect(renderSection({ isWebRemoteControl: true })).not.toContain("conversationShare.trigger");
-    expect(renderSection({ isDesktop: false })).not.toContain("conversationShare.trigger");
-    expect(renderSection({ remoteTarget: { kind: "server" } })).not.toContain(
-      "conversationShare.trigger",
-    );
-  });
-
-  it("未登录时不展示分享入口", async () => {
-    const { WorkspaceHeaderActionSection } =
-      await import("@/WorkspaceHeaderSections/WorkspaceHeaderActionSection.js");
-
-    const html = renderToStaticMarkup(
-      withSettingsServices(WorkspaceHeaderActionSection, {
-        activeTaskId: "task-1",
-        workspaceAbsPath: "/workspace",
-        isTerminalOpen: false,
-        isSidePaneOpen: false,
-        onToggleTerminal: vi.fn(),
-        onToggleSidePane: vi.fn(),
-        isDesktop: true,
-        user: null,
-      }),
-    );
-
-    expect(html).not.toContain("conversationShare.trigger");
+    for (const extra of [
+      {},
+      { remoteTarget: { kind: "ssh" } },
+      { isWebRemoteControl: true },
+      { isDesktop: false },
+      { remoteTarget: { kind: "server" } },
+      { user: null },
+    ]) {
+      expect(renderSection(extra), JSON.stringify(extra)).not.toContain(
+        "conversationShare.trigger",
+      );
+    }
   });
 
   it("renders the help menu trigger before the terminal toggle", async () => {
@@ -212,10 +197,11 @@ describe("WorkspaceHeaderActionSection", () => {
 
     expect(html).not.toContain("chat.summaryPanel.toggle");
     expect(html).toContain("workspaceHeader.help.menu");
-    expect(html).toContain("workspaceHeader.help.issueReport");
-    expect(html).toContain("workspaceHeader.help.productRequest");
-    expect(html).toContain("workspaceHeader.help.community");
-    expect(html).toContain("workspaceHeader.help.docs");
+    // NCode 关闭反馈、社群与产品文档入口，帮助菜单不再渲染这些项。
+    expect(html).not.toContain("workspaceHeader.help.issueReport");
+    expect(html).not.toContain("workspaceHeader.help.productRequest");
+    expect(html).not.toContain("workspaceHeader.help.community");
+    expect(html).not.toContain("workspaceHeader.help.docs");
     expect(html).not.toContain("titleBar.menu.help.exportLogs");
     expect(html).toContain("terminal.toggle");
     expect(html).toContain("sidePane.expand");
@@ -264,7 +250,7 @@ describe("WorkspaceHeaderActionSection", () => {
     expect(html).toContain("sidePane.expand");
   });
 
-  it("routes help menu items to feedback, community, and docs entries", async () => {
+  it("NCode 关闭官方帮助跳转后，帮助菜单不再路由到反馈、社群或产品文档", async () => {
     capturedHeaderHelp.menuItems = [];
     capturedHeaderHelp.openSubmit.mockClear();
     capturedHeaderHelp.openFeatureRequest.mockClear();
@@ -272,7 +258,6 @@ describe("WorkspaceHeaderActionSection", () => {
     capturedHeaderHelp.openExternal.mockClear();
     capturedHeaderHelp.exportLogs.mockClear();
     capturedHeaderHelp.captureWindowScreenshot.mockClear();
-    capturedHeaderHelp.captureWindowScreenshot.mockResolvedValue(capturedHeaderHelp.screenshot);
     const { WorkspaceHeaderActionSection } =
       await import("@/WorkspaceHeaderSections/WorkspaceHeaderActionSection.js");
 
@@ -286,24 +271,15 @@ describe("WorkspaceHeaderActionSection", () => {
       }),
     );
 
-    expect(capturedHeaderHelp.menuItems).toHaveLength(4);
-    await capturedHeaderHelp.menuItems[2]?.onSelect?.();
-    capturedHeaderHelp.menuItems[1]?.onSelect?.();
-    capturedHeaderHelp.menuItems[0]?.onSelect?.();
-    capturedHeaderHelp.menuItems[3]?.onSelect?.();
+    // 非桌面上下文下帮助菜单不再有任何可路由的官方项。
+    expect(capturedHeaderHelp.menuItems).toHaveLength(0);
+    for (const item of capturedHeaderHelp.menuItems) item.onSelect?.();
 
     expect(capturedHeaderHelp.captureWindowScreenshot).not.toHaveBeenCalled();
-    expect(capturedHeaderHelp.openSubmit).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        type: "bug",
-        includeLogs: true,
-        screenshots: [],
-      }),
-    );
-    expect(capturedHeaderHelp.openFeatureRequest).toHaveBeenCalledTimes(1);
-    expect(capturedHeaderHelp.openCommunity).toHaveBeenCalledTimes(1);
-    expect(capturedHeaderHelp.openExternal).toHaveBeenCalledWith("https://zcode.z.ai/docs");
+    expect(capturedHeaderHelp.openSubmit).not.toHaveBeenCalled();
+    expect(capturedHeaderHelp.openFeatureRequest).not.toHaveBeenCalled();
+    expect(capturedHeaderHelp.openCommunity).not.toHaveBeenCalled();
+    expect(capturedHeaderHelp.openExternal).not.toHaveBeenCalled();
     expect(capturedHeaderHelp.exportLogs).not.toHaveBeenCalled();
   });
 

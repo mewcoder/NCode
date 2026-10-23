@@ -82,10 +82,6 @@ describe("createQuickPickCommands", () => {
       "switch-theme",
       "skills-settings",
       "mcp-settings",
-      "feedback",
-      "community",
-      "product-docs",
-      "login",
     ]);
     expect(commands.find((command) => command.id === "open-workspace")).toMatchObject({
       sectionId: "suggested",
@@ -132,9 +128,13 @@ describe("createQuickPickCommands", () => {
     expect(commands.find((command) => command.id === "add-review-tab")).toMatchObject({
       sectionId: "panels",
     });
-    expect(commands.find((command) => command.id === "product-docs")).toMatchObject({
-      sectionId: "app",
-    });
+    // NCode 关闭官方入口：反馈、社群、产品文档与登录/登出命令均不再注册。
+    for (const removedId of ["feedback", "community", "product-docs", "login", "logout"]) {
+      expect(
+        commands.some((command) => command.id === removedId),
+        removedId,
+      ).toBe(false);
+    }
   });
 
   it("keeps unavailable workspace opening visible but disabled", () => {
@@ -215,10 +215,10 @@ describe("createQuickPickCommands", () => {
     });
 
     commands.find((item) => item.id === "skills-settings")?.run();
-    commands.find((item) => item.id === "product-docs")?.run();
+    commands.find((item) => item.id === "mcp-settings")?.run();
 
     expect(handlers.openSkillsSettings).toHaveBeenCalledTimes(1);
-    expect(handlers.openProductDocs).toHaveBeenCalledTimes(1);
+    expect(handlers.openMcpSettings).toHaveBeenCalledTimes(1);
   });
 
   it("has locale messages for every visible command label", () => {
@@ -260,22 +260,30 @@ describe("createQuickPickCommands", () => {
     }
   });
 
-  it("uses logout instead of login for authenticated users", () => {
-    const commands = createQuickPickCommands({
+  it("never registers login or logout commands after NCode disables the official account", () => {
+    const authenticated = createQuickPickCommands({
       allowOpenWorkspace: true,
-      canOpenCommunity: false,
+      canOpenCommunity: true,
       isSidebarVisible: true,
       isLoggedIn: true,
       themeTarget: "dark",
       shortcuts,
       handlers: createHandlers(),
     });
-
-    expect(commands.some((command) => command.id === "login")).toBe(false);
-    expect(commands.find((command) => command.id === "logout")).toMatchObject({
-      sectionId: "app",
-      titleId: "quickPick.command.logout",
+    const anonymous = createQuickPickCommands({
+      allowOpenWorkspace: true,
+      canOpenCommunity: true,
+      isSidebarVisible: true,
+      isLoggedIn: false,
+      themeTarget: "dark",
+      shortcuts,
+      handlers: createHandlers(),
     });
-    expect(commands.some((command) => command.id === "community")).toBe(false);
+
+    for (const commands of [authenticated, anonymous]) {
+      expect(commands.some((command) => command.id === "login")).toBe(false);
+      expect(commands.some((command) => command.id === "logout")).toBe(false);
+      expect(commands.some((command) => command.id === "community")).toBe(false);
+    }
   });
 });

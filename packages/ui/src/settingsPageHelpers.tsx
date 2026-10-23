@@ -136,8 +136,8 @@ export function GeneralSectionContent({
   closeToTrayOnWindows,
   keepAwakeWhileRunning = false,
   desktopChromiumHardwareAccelerationEnabled = true,
-  receivePreviewUpdates,
-  autoDownloadAndInstallUpdates,
+  receivePreviewUpdates: _receivePreviewUpdates,
+  autoDownloadAndInstallUpdates: _autoDownloadAndInstallUpdates,
   dataBaseDir,
   terminalInheritSystemProfile = true,
   terminalFontFamily = "",
@@ -178,8 +178,8 @@ export function GeneralSectionContent({
   onCloseToTrayOnWindowsChange,
   onKeepAwakeWhileRunningChange = async () => {},
   onDesktopChromiumHardwareAccelerationChange = async () => {},
-  onReceivePreviewUpdatesChange,
-  onAutoDownloadAndInstallUpdatesChange,
+  onReceivePreviewUpdatesChange: _onReceivePreviewUpdatesChange,
+  onAutoDownloadAndInstallUpdatesChange: _onAutoDownloadAndInstallUpdatesChange,
   onMessageStreamShowReasoningChange,
   onMessageStreamShowTodosChange,
   onToolGroupingExploreEnabledChange,
@@ -700,40 +700,6 @@ export function GeneralSectionContent({
                   checked={desktopChromiumHardwareAccelerationEnabled}
                   onCheckedChange={(checked) => {
                     void onDesktopChromiumHardwareAccelerationChange(checked);
-                  }}
-                />
-              }
-            />
-            <SettingsRow
-              label={intl.formatMessage({ id: "settings.receivePreviewUpdates" })}
-              description={intl.formatMessage({
-                id: "settings.receivePreviewUpdatesDescription",
-              })}
-              control={
-                <Switch
-                  aria-label={intl.formatMessage({ id: "settings.receivePreviewUpdates" })}
-                  checked={receivePreviewUpdates}
-                  onCheckedChange={(checked) => {
-                    void onReceivePreviewUpdatesChange(checked);
-                  }}
-                />
-              }
-            />
-            <SettingsRow
-              label={intl.formatMessage({
-                id: "settings.autoDownloadAndInstallUpdates",
-              })}
-              description={intl.formatMessage({
-                id: "settings.autoDownloadAndInstallUpdatesDescription",
-              })}
-              control={
-                <Switch
-                  aria-label={intl.formatMessage({
-                    id: "settings.autoDownloadAndInstallUpdates",
-                  })}
-                  checked={autoDownloadAndInstallUpdates}
-                  onCheckedChange={(checked) => {
-                    void onAutoDownloadAndInstallUpdatesChange(checked);
                   }}
                 />
               }
