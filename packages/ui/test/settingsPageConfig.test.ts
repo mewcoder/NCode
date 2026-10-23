@@ -21,8 +21,8 @@ afterEach(() => {
 });
 
 describe("settingsPageConfig", () => {
-  it("only exposes remote device management on desktop", () => {
-    expect(isSettingsSectionAvailable("remoteDevices", true)).toBe(true);
+  it("NCode 隐藏远程设备分区，其它分区仍按平台判定", () => {
+    expect(isSettingsSectionAvailable("remoteDevices", true)).toBe(false);
     expect(isSettingsSectionAvailable("remoteDevices", false)).toBe(false);
     expect(isSettingsSectionAvailable("general", false)).toBe(true);
   });
@@ -37,25 +37,31 @@ describe("settingsPageConfig", () => {
     ).toEqual([
       {
         id: "basics",
-        sections: [
-          "general",
-          "appearance",
-          "modelProvider",
-          "browser",
-          "remoteDevices",
-          "shortcuts",
-        ],
+        // NCode 隐藏 remoteDevices。
+        sections: ["general", "appearance", "modelProvider", "browser", "shortcuts"],
       },
       {
         id: "agentCapabilities",
-        sections: ["memory", "subagents", "plugin", "mcp", "skill", "commands", "hooks"],
+        // NCode 新增「个性化」分区。
+        sections: [
+          "personalization",
+          "memory",
+          "subagents",
+          "plugin",
+          "mcp",
+          "skill",
+          "commands",
+          "hooks",
+        ],
       },
-      { id: "dataAndStats", sections: ["usage", "archives"] },
+      // NCode 恢复「数据导入」分区。
+      { id: "dataAndStats", sections: ["usage", "archives", "migration"] },
     ]);
     expect(settingsSections.map((section) => section.id)).toEqual([
       "general",
       "appearance",
       "modelProvider",
+      "personalization",
       "memory",
       "subagents",
       "plugin",
@@ -64,10 +70,10 @@ describe("settingsPageConfig", () => {
       "commands",
       "hooks",
       "browser",
-      "remoteDevices",
       "shortcuts",
       "usage",
       "archives",
+      "migration",
     ]);
   });
 
@@ -99,7 +105,6 @@ describe("settingsPageConfig", () => {
       "appearance",
       "modelProvider",
       "browser",
-      "remoteDevices",
       "computerUse",
       "shortcuts",
     ]);

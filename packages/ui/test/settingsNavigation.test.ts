@@ -483,3 +483,11 @@ it("设备定位与失败详情保持独立意图，已挂载事件消费清除�
   navigation.setPendingSettingsSectionIntent("general");
   expect(navigation.consumePendingSettingsSourceServerDetails()).toBe(false);
 });
+
+it("NCode 远程设备入口和历史导航回落，个性化保持可见", async () => {
+  const navigation = await loadSettingsNavigation("production");
+  expect(navigation.isSettingsSectionEnabled("remoteDevices")).toBe(false);
+  expect(navigation.resolveSettingsSection("remoteDevices")).toBe("general");
+  expect(navigation.resolveSettingsSection("remoteDevices", "modelProvider")).toBe("modelProvider");
+  expect(navigation.resolveSettingsSection("personalization")).toBe("personalization");
+});

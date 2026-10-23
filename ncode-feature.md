@@ -181,6 +181,8 @@ flowchart LR
 - **导航**：增加 `personalization` 分区，名称为“个性化”，归入智能体能力设置组；同步导航 ID 校验、分区配置和内容渲染。
 - **内容**：提供本机全局 `~/.zcode/AGENTS.md` 自定义指令编辑区，显示服务返回的实际文件路径、读取状态、保存按钮和保存结果。进入该分区时读取，点击保存时写入 UTF-8 内容；文件缺失时以空内容打开，保存时创建所需父目录。
 - **服务**：通过本机 Host 的 `ISettingsSyncService` 提供 `getGlobalAgentsInstructionsPath` / `readGlobalAgentsInstructions` / `writeGlobalAgentsInstructions`，共享接口与服务实现一起接入；UI 使用本机基础服务。读取失败显示错误并暂停保存，保存失败保留编辑内容。
+- **加载生命周期**：仅进入分区或本机服务实例变化时读取文件；语言变化（含跨窗口广播）只更新文案，不重新读取、不覆盖未保存草稿。读取在途时切换语言继续等待原请求；读取失败提示使用完成时的当前语言，卸载后仍忽略迟到结果。
+- **回归场景**：编辑未保存指令后切换中英文，草稿、保存按钮可用性及读写次数保持不变；读取在途切换语言不增加请求，失败提示使用新语言；离开后重新进入仍重新读取。浏览器交互验收使用隔离服务，不读写真实全局指令文件。
 - **位置**：[settingsPageConfig.ts](packages/ui/src/settings/settingsPageConfig.ts)、[settingsNavigation.ts](packages/ui/src/lib/settingsNavigation.ts)、[SettingsPage.tsx](packages/ui/src/SettingsPage.tsx)、[settingsSync.ts](packages/services/src/settings-sync/settingsSync.ts)、[settingsSyncService.ts](packages/services/src/settings-sync/settingsSyncService.ts)。旧分支参考同名读写方法及 `getUserZcodeAgentsFilePath`。
 
 ```mermaid
@@ -193,6 +195,8 @@ sequenceDiagram
   Editor->>Hook: 读取路径与内容
   Hook->>Host: 既有读取接口
   Host-->>Editor: 内容或读取错误
+  Page->>Editor: 切换语言（含跨窗口广播）
+  Editor->>Editor: 仅更新文案，保留草稿与当前读取
   Editor->>Hook: 用户点击保存后提交草稿
   Hook->>Host: 既有写入接口
   Host-->>Editor: 成功或错误（失败保留草稿）

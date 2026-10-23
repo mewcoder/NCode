@@ -4,7 +4,7 @@ import { getWorkspaceSourceServerId } from "@/conversation-workspace-target/sour
 import { RemoteConnectionNavigationDot } from "@/remote-connection/RemoteConnectionNavigationDot.js";
 import { resolveRemoteConnectionNavigationPresentation } from "@/lib/remoteConnectionPresentation.js";
 /* oxlint-disable eslint(max-lines) */
-import { ArrowLeft, Rocket, type LucideIcon } from "lucide-react";
+import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { useStore } from "zustand";
 import {
   marketingNavigation,
@@ -37,6 +37,7 @@ import {
   TID_SETTINGS_USAGE_TAB,
   testId,
 } from "@zcode/shared/test-ids";
+import { PersonalizationSection } from "@/settings/personalization/index.js";
 import { Button } from "@/components/ui/button.js";
 import { toast } from "@/components/ui/toast.js";
 import { DesktopWindowFrame } from "@/DesktopWindowFrame.js";
@@ -300,9 +301,9 @@ export function SettingsPage({
   captionWorkspacePath,
   onBack,
   onCreateTask,
-  onOpenWorkspace,
+  onOpenWorkspace: _onOpenWorkspace,
   onOpenRemoteWorkspace,
-  allowOpenWorkspace = true,
+  allowOpenWorkspace: _allowOpenWorkspace = true,
   onLogin,
   onLogout,
   user,
@@ -676,6 +677,8 @@ export function SettingsPage({
   }, [selectedUsageCodingPlanSource, usageActiveTab, usageCodingPlanSources]);
   const setNewUserOnboardingOpen = useZCodeStore((state) => state.setNewUserOnboardingOpen);
   const requestOnboardingDialog = () => setNewUserOnboardingOpen(true);
+  // NCode 数据导入分区直接打开上游统一导入流程（OnboardingDialog 的 migration 入口）。
+  const requestOnboardingDialogEntry = useZCodeStore((state) => state.requestOnboardingDialog);
   const setActiveSettingsSection = useCallback(
     (section: SettingsSectionId, fallbackSection: SettingsSectionId = activeSection) => {
       const resolvedSection = resolveSettingsSection(section, fallbackSection);
@@ -1666,27 +1669,7 @@ export function SettingsPage({
                   })}
                 </div>
 
-                <SettingsSidebarButton
-                  icon={Rocket}
-                  label={intl.formatMessage({ id: "settings.onboarding" })}
-                  className="mt-4 border border-dashed border-border hover:border-border-hover"
-                  onClick={() => {
-                    runUserAction({
-                      input: {
-                        featureId: "settings.navigation",
-                        action: "open_onboarding",
-                        trigger: "button",
-                      },
-                      operation: requestOnboardingDialog,
-                      completed: { resultSource: "local_commit" },
-                      failureStage: "dialog_open",
-                    });
-                  }}
-                >
-                  <span className="text-ui-base text-foreground">
-                    {intl.formatMessage({ id: "settings.onboarding" })}
-                  </span>
-                </SettingsSidebarButton>
+                {/* NCode 隐藏新手引导入口，数据导入有独立设置分区。 */}
               </nav>
 
               <div className="max-lg:hidden">
@@ -2063,6 +2046,8 @@ export function SettingsPage({
                                 })}
                               </p>
                             )
+                          ) : activeSection === "personalization" ? (
+                            <PersonalizationSection />
                           ) : activeSection === "appearance" ? (
                             <AppearanceSectionContent
                               codePreviewSettings={codePreviewSettings}
@@ -2163,8 +2148,7 @@ export function SettingsPage({
                             />
                           ) : activeSection === "migration" ? (
                             <MigrationSection
-                              workspacePath={activeWorkspacePath}
-                              workspaceIdentity={activeWorkspaceIdentity}
+                              onOpenImport={() => requestOnboardingDialogEntry("migration")}
                               isDesktop={isDesktop}
                             />
                           ) : activeSection === "archives" ? (
