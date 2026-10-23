@@ -143,6 +143,17 @@ modules:
     layers:
       contract: "."
     owner: ncode
+  - id: client-config
+    roots: [packages/services/src/client-config]
+    managed: true
+    requires: [services, shared]
+    publicEntrypoints:
+      - packages/services/src/client-config/contract.ts
+      - packages/services/src/client-config/clientConfig.ts
+      - packages/services/src/client-config/clientConfigService.ts
+    layers:
+      app: "."
+    owner: desktop
   - id: plugin-ui-bridge
     roots: [packages/services/src/plugin-ui-bridge]
     managed: true
