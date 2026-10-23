@@ -80,8 +80,8 @@
 
 - **界面**：隐藏会话发布、分享导入和分享链接入口，停止注册分享发布操作。
 - **后台**：本地服务装配复用既有 `createUnsupportedConversationShareService` 关闭态，不创建真实分享服务或 HTTP client；启动时不读取 `.zcode-share-imports.json`、不扫描或清理 `.zcode-share`，也不创建分享专属订阅、计时器或网络请求。发布、导入、预检、公开预览及继续分享接口均以 `feature_disabled` 拒绝，进度事件为空。
-- **历史内容**：本地已落盘的 `shared-conversation.json` 继续通过既有 `getImportedConversation` 接口按需离线读取；只在打开对应历史内容时访问该工作区副本，不初始化完整分享服务、不读取全局导入索引、不清理或删除已有数据。远程 attachment 沿用关闭态空读取，通用服务接口和原版分享实现保留。
-- **回归**：实际装配本地 Host 服务后断言分享索引读取、目录扫描与网络请求为零，关闭接口全部拒绝；显式读取历史副本仍能返回原内容，缺失时返回 null。静态锚点同时拦截真实服务的工厂调用和构造器调用，不能仅按旧工厂名判断关闭。
+- **历史内容**：不保留分享内容展示的兼容适配。所有宿主统一复用既有关闭态，`getImportedConversation` 返回 null，不读取旧副本；普通会话不受影响，不清理或删除磁盘上的旧分享文件。通用服务接口和原版分享实现保留，但 NCode 不装配真实实现。
+- **回归**：实际装配本地 Host 服务后断言分享索引读取、目录扫描与网络请求为零，关闭接口全部拒绝；即使存在历史副本，显式读取仍返回 null 且不访问分享目录、不删除用户数据。静态锚点同时拦截真实服务的工厂调用和构造器调用，不能仅按旧工厂名判断关闭。
 - **位置**：[WorkspaceHeaderActionSection.tsx](packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx)、[conversation-share](packages/services/src/conversation-share/)、[host/index.ts](packages/desktop/src/host/index.ts)、[node.ts](packages/services/src/node.ts)。
 
 ```mermaid
@@ -89,14 +89,12 @@ sequenceDiagram
   participant Host as 本地 Host
   participant Services as createLocalServices
   participant Closed as 分享关闭态接口
-  participant Disk as 历史只读副本
   Host->>Services: 初始化服务
   Services->>Closed: 注册关闭态（不访问分享目录）
   Host->>Closed: 发布 / 导入 / 预检
   Closed-->>Host: feature_disabled
   Host->>Closed: 显式读取历史内容
-  Closed->>Disk: 按 workspacePath 与 contextId 读取副本
-  Disk-->>Host: 已有内容或 null（不写入）
+  Closed-->>Host: null（不访问磁盘）
 ```
 
 ### 8. 手机远控
