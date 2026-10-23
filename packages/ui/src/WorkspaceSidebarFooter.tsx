@@ -1,19 +1,19 @@
 /* oxlint-disable eslint(max-lines) -- footer 聚合账户、主题、模式和快捷键菜单。 */
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import type { Locale, UserInfo } from "@zcode/shared";
 import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   DesktopCommandIds,
-  TID_LOGIN_MENU_ITEM,
   TID_LOGIN_TRIGGER,
   TID_LOGOUT_BUTTON,
   TID_TASK_SETTINGS_BUTTON,
+  TID_SIDEBAR_CODING_PLAN_USAGE_BUTTON,
 } from "@zcode/shared";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.js";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import { toast } from "@/components/ui/toast.js";
-import { Badge } from "@/components/ui/badge.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,12 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import {
+  BarChart3Icon,
   Copy,
   PencilRuler,
   Globe,
-  Gift,
   Loader2,
-  LogInIcon,
   LogOut,
   Maximize,
   Palette,
@@ -43,7 +42,6 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { usePlatform } from "@/hooks/usePlatform.js";
-import { useOpenRewards } from "@/rewards/RewardsProvider.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useShortcutCommandLabel } from "@/shortcuts/useShortcutBindings.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
@@ -96,8 +94,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   onThemeChange,
   onSettingsButtonClick,
   onUsageClick,
-  onUpgradeClick,
-  onLogin,
   onLogout,
   settingsButtonMode = "settings",
   user,
@@ -115,10 +111,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   onThemeChange: (value: string) => void;
   onSettingsButtonClick?: () => void;
   onUsageClick?: () => void;
-  onUpgradeClick?: Parameters<
-    typeof WorkspaceSidebarFooterUsageSummaryContent
-  >[0]["onUpgradeClick"];
-  onLogin?: () => void;
   onLogout?: () => void;
   settingsButtonMode?: "settings" | "back";
   user?: UserInfo | null;
@@ -132,7 +124,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
 }) {
   const { intl } = useZCodeIntl();
   const platform = usePlatform();
-  const openRewards = useOpenRewards();
   const interfaceMode = useZCodeStore((state) => state.interfaceMode);
   const setInterfaceMode = useZCodeStore((state) => state.setInterfaceMode);
   const zoomInShortcutLabel = useShortcutCommandLabel("zoomIn");
@@ -144,7 +135,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   const avatarKey = user?.avatarUrl ?? user?.id ?? "guest";
   const showAuthRestoreLoading = !user && isRestoringOAuthSession;
   const usageSummaryState = useWorkspaceSidebarFooterUsageSummaryState({
-    enabled: true,
+    enabled: NCODE_FEATURE_POLICY.officialAccountQueries, // 复用既有查询开关。
     workspaceIdentity,
     workspacePath,
   });
@@ -427,33 +418,18 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             ) : null}
-            {/* Bugfix: 升级入口状态不再以菜单开关为生命周期边界。 */}
-            <WorkspaceSidebarFooterUsageSummaryContent
-              state={usageSummaryState}
-              onUsageClick={usageButtonClick}
-              onUpgradeClick={onUpgradeClick}
-            />
-            {user ? (
-              <DropdownMenuItem onSelect={() => openRewards?.()} data-testid="rewards-menu-item">
-                <Gift className="size-4" />
-                {intl.formatMessage({ id: "rewards.menuTitle" })}
-                <Badge
-                  data-testid="rewards-reward-badge"
-                  className="-ml-0.5 h-auto border-0 px-1.5 py-0.5 text-ui-sm leading-none bg-[var(--color-plugin-paid-plan-badge)] text-[var(--color-plugin-paid-plan-badge-foreground)]"
-                >
-                  {intl.formatMessage({ id: "rewards.menuBadge" })}
-                </Badge>
-              </DropdownMenuItem>
-            ) : null}
-            {onLogin && !user ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={onLogin} data-testid={TID_LOGIN_MENU_ITEM}>
-                  <LogInIcon className="size-4" />
-                  {intl.formatMessage({ id: "app.login" })}
-                </DropdownMenuItem>
-              </>
-            ) : null}
+            {/* 修复原因：套餐组件同时承载统计入口，整组隐藏会误删本地统计；单独保留导航，不恢复权益查询。 */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              data-testid={TID_SIDEBAR_CODING_PLAN_USAGE_BUTTON}
+              onSelect={() => {
+                usageButtonClick?.();
+              }}
+            >
+              <BarChart3Icon className="size-4" />
+              {intl.formatMessage({ id: "sidebar.usage.plan.openStats" })}
+            </DropdownMenuItem>
+            {/* NCode 关闭奖励中心与官方登录，头像菜单只保留本地账户操作。 */}
             {onLogout ? <DropdownMenuSeparator /> : null}
             {onLogout ? (
               <DropdownMenuItem onSelect={onLogout} data-testid={TID_LOGOUT_BUTTON}>

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createUsageStatsService } from "../src/usage-stats/usageStatsService.js";
 
 describe("UsageStats account access", () => {
-  it("按当前 Account 连接获取 Coding Plan 鉴权，不读取旧 Provider Service", async () => {
+  it("NCode 不为当前 Account 请求套餐鉴权或权益", async () => {
     const resolve = vi.fn(async () => ({ apiKey: "account-a-plan-key" }));
     const request = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
       if (String(_input).includes("subscription/list")) {
@@ -43,19 +43,12 @@ describe("UsageStats account access", () => {
         requirePreferredProvider: true,
         allowEnvApiKey: false,
       }),
-    ).resolves.toMatchObject({ authenticated: true, quota: { level: "pro" } });
-    expect(resolve).toHaveBeenCalledWith({
-      providerId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      accountAccess: {
-        type: "zhipu-account",
-        family: "zai",
-        planKind: "individual-coding-plan",
-      },
-      reason: "usage",
-    });
+    ).resolves.toMatchObject({ authenticated: false, unavailableReason: "not_configured" });
+    expect(resolve).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 
-  it("把 Registry 静态 mode 交给账号服务解析后再读取权益", async () => {
+  it("已有 Registry 账号连接也不触发官方权益解析", async () => {
     const dynamicAccess = {
       type: "zhipu-account" as const,
       family: "bigmodel" as const,
@@ -108,20 +101,9 @@ describe("UsageStats account access", () => {
         requirePreferredProvider: true,
         allowEnvApiKey: false,
       }),
-    ).resolves.toMatchObject({
-      authenticated: true,
-      context: { scope: "team", organizationId: "org-1", projectId: "project-1" },
-      quota: { level: "team" },
-    });
-    expect(resolveAccessCurrent).toHaveBeenCalledWith({
-      type: "zhipu-account",
-      family: "bigmodel",
-      mode: "team-coding-plan",
-    });
-    expect(resolveCurrent).toHaveBeenCalledWith({
-      providerId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
-      accountAccess: dynamicAccess,
-      reason: "usage",
-    });
+    ).resolves.toMatchObject({ authenticated: false, unavailableReason: "not_configured" });
+    expect(resolveAccessCurrent).not.toHaveBeenCalled();
+    expect(resolveCurrent).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 });

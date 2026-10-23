@@ -165,7 +165,7 @@ vi.mock("../src/settings/model-provider-section/useModelProviderNavigation.js", 
   useModelProviderNavigation: () => ({
     navigationGroups: [],
     navigationItems: [],
-    selectedNavItem: selectedNavItemMock,
+    selectedNavItem: selectedNavItemMock ?? { key: "custom:test", type: "custom" },
   }),
 }));
 

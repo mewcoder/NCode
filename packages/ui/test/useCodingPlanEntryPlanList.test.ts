@@ -1,14 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import {
-  act,
-  cleanup,
-  renderHook,
-  waitFor,
-  render,
-  screen,
-  fireEvent,
-} from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { BUILTIN_MODEL_PROVIDER_IDS as ids } from "@zcode/shared";
 import type { ProviderSettingsView } from "@zcode/services";
@@ -280,9 +272,8 @@ it("allows the purchase button to open with a successful snapshot and a refresh 
   };
   const purchase = vi.fn();
   render(createElement(CodingPlanEntryButton, { onClick: purchase }, "Upgrade"));
-  await waitFor(() => expect(screen.getByRole("button").textContent).toBe("Upgrade"));
-  fireEvent.click(screen.getByRole("button"));
-  expect(purchase).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button")).toBeNull();
+  expect(purchase).not.toHaveBeenCalled();
 });
 
 it("does not accept an unavailable snapshot as a successful empty result", async () => {

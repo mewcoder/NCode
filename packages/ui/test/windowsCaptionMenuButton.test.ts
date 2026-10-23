@@ -166,18 +166,14 @@ describe("WindowsCaptionMenuButton", () => {
     expect(html).not.toContain("titleBar.menu.help.toggleBulkSessionStressTest");
   });
 
-  it("Preview 隐藏更新入口，生产版继续保留", async () => {
-    const { shouldShowDesktopUpdateEntry } = await import("@/WindowsCaptionMenuButton.js");
-
-    // 更新入口跟随产品身份：生产后端的 Preview 同样隐藏。
-    expect(shouldShowDesktopUpdateEntry("preview")).toBe(false);
-    expect(shouldShowDesktopUpdateEntry("production")).toBe(true);
-
+  it("NCode 不展示任何应用内更新入口", async () => {
+    // 产品身份判定沿用上游语义（Preview 恒隐藏），NCode 在其上再关闭全部身份。
     const html = await renderButton("header");
     expect(html).not.toContain("titleBar.menu.help.checkForUpdates");
+    expect(html).not.toContain("desktopMenu.help.checkingForUpdates");
   });
 
-  it("includes help actions migrated from the shared question-mark menu", async () => {
+  it("keeps only local help actions after NCode disables feedback and community", async () => {
     capturedWindowsCaptionMenu.openSubmit.mockClear();
     capturedWindowsCaptionMenu.openFeatureRequest.mockClear();
     capturedWindowsCaptionMenu.openExternal.mockClear();
@@ -186,34 +182,21 @@ describe("WindowsCaptionMenuButton", () => {
 
     const html = await renderButton("header");
 
-    expect(html).toContain("titleBar.menu.help.feedback");
-    expect(html).toContain("workspaceHeader.help.productRequest");
-    expect(html).toContain("workspaceHeader.help.docs");
+    // 反馈、功能建议、社群与产品文档入口均已隐藏，只保留本地导出/资源管理器等动作。
+    expect(html).not.toContain("titleBar.menu.help.feedback");
+    expect(html).not.toContain("workspaceHeader.help.productRequest");
+    expect(html).not.toContain("workspaceHeader.help.docs");
+    expect(html).not.toContain("sidebar.menu.community");
     expect(html).toContain("titleBar.menu.help.exportLogs");
 
-    await capturedWindowsCaptionMenu.menuItems
-      .find((item) => item.label === "titleBar.menu.help.feedback")
-      ?.onSelect?.();
-    capturedWindowsCaptionMenu.menuItems
-      .find((item) => item.label === "workspaceHeader.help.productRequest")
-      ?.onSelect?.();
-    capturedWindowsCaptionMenu.menuItems
-      .find((item) => item.label === "workspaceHeader.help.docs")
-      ?.onSelect?.();
     capturedWindowsCaptionMenu.menuItems
       .find((item) => item.label === "titleBar.menu.help.exportLogs")
       ?.onSelect?.();
 
     expect(capturedWindowsCaptionMenu.captureWindowScreenshot).not.toHaveBeenCalled();
-    expect(capturedWindowsCaptionMenu.openSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "bug",
-        includeLogs: true,
-        screenshots: [],
-      }),
-    );
-    expect(capturedWindowsCaptionMenu.openFeatureRequest).toHaveBeenCalledTimes(1);
-    expect(capturedWindowsCaptionMenu.openExternal).toHaveBeenCalledWith("https://zcode.z.ai/docs");
+    expect(capturedWindowsCaptionMenu.openSubmit).not.toHaveBeenCalled();
+    expect(capturedWindowsCaptionMenu.openFeatureRequest).not.toHaveBeenCalled();
+    expect(capturedWindowsCaptionMenu.openExternal).not.toHaveBeenCalled();
     expect(capturedWindowsCaptionMenu.exportLogs).toHaveBeenCalledTimes(1);
   });
 

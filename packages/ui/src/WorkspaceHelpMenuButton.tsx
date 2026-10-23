@@ -1,36 +1,23 @@
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import { useState } from "react";
 import {
   DesktopCommandIds,
   TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER,
   TID_WORKSPACE_HELP_MENU_TRIGGER,
 } from "@zcode/shared";
-import {
-  ActivityIcon,
-  BookOpenIcon,
-  CircleHelpIcon,
-  DownloadIcon,
-  LightbulbIcon,
-  InfoIcon,
-  MessageSquareIcon,
-  UsersIcon,
-  RefreshCwIcon,
-  ShieldAlertIcon,
-} from "lucide-react";
+import { ActivityIcon, CircleHelpIcon, DownloadIcon, InfoIcon, RefreshCwIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge.js";
 import { Button } from "@/components/ui/button.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.js";
 import { cn } from "@/components/lib/utils.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { useFeedbackStore } from "@/feedback/feedbackStore.js";
 import { useDesktopUpdateMenu } from "@/hooks/useDesktopUpdateMenu.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
-import { useVulnerabilityReportUrl } from "@/hooks/useVulnerabilityReportUrl.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { createHelpMenuActionHandlers } from "@/lib/helpMenuActions.js";
 
@@ -48,20 +35,10 @@ export function WorkspaceHelpMenuButton({
   const { intl } = useZCodeIntl();
   const platform = usePlatform();
   const [open, setOpen] = useState(false);
-  const { url: vulnerabilityReportUrl, loading: vulnerabilityReportLoading } =
-    useVulnerabilityReportUrl(open);
-  const updateMenu = useDesktopUpdateMenu(isDesktop);
-  const openFeedbackSubmit = useFeedbackStore((state) => state.openSubmit);
-  const openFeatureRequest = useFeedbackStore((state) => state.openFeatureRequest);
+  // NCode 停用应用内升级：不查询/订阅更新状态，入口恒不展示。
+  const updateMenu = useDesktopUpdateMenu(NCODE_FEATURE_POLICY.build.autoUpdateEnabled);
   const helpMenuLabel = intl.formatMessage({ id: "workspaceHeader.help.menu" });
-  const helpMenuActions = createHelpMenuActionHandlers({
-    platform,
-    intl,
-    openSubmit: openFeedbackSubmit,
-  });
-  const handleOpenCommunity = () => {
-    void platform.openCommunity();
-  };
+  const helpMenuActions = createHelpMenuActionHandlers({ platform, intl });
   const handleOpenResourceManager = () => {
     void platform.executeDesktopCommand(DesktopCommandIds.OpenResourceManager);
   };
@@ -95,41 +72,13 @@ export function WorkspaceHelpMenuButton({
         align="end"
         className="min-w-0 w-max [&_[data-slot=dropdown-menu-item]]:pr-6"
       >
-        <DropdownMenuItem onSelect={helpMenuActions.openProductDocs}>
-          <BookOpenIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.docs" })}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={handleOpenCommunity}>
-          <UsersIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.community" })}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={helpMenuActions.openIssueReport}>
-          <MessageSquareIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.issueReport" })}
-        </DropdownMenuItem>
-        {vulnerabilityReportLoading || vulnerabilityReportUrl ? (
-          <DropdownMenuItem
-            disabled={vulnerabilityReportLoading}
-            aria-busy={vulnerabilityReportLoading}
-            onSelect={
-              vulnerabilityReportUrl
-                ? () => platform.openExternal(vulnerabilityReportUrl)
-                : undefined
-            }
-          >
-            <ShieldAlertIcon className="size-4" />
-            {intl.formatMessage({ id: "workspaceHeader.help.reportVulnerability" })}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={openFeatureRequest}>
-          <LightbulbIcon className="size-4" />
-          {intl.formatMessage({ id: "workspaceHeader.help.productRequest" })}
-        </DropdownMenuItem>
+        {/* NCode 不提供反馈、社群、产品文档和漏洞提交等官方帮助跳转，只保留本地工具入口。 */}
         {/* Windows/Linux 没有原生菜单栏，自绘标题栏箭头菜单也已下线，
             资源管理器只能从这里进；Web 端没有该窗口，不渲染。 */}
         {isDesktop ? (
           <>
-            <DropdownMenuSeparator />
+            {/* 上游此处有一条分隔线，用来分隔「产品文档 / 社群 / 反馈 / 漏洞提交」分组与本地工具入口。
+                NCode 去掉上述官方跳转后，导出日志成为菜单首项，分隔线没有分组语义，故一并去掉。 */}
             {/* 独立导出入口曾被移除；复用原菜单动作，保持打包、系统定位与提示一致。 */}
             <DropdownMenuItem onSelect={helpMenuActions.exportLogs}>
               <DownloadIcon className="size-4" />

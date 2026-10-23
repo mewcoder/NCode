@@ -1,37 +1,23 @@
 import type { IPlatformService } from "@zcode/shared";
 import type { IntlInstance } from "@/i18n/IntlProvider.js";
-import type { FeedbackSubmitDraft } from "@/feedback/feedbackStore.js";
 import { runExportLogsAction } from "@/lib/exportLogsAction.js";
-import { ZCODE_PRODUCT_DOCS_URL } from "@/lib/productDocs.js";
 
 export interface HelpMenuActionHandlers {
-  openIssueReport: () => Promise<void>;
-  openProductDocs: () => void;
   exportLogs: () => void;
 }
 
+/**
+ * 帮助菜单只保留本地工具动作：NCode 关闭了问题反馈、用户社群和产品文档跳转，
+ * 因此这里不再构造对应 handler，避免留下可被误用的官方上报/跳转通路。
+ */
 export function createHelpMenuActionHandlers({
   platform,
   intl,
-  openSubmit,
 }: {
-  platform: Pick<IPlatformService, "captureWindowScreenshot" | "exportLogs" | "openExternal">;
+  platform: Pick<IPlatformService, "exportLogs">;
   intl: IntlInstance;
-  openSubmit: (draft?: FeedbackSubmitDraft) => void;
 }): HelpMenuActionHandlers {
   return {
-    openIssueReport: async () => {
-      openSubmit({
-        type: "bug",
-        module: "其它",
-        severity: "P2-中",
-        includeLogs: true,
-        screenshots: [],
-      });
-    },
-    openProductDocs: () => {
-      platform.openExternal(ZCODE_PRODUCT_DOCS_URL);
-    },
     exportLogs: () => {
       void runExportLogsAction(platform, intl);
     },

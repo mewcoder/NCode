@@ -32,7 +32,9 @@ export class NodeZCodeBuiltinProviderConfigSource implements ProviderSource<Prov
   #disposed = false;
 
   constructor(options: NodeZCodeBuiltinProviderConfigSourceOptions) {
-    const bundledFilePath = options.bundledFilePath.trim();
+    // 运行时边界也校验必填路径，避免未受类型检查的调用方抛出无上下文的 TypeError。
+    const bundledFilePath =
+      typeof options.bundledFilePath === "string" ? options.bundledFilePath.trim() : "";
     if (!bundledFilePath) throw new Error("ZCode Built-in bundledFilePath 不能为空");
     this.#bundledFilePath = bundledFilePath;
     this.#activeFilePath = options.activeFilePath?.trim() || bundledFilePath;

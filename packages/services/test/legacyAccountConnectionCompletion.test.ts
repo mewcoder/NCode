@@ -3,6 +3,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// 原迁移机制继续验证允许查询时的行为；NCode 关闭态单独断言不调用 resolver。
+const policy = vi.hoisted(() => ({ officialAccountQueries: true }));
+vi.mock("@zcode/shared", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@zcode/shared")>();
+  return {
+    ...original,
+    NCODE_FEATURE_POLICY: {
+      ...original.NCODE_FEATURE_POLICY,
+      get officialAccountQueries() {
+        return policy.officialAccountQueries;
+      },
+    },
+  };
+});
+
 const originalHome = process.env.HOME;
 const homes: string[] = [];
 const oldFields = {
@@ -30,12 +45,27 @@ async function setup(raw: unknown = oldFields) {
 }
 
 afterEach(async () => {
+  policy.officialAccountQueries = true;
   if (originalHome === undefined) delete process.env.HOME;
   else process.env.HOME = originalHome;
   await Promise.all(homes.splice(0).map((home) => rm(home, { recursive: true, force: true })));
 });
 
 describe("旧 Team 连接组织补齐的实际设置边界", () => {
+  it("NCode 本地策略关闭官方账号查询时，旧团队数据保留且不查询组织", async () => {
+    policy.officialAccountQueries = false;
+    const { service, prepareLegacyAccountConnections, read } = await setup();
+    const resolve = vi.fn(async () => {
+      throw new Error("不应请求官方组织接口");
+    });
+    await service.get();
+    await service.update({ locale: "en-US" });
+    expect(await prepareLegacyAccountConnections(resolve)).toEqual([]);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(await read()).toMatchObject({ ...oldFields, locale: "en-US" });
+    expect(await read()).not.toHaveProperty("providerFamilyConnectionSelections");
+  });
+
   it("普通设置读取和保存不把待迁移连接写成新版空选择", async () => {
     const { service, read } = await setup();
     await service.get();

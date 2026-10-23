@@ -106,5 +106,83 @@ describe("model provider navigation i18n", () => {
     expect(enCustomGroup?.title).toBe("Custom Providers");
     expect(enCustomGroup?.items).toHaveLength(1);
     expect(enCustomGroup?.items[0]?.type).toBe("custom");
+    expect(
+      enResult.navigationGroups.flatMap((group) => group.items).map((item) => item.type),
+    ).toEqual(["custom"]);
   });
+  it.each([false, true])(
+    "历史套餐选中项回落到可见供应商或空选中（有供应商=%s）",
+    async (hasProvider) => {
+      vi.resetModules();
+      vi.doMock("react", async (importOriginal) => {
+        const actual = await importOriginal<typeof import("react")>();
+        return {
+          ...actual,
+          useMemo: (factory: () => unknown) => factory(),
+          useEffect: (effect: () => void) => effect(),
+        };
+      });
+      const { useModelProviderNavigation } =
+        await import("@/settings/model-provider-section/useModelProviderNavigation.js");
+      const setSelectedNodeKey = vi.fn();
+      useModelProviderNavigation({
+        presetProviders: [],
+        modelProviders: hasProvider ? [createCustomProvider()] : [],
+        selectedNodeKey: "preset:account:zai-start-plan",
+        setSelectedNodeKey,
+        intl: createIntl({}),
+      });
+      expect(setSelectedNodeKey).toHaveBeenCalledWith(
+        hasProvider ? "custom:custom-provider" : null,
+      );
+    },
+  );
+  it.each(
+    ([null, "bigmodel", "zai"] as const).flatMap((providerFamilyDomain) =>
+      [false, true].flatMap((modelProvidersLoading) =>
+        [false, true].map((entitled) => ({
+          providerFamilyDomain,
+          modelProvidersLoading,
+          entitled,
+        })),
+      ),
+    ),
+  )(
+    "NCode 仅展示 API Key 导航（$providerFamilyDomain / loading=$modelProvidersLoading / entitled=$entitled）",
+    async ({ providerFamilyDomain, modelProvidersLoading, entitled }) => {
+      vi.resetModules();
+      vi.doMock("react", async (importOriginal) => {
+        const actual = await importOriginal<typeof import("react")>();
+        return { ...actual, useMemo: (factory: () => unknown) => factory(), useEffect: vi.fn() };
+      });
+      const { BUILTIN_MODEL_PROVIDER_IDS } = await import("@zcode/shared");
+      const { useModelProviderNavigation } =
+        await import("@/settings/model-provider-section/useModelProviderNavigation.js");
+      const result = useModelProviderNavigation({
+        presetProviders: [
+          { id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan, displayName: "Z.ai", provider: null },
+          {
+            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
+            displayName: "BigModel",
+            provider: null,
+          },
+        ],
+        modelProviders: [createCustomProvider()],
+        providerFamilyDomain,
+        entitledAccountProviderIds: entitled
+          ? new Set([
+              BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
+              BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
+            ])
+          : new Set(),
+        modelProvidersLoading,
+        selectedNodeKey: "preset:account:zai-start-plan",
+        setSelectedNodeKey: vi.fn(),
+        intl: createIntl({}),
+      });
+      expect(result.navigationGroups.map((group) => group.id)).toEqual(["custom"]);
+      expect(result.navigationItems.map((item) => item.type)).toEqual(["custom"]);
+      expect(result.selectedNavItem).toBeNull();
+    },
+  );
 });

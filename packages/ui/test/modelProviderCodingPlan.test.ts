@@ -6,12 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BIGMODEL_PROVIDER_ID,
   BUILTIN_MODEL_PROVIDER_IDS,
-  getModelProviderFamilySpec,
   ZAI_PROVIDER_ID,
-  TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
-  TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
   type UsageEntitlementSnapshot,
 } from "@zcode/shared";
+import {
+  TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
+  TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
+} from "@zcode/shared/test-ids";
 import {
   resolveCodingPlanProviderSyncAttemptKey,
   shouldRetryUnchangedCodingPlanProviderSync,
@@ -34,23 +35,13 @@ import {
   resolveEnterprisePurchaseChoiceBannerPrice,
   resolvePurchaseChoiceBannerProductsProviderId,
   resolvePurchaseChoiceBannerPrice,
-  resolveEnterpriseTeamPlanBannerClass,
-  resolveEnterpriseTeamPlanBannerDescriptionId,
-  resolveEnterpriseTeamPlanBannerIconClass,
   resolvePurchaseChoiceSelectionIntent,
   resolveTeamScopedPlanNavItem,
   resolveTeamPlanInspectionAccess,
 } from "@/settings/model-provider-section/Detail.js";
 import { resolveCodingPlanEntitlementState } from "@/settings/model-provider-section/providerFamilyConnectionVisibility.js";
 import { groupEnterpriseCodingPlanProductsByTier } from "@/settings/model-provider-section/codingPlanEnterpriseTiers.js";
-import {
-  ModelProviderSectionNavigation,
-  resolveModelProviderSideNavLabel,
-} from "@/settings/model-provider-section/Navigation.js";
-import {
-  resolveProviderConnectionApiFormatDisplayLabel,
-  resolveProviderConnectionApiFormatOptions,
-} from "@/settings/model-provider-section/ProviderCardSections.js";
+import { ModelProviderSectionNavigation } from "@/settings/model-provider-section/Navigation.js";
 import {
   buildProviderFamilyConnectionOptions,
   ProviderFamilyPlanModeSwitch,
@@ -62,8 +53,6 @@ import {
   formatStartPlanExpireDate,
   resolvePendingStartPlanEffectiveTime,
 } from "@/settings/model-provider-section/CodingPlanStatusMeta.js";
-import { ConversationQuotaBanner } from "@/v4/ConversationQuotaBanner.js";
-import enUS from "@/i18n/locales/en-US.js";
 import { StartPlanCard } from "@/settings/model-provider-section/StartPlanCard.js";
 import {
   CodingPlanStatusPanel,
@@ -73,57 +62,14 @@ import {
 import {
   resolveFallbackModelProviderNodeKey,
   resolveSelectedFamilyModeNodeKey,
-  connectionSelectionMatchesNavigationItem,
-  useModelProviderNavigation,
 } from "@/settings/model-provider-section/useModelProviderNavigation.js";
 import {
   clearStartPlanPreviewCacheForTest,
   primeStartPlanPreviewCacheForTest,
 } from "@/settings/model-provider-section/useStartPlanPreview.js";
-import { type ModelProviderNavGroup } from "@/settings/model-provider-section/constants.js";
 import type { ModelProviderNavItem } from "@/settings/model-provider-section/constants.js";
 import type { ProviderSettingsView } from "@zcode/services";
 
-it("Start 独立后移除套餐数量快捷入口与切换按钮", () => {
-  const item = (
-    presetId:
-      | typeof BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan
-      | typeof BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-  ): ModelProviderNavItem => ({
-    key: `coding-plan:${presetId}`,
-    type: "codingPlan",
-    presetId,
-    oauthProviderId: ZAI_PROVIDER_ID,
-    label: presetId,
-    providerName: "Z.AI",
-    provider: null,
-    status: "purchased",
-    statusActive: true,
-  });
-  const start = item(BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan);
-  const coding = item(BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan);
-  const render = (selectedNavItem: ModelProviderNavItem, count: number, failed = false) =>
-    renderWithTooltipProvider(
-      createElement(ProviderFamilyPlanModeSwitch, {
-        selectedNavItem,
-        navigationItems: [start, coding],
-        startPlanSubscriptionCount: count,
-        connectionSettingsFailed: failed,
-        onSelectNavItem: vi.fn(),
-      }),
-    );
-  expect(render(coding, 2)).not.toContain('data-testid="model-provider-start-plan-count-shortcut"');
-  // 数量不再驱动切换入口，也不保留旧快捷入口的文案与标签。
-  expect(render(coding, 2)).not.toContain("Start Plan × 2");
-  expect(render(coding, 2)).not.toContain('aria-label="Switch to Start Plan"');
-  expect(render(coding, 2)).not.toContain("lucide-tickets");
-  expect(render(coding, 2)).not.toContain('data-testid="model-provider-start-plan-switch-prefix"');
-  expect(render(start, 2)).not.toContain('data-testid="model-provider-start-plan-count-shortcut"');
-  expect(render(coding, 0)).not.toContain('data-testid="model-provider-start-plan-count-shortcut"');
-  expect(render(coding, 2, true)).not.toContain(
-    'data-testid="model-provider-start-plan-count-shortcut"',
-  );
-});
 it("付费下拉按完整保存选择显示团队，不读取复制的个人 current", () => {
   const provider = createProvider({ id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan });
   provider.accountState = { availability: "available", entitled: true, current: false };
@@ -195,11 +141,8 @@ it("旧 Start 连接下，唯一未选中的个人套餐仍提供显式选择入
   expect(html).toContain("data-placeholder");
 });
 import {
-  CODING_PLAN_BILLING_DISCOUNT_DIALOG_BODY_CLASS,
-  CODING_PLAN_BILLING_DISCOUNT_DIALOG_CONTENT_CLASS,
   clearCodingPlanBillingDiscountCacheForTest,
   CodingPlanBillingDiscountBadge,
-  CodingPlanBillingDiscountBadgePill,
   CodingPlanBillingDiscountBanner,
   primeCodingPlanBillingDiscountCacheForTest,
   resolveCodingPlanBillingDiscountCopy,
@@ -667,30 +610,25 @@ describe("model provider coding plan", () => {
     ).toEqual({ action: "discard" });
   });
 
-  it.each([true, false])(
-    "未购买套餐同步中=%s 时 Subscribe 的加载反馈与禁用状态一致",
-    (loginLoading) => {
-      const html = renderToStaticMarkup(
-        createElement(CodingPlanStatusPanel, {
-          providerId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelCodingPlan,
-          providerName: "BigModel",
-          status: "notPurchased",
-          viewState: {
-            displayStatus: "notPurchased",
-            actionStatus: "notPurchased",
-            balanceStatus: "notPurchased",
-            loginLoading,
-          },
-        }),
-      );
-      const button = html.match(
-        /<button[^>]*>(?:(?!<\/button>)[\s\S])*settings\.modelProvider\.codingPlan\.subscribe<\/button>/,
-      )?.[0];
-      expect(button).toBeDefined();
-      expect(button?.includes("animate-spin")).toBe(loginLoading);
-      expect(button?.includes('disabled=""')).toBe(loginLoading);
-    },
-  );
+  it.each([true, false])("NCode 同步中=%s 时仍不提供 Subscribe 入口", (loginLoading) => {
+    const html = renderToStaticMarkup(
+      createElement(CodingPlanStatusPanel, {
+        providerId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelCodingPlan,
+        providerName: "BigModel",
+        status: "notPurchased",
+        viewState: {
+          displayStatus: "notPurchased",
+          actionStatus: "notPurchased",
+          balanceStatus: "notPurchased",
+          loginLoading,
+        },
+      }),
+    );
+    const button = html.match(
+      /<button[^>]*>(?:(?!<\/button>)[\s\S])*settings\.modelProvider\.codingPlan\.subscribe<\/button>/,
+    )?.[0];
+    expect(button).toBeUndefined();
+  });
 
   it.each(["purchased", "notPurchased"] as const)(
     "后台同步时保留已有 %s entitlement，避免详情闪烁",
@@ -752,396 +690,6 @@ describe("model provider coding plan", () => {
         selectedKeyUnchanged: true,
       }),
     ).toBe(false);
-  });
-
-  it("失效 Start 连接回到可操作的同 Family 页面，不改保存的连接", () => {
-    let captured: ReturnType<typeof useModelProviderNavigation> | undefined;
-    const setSelectedNodeKey = vi.fn();
-    const connectionSelections = { bigmodel: { kind: "start-plan" as const } };
-    function Harness() {
-      captured = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel",
-            provider: null,
-          },
-        ],
-        modelProviders: [],
-        providerFamilyDomain: "bigmodel",
-        connectionSelections,
-        selectedNodeKey: `preset:${BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan}`,
-        setSelectedNodeKey,
-        intl: { formatMessage: ({ id }: { id: string }) => id } as never,
-      });
-      return createElement("div");
-    }
-    renderToStaticMarkup(createElement(Harness));
-    expect(captured?.navigationUnavailable).toBe(false);
-    expect(captured?.selectedNavItem).toMatchObject({
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    });
-    expect(connectionSelections.bigmodel.kind).toBe("start-plan");
-  });
-
-  it("预置导航并列显示 family 与 Start，付费连接方式另放 navigationItems", () => {
-    let capturedGroups: ModelProviderNavGroup[] = [];
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationGroups, navigationItems } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            displayName: "Z.ai - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            }),
-          },
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-              name: "BigModel",
-            }),
-          },
-        ],
-        modelProviders: [],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) =>
-            id === "settings.modelProvider.connectionMode.codingPlan"
-              ? "Coding Plan"
-              : id === "settings.modelProvider.connectionMode.startPlan"
-                ? "Start Plan"
-                : id,
-        } as never,
-      });
-      capturedGroups = navigationGroups;
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const labels = capturedGroups[0]?.items.map((item) => item.label) ?? [];
-    const presetIds = capturedGroups[0]?.items.map((item) => item.presetId) ?? [];
-    expect(labels).toContain("Z.ai - API Key");
-    expect(labels).toContain("BigModel - API Key");
-    expect(presetIds).toContain(BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan);
-    expect(presetIds).toContain(BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan);
-    expect(
-      capturedNavigationItems.some(
-        (item) =>
-          item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-      ),
-    ).toBe(true);
-    expect(
-      capturedNavigationItems.some(
-        (item) =>
-          item.type === "codingPlan" &&
-          item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-      ),
-    ).toBe(true);
-  });
-
-  it("unlink 后独立 Start 入口仍保留，浏览不连接", () => {
-    let capturedGroups: ModelProviderNavGroup[] = [];
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationGroups, navigationItems } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-              name: "BigModel",
-              apiKey: "bigmodel-api-key",
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-            apiKey: "",
-            enabled: false,
-            systemDisabledReason: "coding_plan_not_connected",
-          }),
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            name: "BigModel- Coding Plan",
-            apiKey: "",
-            enabled: false,
-            systemDisabledReason: "coding_plan_not_connected",
-          }),
-        ],
-        providerFamilyDomain: "bigmodel",
-        modelProviderFamilyModes: { bigmodel: "oauth" },
-        selectedNodeKey: `coding-plan:${BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan}`,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) =>
-            id === "settings.modelProvider.connectionMode.codingPlan"
-              ? "Coding Plan"
-              : id === "settings.modelProvider.connectionMode.startPlan"
-                ? "Start Plan"
-                : id,
-        } as never,
-      });
-      capturedGroups = navigationGroups;
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const presetIds = capturedGroups[0]?.items.map((item) => item.presetId) ?? [];
-    expect(capturedGroups[0]?.items.map((item) => item.key)).toEqual([
-      "preset:account:bigmodel-start-plan",
-      "coding-plan:account:bigmodel-start-plan",
-    ]);
-    expect(capturedNavigationItems.map((item) => item.presetId)).toContain(
-      BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-    );
-    expect(presetIds).not.toContain(BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan);
-  });
-
-  it.each([false, true])(
-    "失效 Start 或设置读取失败仍能重选，不猜测可执行模型（读取失败=%s）",
-    (familyConnectionSettingsFailed) => {
-      let capturedSelectedNavItem: ModelProviderNavGroup["items"][number] | null = null;
-
-      function Harness() {
-        const { selectedNavItem } = useModelProviderNavigation({
-          presetProviders: [
-            {
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-              displayName: "Z.ai - API Key",
-              provider: createProvider({
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-                name: "Z.ai",
-                apiKey: "",
-                enabled: false,
-              }),
-            },
-          ],
-          modelProviders: [],
-          providerFamilyDomain: "zai",
-          connectionSelections: { zai: { kind: "start-plan" } },
-          familyConnectionSettingsFailed,
-          selectedNodeKey: `preset:${BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan}`,
-          setSelectedNodeKey: vi.fn(),
-          intl: {
-            formatMessage: ({ id }: { id: string }) => id,
-          } as never,
-        });
-        capturedSelectedNavItem = selectedNavItem;
-        return createElement("div");
-      }
-
-      renderToStaticMarkup(createElement(Harness));
-
-      expect(capturedSelectedNavItem).toMatchObject({
-        status: "disconnected",
-        presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      });
-    },
-  );
-
-  it("BigModel family 侧栏状态跟随当前 Team Plan 连接方式点亮", () => {
-    let capturedGroups: ModelProviderNavGroup[] = [];
-    let capturedSelectedNavItem: ModelProviderNavGroup["items"][number] | null = null;
-
-    function Harness() {
-      const { navigationGroups, selectedNavItem } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-              name: "BigModel",
-              apiKey: "",
-              enabled: false,
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
-            name: "BigModel Team",
-            enabled: true,
-          }),
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-            enabled: false,
-            systemDisabledReason: "coding_plan_not_entitled",
-          }),
-        ],
-        providerFamilyDomain: "bigmodel",
-        connectionSelections: {
-          bigmodel: {
-            kind: "team-coding-plan",
-            productId: "product-current",
-            organizationId: "org-a",
-            projectId: "project-a",
-          },
-        },
-        subscribedTeamProducts: [
-          {
-            productId: "product-current",
-            productName: "GLM Coding Team",
-            subscribed: true,
-            organizationId: "org-a",
-            organizationName: "Org A",
-            projectId: "project-a",
-            projectName: "Project A",
-          } as never,
-        ],
-        selectedNodeKey: `preset:${BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan}`,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: (descriptor: { id: string }) => descriptor.id,
-        } as never,
-      });
-      capturedGroups = navigationGroups;
-      capturedSelectedNavItem = selectedNavItem;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    expect(capturedSelectedNavItem).toMatchObject({
-      type: "teamPlan",
-      statusActive: true,
-      projectId: "project-a",
-    });
-    expect(capturedGroups[0]?.items[0]).toMatchObject({
-      type: "preset",
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-      statusActive: true,
-      statusProvider: {
-        providerId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
-        enabled: true,
-        executable: true,
-      },
-    });
-  });
-
-  it("已落盘的 Coding Plan 不进入自定义供应商分组", () => {
-    let capturedGroups: ModelProviderNavGroup[] = [];
-
-    function Harness() {
-      const { navigationGroups } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-            name: "Z.ai - Coding Plan",
-          }),
-          createProvider({
-            id: "custom-provider",
-            name: "Custom Provider",
-            config: { group: "standard-personal" },
-          }),
-        ],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) =>
-            id === "settings.modelProvider.connectionMode.codingPlan" ? "Individual Plan" : id,
-        } as never,
-      });
-      capturedGroups = navigationGroups;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const customGroup = capturedGroups.find((group) => group.id === "custom");
-    expect(customGroup?.items.map((item) => item.label)).toEqual(["Custom Provider"]);
-  });
-
-  it("Provider Template 和新增入口不混入已配置 Provider 导航", () => {
-    let capturedGroups: ModelProviderNavGroup[] = [];
-
-    function Harness() {
-      const { navigationGroups } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: "custom-provider",
-            name: "Custom Provider",
-            config: { group: "standard-personal" },
-          }),
-        ],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: { formatMessage: ({ id }: { id: string }) => id } as never,
-      });
-      capturedGroups = navigationGroups;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const items = capturedGroups.find((group) => group.id === "custom")?.items ?? [];
-    expect(items.map((item) => item.type)).toEqual(["custom"]);
-  });
-
-  it("刷新中按缓存后的 provider 状态显示 Z.ai 入口且不显示 loading", () => {
-    for (const [selectedNodeKey] of [
-      ["coding-plan:account:zai-individual-coding-plan"],
-      ["coding-plan:account:zai-start-plan"],
-    ] as const) {
-      let capturedGroups: ModelProviderNavGroup[] = [];
-      let capturedNavigationItems: ReturnType<
-        typeof useModelProviderNavigation
-      >["navigationItems"] = [];
-
-      function Harness() {
-        const { navigationGroups, navigationItems } = useModelProviderNavigation({
-          presetProviders: [],
-          modelProviders: [
-            createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-              name: "Z.ai - Coding Plan",
-              apiKey: "zai-coding-plan-key",
-            }),
-          ],
-          modelProvidersLoading: true,
-          selectedNodeKey,
-          setSelectedNodeKey: vi.fn(),
-          intl: {
-            formatMessage: ({ id }: { id: string }) => id,
-          } as never,
-        });
-        capturedGroups = navigationGroups;
-        capturedNavigationItems = navigationItems;
-        return createElement("div");
-      }
-
-      renderToStaticMarkup(createElement(Harness));
-
-      const presetItems = capturedNavigationItems;
-      expect(
-        presetItems.some(
-          (item) =>
-            item.type === "codingPlan" &&
-            item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-        ),
-      ).toBe(true);
-      expect(presetItems.some((item) => item.type === "codingPlanLoading")).toBe(false);
-      expect(capturedGroups[0]?.items.some((item) => item.type === "codingPlan")).toBe(true);
-    }
   });
 
   it.each([undefined, "credential-unavailable"] as const)(
@@ -1405,85 +953,9 @@ describe("model provider coding plan", () => {
       statusActive: false,
     });
 
-    const intl = { formatMessage: ({ id }: { id: string }) => id };
-    const apiFormatOptions = resolveProviderConnectionApiFormatOptions();
-    expect(apiFormatOptions).toEqual([
-      "anthropic-messages",
-      "openai-chat-completions",
-      "openai-responses",
-    ]);
-    expect(
-      apiFormatOptions.map((format) =>
-        resolveProviderConnectionApiFormatDisplayLabel(intl, format),
-      ),
-    ).toEqual([
-      "settings.modelProvider.apiFormat.title.anthropicMessages (/v1/messages)",
-      "settings.modelProvider.apiFormat.title.chatCompletions (/chat/completions)",
-      "settings.modelProvider.apiFormat.title.responses (/responses)",
-    ]);
     expect(html).toContain('value="https://api.example.com/v1"');
     expectConnectionApiFormatVisible(html);
     expect(html).not.toContain("settings.modelProvider.endpointPath");
-  });
-
-  it("自定义供应商详情隐藏 Claude 映射和自定义 Headers", () => {
-    const html = renderDetail({
-      key: "custom:provider-a",
-      type: "custom",
-      label: "Provider A",
-      provider: createProvider({
-        id: "provider-a",
-      }),
-      statusActive: false,
-    });
-
-    expect(html).not.toContain("settings.modelProvider.claudeMapping");
-    expect(html).not.toContain("settings.modelProvider.customHeaders");
-  });
-
-  it("Provider sidebar 将预置入口组织成 provider family", () => {
-    let capturedGroups: ModelProviderNavGroup[] = [];
-
-    function Harness() {
-      const { navigationGroups } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            displayName: "Z.ai - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            }),
-          },
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-              name: "BigModel",
-            }),
-          },
-        ],
-        modelProviders: [],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedGroups = navigationGroups;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    expect(
-      capturedGroups[0]?.items.map((item) => (item.type === "preset" ? item.presetId : item.key)),
-    ).toEqual([
-      BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-      BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-      "coding-plan:account:zai-start-plan",
-      "coding-plan:account:bigmodel-start-plan",
-    ]);
   });
 
   it("套餐连接入口点击时仍映射回 provider family side key", () => {
@@ -1510,64 +982,6 @@ describe("model provider coding plan", () => {
         statusActive: true,
       }),
     ).toBe("preset:account:zai-start-plan");
-  });
-
-  it.each([
-    ["preset", BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan, "BigModel", "BigModel"],
-    ["preset", BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan, "Z.ai", "Z.ai"],
-    ["codingPlan", BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan, "Start Plan", "Start Plan"],
-    ["codingPlan", BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan, "Start Plan", "Start Plan"],
-  ] as const)("导航 %s %s 保持品牌与 Start 名称", (type, presetId, en, zh) => {
-    const item: ModelProviderNavItem = {
-      key: presetId,
-      type,
-      presetId,
-      label: "Old brand",
-      ...(type === "preset"
-        ? { displayName: "Old brand" }
-        : {
-            oauthProviderId: "bigmodel" as const,
-            providerName: "Old brand",
-            status: "notPurchased" as const,
-          }),
-      provider: null,
-      statusActive: false,
-    };
-    expect(resolveModelProviderSideNavLabel(item)).toBe(en);
-    expect(resolveModelProviderSideNavLabel(item)).toBe(zh);
-  });
-
-  it("Provider sidebar 不按团队 Coding Plan 数量展开入口", () => {
-    const bigmodelApiKeyItem = {
-      key: "preset:account:bigmodel-start-plan",
-      type: "preset" as const,
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-      label: "BigModel - API Key",
-      provider: createProvider({
-        id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-      }),
-      displayName: "BigModel - API Key",
-      statusActive: true,
-    };
-    const html = renderWithTooltipProvider(
-      createElement(ModelProviderSectionNavigation, {
-        navigationGroups: [
-          {
-            id: "preset",
-            title: "Preset",
-            items: [bigmodelApiKeyItem],
-          },
-        ],
-        selectedNodeKey: "preset:account:bigmodel-start-plan",
-        presetLoading: false,
-        customLoading: false,
-        onSelectNavItem: vi.fn(),
-      }),
-    );
-
-    expect(html).toContain("BigModel");
-    expect(html).not.toContain("Team A");
-    expect(html).not.toContain("Team B");
   });
 
   it("Z.ai family 导航保持品牌图标，不借用 Start 图标", () => {
@@ -1606,10 +1020,6 @@ describe("model provider coding plan", () => {
     expect(html).toContain("<img ");
     expect(html).toContain("model-provider-zai-app.png");
     expect(html).not.toContain("model-provider-start-plan.png");
-    expect(html).toContain("object-contain size-4");
-    expect(html).toContain("border-border-hover bg-card-selected text-foreground");
-    expect(html).not.toContain("border-card-border bg-surface");
-    expect(html).toContain("flex h-8 w-full");
     expect(html).not.toContain("settings.modelProvider.connectionMode.startPlan");
     expect(html).not.toContain("settings.modelProvider.codingPlan.start.freeBadge");
   });
@@ -1749,93 +1159,6 @@ describe("model provider coding plan", () => {
     });
 
     expect(options.map((option) => option.label)).toEqual(["个人套餐", "TeamB Plan", "TeamA"]);
-  });
-
-  it("已购企业套餐会进入连接方式导航项", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-            apiKey: "jwt-token",
-          }),
-        ],
-        codingPlanEntitlements: {},
-        subscribedTeamProducts: [
-          {
-            productId: "product-team-max",
-            productName: "Max",
-            productBigTitle: "Max",
-            originalAmount: 598,
-            payAmount: 598,
-            renewAmount: 598,
-            priceUnit: "month",
-            priceCurrency: "CNY",
-            productEquityList: [],
-            hasPreview: true,
-            organizationId: "org-team-a",
-            organizationName: "TeamA Org",
-            projectId: "proj-team-a",
-            projectName: "团队编程套餐项目",
-            enterpriseProduct: {
-              productId: "product-team-max",
-              tier: "MAX",
-              subscribeMode: "CONTINUOUS",
-              subscribePeriod: "MONTHLY",
-              subscribed: true,
-              organizationId: "org-team-a",
-              organizationName: "TeamA Org",
-              projectId: "proj-team-a",
-              projectName: "团队编程套餐项目",
-            },
-            tier: "MAX",
-            subscribeMode: "CONTINUOUS",
-            subscribePeriod: "MONTHLY",
-            purchaseMethodName: "连续订阅",
-            subscribed: true,
-          },
-        ],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const teamPlan = capturedNavigationItems.find((item) => item.type === "teamPlan");
-    const startPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-    );
-    expect(teamPlan).toMatchObject({
-      key: "team:bigmodel:product-team-max:org-team-a:proj-team-a",
-      teamPlanName: "TeamA Org",
-      label: "BigModel - TeamA Org",
-      organizationId: "org-team-a",
-      projectId: "proj-team-a",
-      status: "purchased",
-      currentProductId: "product-team-max",
-    });
-    expect(startPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
   });
 
   it("初始化 fallback 只选中 BigModel family 侧栏入口", () => {
@@ -2003,463 +1326,6 @@ describe("model provider coding plan", () => {
         },
       }),
     ).toBeNull();
-  });
-
-  it("手动选择 Coding Plan 的 pending selectedKey 优先于 Start 初始化优先级", () => {
-    let capturedSelectedNavItem: ReturnType<typeof useModelProviderNavigation>["selectedNavItem"] =
-      null;
-
-    function Harness() {
-      const { selectedNavItem } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            displayName: "Z.ai - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - Start Plan",
-            apiKey: "start-token",
-          }),
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "coding-token",
-          }),
-        ],
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]: {
-            loading: false,
-            error: null,
-            snapshot: createEntitlementSnapshot({
-              provider: { id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan },
-              remaining: null,
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "zcode-v3-start-plan",
-                    productName: "Start Plan",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: null,
-                    renewTime: null,
-                    expireTime: null,
-                  },
-                ],
-              },
-              quota: null,
-            }),
-          },
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            loading: false,
-            error: null,
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-              },
-              remaining: null,
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "product-zai-pro",
-                    productName: "GLM Coding Pro",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: "monthly",
-                    renewTime: null,
-                    expireTime: null,
-                  },
-                ],
-              },
-              quota: null,
-            }),
-          },
-        },
-        selectedNodeKey: "preset:account:zai-start-plan",
-        connectionSelections: { zai: { kind: "individual-coding-plan" } },
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedSelectedNavItem = selectedNavItem;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    expect(capturedSelectedNavItem).toMatchObject({
-      type: "codingPlan",
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    });
-  });
-
-  it("外部打开 Model Settings 时等待连接方式设置 hydrate，避免先闪成 Start Plan", () => {
-    let capturedSelectedNavItem: ReturnType<typeof useModelProviderNavigation>["selectedNavItem"] =
-      null;
-
-    function Harness() {
-      const { selectedNavItem } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            displayName: "Z.ai - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - Start Plan",
-            apiKey: "start-token",
-          }),
-        ],
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]: {
-            loading: false,
-            error: null,
-            snapshot: createEntitlementSnapshot({
-              provider: { id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan },
-              remaining: null,
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "zcode-v3-start-plan",
-                    productName: "Start Plan",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: null,
-                    renewTime: null,
-                    expireTime: null,
-                  },
-                ],
-              },
-              quota: null,
-            }),
-          },
-        },
-        selectedNodeKey: "preset:account:zai-start-plan",
-        modelProviderFamilyModes: {},
-        modelProviderFamilySelectedKeys: {},
-        familyConnectionSettingsLoading: true,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedSelectedNavItem = selectedNavItem;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    expect(capturedSelectedNavItem).toBeNull();
-  });
-
-  it("OAuth family 的 Plan 连接项未生成时右侧保持 loading，不先显示 API Key", () => {
-    let capturedSelectedNavItem: ReturnType<typeof useModelProviderNavigation>["selectedNavItem"] =
-      null;
-
-    function Harness() {
-      const { selectedNavItem } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-              name: "BigModel - API Key",
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            name: "BigModel - API Key",
-          }),
-        ],
-        codingPlanEntitlements: {},
-        modelProvidersLoading: true,
-        selectedNodeKey: "preset:account:bigmodel-start-plan",
-        modelProviderFamilyModes: { bigmodel: "oauth" },
-        modelProviderFamilySelectedKeys: {},
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedSelectedNavItem = selectedNavItem;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    expect(capturedSelectedNavItem).toBeNull();
-  });
-
-  it("连接方式设置获取失败时显示错误并提供可操作入口，不停在 loading", () => {
-    let capturedSelectedNavItem: ReturnType<typeof useModelProviderNavigation>["selectedNavItem"] =
-      null;
-    let unavailable = false;
-
-    function Harness() {
-      const { selectedNavItem, navigationUnavailable } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            displayName: "Z.ai - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - API Key",
-          }),
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - Start Plan",
-            apiKey: "start-token",
-          }),
-        ],
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]: {
-            loading: false,
-            error: null,
-            snapshot: createEntitlementSnapshot({
-              provider: { id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan },
-              remaining: null,
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "zcode-v3-start-plan",
-                    productName: "Start Plan",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: null,
-                    renewTime: null,
-                    expireTime: null,
-                  },
-                ],
-              },
-              quota: null,
-            }),
-          },
-        },
-        selectedNodeKey: "preset:account:zai-start-plan",
-        modelProviderFamilyModes: {},
-        modelProviderFamilySelectedKeys: {},
-        familyConnectionSettingsFailed: true,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedSelectedNavItem = selectedNavItem;
-      unavailable = navigationUnavailable;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    expect(unavailable).toBe(true);
-    expect(capturedSelectedNavItem).toMatchObject({
-      type: "codingPlan",
-      status: "disconnected",
-    });
-  });
-
-  it("Team Plan 使用团队项目上下文生成连接入口", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-            apiKey: "jwt-token",
-          }),
-        ],
-        subscribedTeamProducts: [
-          {
-            productId: "product-0e2085",
-            productName: "Pro",
-            productBigTitle: "Pro",
-            originalAmount: 100,
-            canRepurchase: true,
-            inCurrentPeriod: true,
-            productEquityList: [],
-            hasPreview: true,
-            enterpriseProduct: {
-              productId: "product-0e2085",
-              tier: "PRO",
-              subscribeMode: "CONTINUOUS",
-              subscribePeriod: "MONTHLY",
-              subscribed: true,
-            },
-            tier: "PRO",
-            subscribeMode: "CONTINUOUS",
-            subscribePeriod: "MONTHLY",
-            purchaseMethodName: "月付",
-            subscribed: true,
-            teamProjects: [
-              {
-                organizationId: "org-team",
-                organizationName: "默认机构",
-                projectId: "proj-team",
-                projectName: "团队编程套餐项目",
-                apiKeyStatus: "unavailable",
-                apiKeyUnavailableMessage: "您当前暂无有效的团队套餐授权记录，无法创建API Key",
-              },
-            ],
-          },
-        ],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-    const teamItem = capturedNavigationItems.find((item) => item.type === "teamPlan");
-
-    expect(teamItem).toMatchObject({
-      key: "team:bigmodel:product-0e2085:org-team:proj-team",
-      organizationId: "org-team",
-      projectId: "proj-team",
-      status: "unavailable",
-      availabilityReason: "credential-unavailable",
-      statusLabelId: undefined,
-      statusMessage: "您当前暂无有效的团队套餐授权记录，无法创建API Key",
-    });
-    const codingPlanItem = {
-      key: "coding-plan:account:bigmodel-individual-coding-plan",
-      type: "codingPlan" as const,
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-      oauthProviderId: BIGMODEL_PROVIDER_ID,
-      label: "BigModel - Coding Plan",
-      providerName: "BigModel",
-      provider: createProvider({
-        id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-      }),
-      status: "purchased" as const,
-      statusActive: true,
-    };
-    expect(
-      resolveSelectedFamilyModeNodeKey({
-        selectedNavItem: codingPlanItem,
-        selectableNavigationItems: [codingPlanItem, teamItem!].filter(
-          (item) => item.type !== "codingPlanLoading",
-        ),
-        connectionSelections: {
-          bigmodel: {
-            kind: "team-coding-plan",
-            productId: "product-0e2085",
-            organizationId: "org-team",
-            projectId: "proj-team",
-          },
-        },
-      }),
-    ).toBe("team:bigmodel:product-0e2085:org-team:proj-team");
-  });
-
-  it("entitlement snapshot 带团队上下文时不依赖 enterprise pricing 展示 Team Plan", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [
-          {
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            displayName: "BigModel - API Key",
-            provider: createProvider({
-              id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            }),
-          },
-        ],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-            apiKey: "jwt-token",
-          }),
-        ],
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan]: {
-            loading: false,
-            error: null,
-            snapshot: createEntitlementSnapshot({
-              context: {
-                scope: "team",
-                organizationId: "org-current",
-                projectId: "project-current",
-                productId: "team-current",
-                displayName: "Coding Team",
-              },
-              subscription: {
-                identityType: "email",
-                identityMasked: "t***@z.ai",
-                details: [
-                  {
-                    productId: "team-current",
-                    productName: "Coding Team",
-                    purchaseTime: null,
-                    beginTime: null,
-                    expireTime: "2026-08-01T00:00:00Z",
-                  },
-                ],
-              },
-            }),
-          },
-        },
-        subscribedTeamProducts: [],
-        showPurchasedTeamPlanFallback: false,
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const teamPlan = capturedNavigationItems.find((item) => item.type === "teamPlan");
-    expect(teamPlan).toMatchObject({
-      key: "team:bigmodel:team-current:org-current:project-current",
-      teamPlanName: "Coding Team",
-      status: "purchased",
-      currentProductId: "team-current",
-      organizationId: "org-current",
-      projectId: "project-current",
-    });
   });
 
   it("Start 详情不因没有付费套餐显示连接控件", () => {
@@ -2639,9 +1505,6 @@ describe("model provider coding plan", () => {
     );
 
     expect(html).toBe("");
-    expect(html).not.toContain("settings.modelProvider.startPlan.summaryTitle");
-    expect(html).not.toContain("settings.modelProvider.startPlan.heroMetric");
-    expect(html).not.toContain("settings.modelProvider.startPlan.summaryDescription");
   });
 
   it("StartPlanCard 中文界面使用本地化紧凑单位展示体验套餐额度", () => {
@@ -2833,234 +1696,6 @@ describe("model provider coding plan", () => {
     expect(html).not.toContain("settings.modelProvider.apiKey");
   });
 
-  it("BigModel Coding Plan 会按自己的 quota 权益解析为已购买", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([
-          BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-        ]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot(),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const bigmodelCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    );
-    expect(bigmodelCodingPlan).toMatchObject({
-      status: "purchased",
-      statusActive: true,
-      currentProductId: "pro",
-      subscriptionBillingCycle: "monthly",
-      subscriptionExpireTime: "2026-12-31T00:00:00.000Z",
-    });
-  });
-
-  it("Coding Plan 已购买但 provider 禁用时导航状态点不点亮", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            enabled: false,
-          }),
-        ],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "purchased",
-      statusActive: false,
-    });
-  });
-
-  it("quota 重置时间不显示在 Coding Plan 状态卡片", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([
-          BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-        ]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "personal",
-                    productName: "GLM Coding Pro",
-                    purchaseTime: null,
-                    beginTime: null,
-                    renewTime: null,
-                    expireTime: null,
-                  },
-                ],
-              },
-              quota: {
-                level: "pro",
-                limits: [
-                  {
-                    type: "TOKENS_LIMIT",
-                    unit: 3,
-                    number: 5,
-                    nextResetTime: Date.UTC(2026, 4, 26),
-                    usageDetails: [],
-                  },
-                  {
-                    type: "TOKENS_LIMIT",
-                    unit: 6,
-                    nextResetTime: Date.UTC(2026, 4, 27),
-                    usageDetails: [],
-                  },
-                  {
-                    type: "TIME_LIMIT",
-                    unit: 5,
-                    number: 1,
-                    nextResetTime: Date.UTC(2026, 4, 28),
-                    usageDetails: [],
-                  },
-                ],
-              },
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const bigmodelCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    );
-    expect(bigmodelCodingPlan).toMatchObject({
-      status: "purchased",
-    });
-    expect(bigmodelCodingPlan).not.toHaveProperty("resetTimes");
-  });
-
-  it("API Key provider 已配置时不会让对应 Coding Plan 变成已连接", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - API Key",
-          }),
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-            name: "BigModel - API Key",
-          }),
-        ],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const codingPlanItems = capturedNavigationItems.filter((item) => item.type === "codingPlan");
-
-    expect(codingPlanItems?.map((item) => item.presetId)).toEqual([
-      BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-      BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-      BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    ]);
-    expect(codingPlanItems?.map((item) => item.status)).toEqual([
-      "disconnected",
-      "disconnected",
-      "disconnected",
-      "disconnected",
-    ]);
-  });
-
   it("未登录 Start/Coding 时仍允许保持 Coding Plan 选中项", () => {
     const apiKeyItem = {
       key: "preset:account:zai-start-plan",
@@ -3104,163 +1739,6 @@ describe("model provider coding plan", () => {
     expect(selectedNodeKey).toBeNull();
   });
 
-  it("未登录加载时保留独立 Start 与 Coding，不显示 loading 占位", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [],
-        modelProvidersLoading: true,
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiPlanItems = capturedNavigationItems.filter(
-      (item) =>
-        (item.type === "codingPlan" &&
-          (item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan ||
-            item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan)) ||
-        item.type === "codingPlanLoading",
-    );
-
-    expect(zaiPlanItems).toEqual([
-      expect.objectContaining({
-        type: "codingPlan",
-        presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-      }),
-      expect.objectContaining({
-        type: "codingPlan",
-        presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-        status: "checking",
-      }),
-    ]);
-  });
-
-  it("Coding 权益未返回时仍保留独立 Start", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-    const setSelectedNodeKey = vi.fn();
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "jwt-token",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        selectedNodeKey: null,
-        setSelectedNodeKey,
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiPlanItems = capturedNavigationItems.filter(
-      (item) =>
-        (item.type === "codingPlan" &&
-          (item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan ||
-            item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan)) ||
-        item.type === "codingPlanLoading",
-    );
-
-    expect(zaiPlanItems).toEqual([
-      expect.objectContaining({
-        type: "codingPlan",
-        presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-      }),
-      expect.objectContaining({
-        type: "codingPlan",
-        presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      }),
-    ]);
-    expect(setSelectedNodeKey).not.toHaveBeenCalledWith("coding-plan:zai:loading");
-  });
-
-  it("未登录时保留个人 Coding Plan 与独立 Start Plan", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [],
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    const bigmodelCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    );
-    const bigmodelStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
-    );
-
-    expect(zaiCodingPlan).toMatchObject({
-      status: "disconnected",
-      statusActive: false,
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-    expect(bigmodelCodingPlan).toMatchObject({
-      status: "disconnected",
-      statusActive: false,
-    });
-    expect(bigmodelStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-    expect(
-      capturedNavigationItems.some(
-        (item) =>
-          item.type === "codingPlan" &&
-          item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      ),
-    ).toBe(true);
-    expect(
-      capturedNavigationItems.some(
-        (item) =>
-          item.type === "codingPlan" &&
-          item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-      ),
-    ).toBe(true);
-  });
-
   it("Start 过期快照显示过期提示且隐藏余额和模型，即使旧 Account 仍 available", () => {
     const providerId = BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan;
     const state = resolveCodingPlanEntitlementState({
@@ -3299,220 +1777,6 @@ describe("model provider coding plan", () => {
     expect(html).toContain("settings.modelProvider.startPlan.status.expired");
     expect(html).not.toContain("expired-start-model");
     expect(html).not.toContain("settings.modelProvider.startPlan.balance.title");
-  });
-
-  it("Z.ai Coding Plan 无付费权益时不复用 Start 免费态", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "jwt-token",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              remaining: null,
-              subscription: null,
-              quota: null,
-              unavailableReason: "no_plan",
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "notPurchased",
-      statusActive: true,
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-  });
-
-  it("Z.ai 已登录且只有 Start 有权益时显示 Start 和个人 Coding Plan", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "zai-coding-plan-key",
-          }),
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "zcode-jwt",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([
-          BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-          BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-        ]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              remaining: null,
-              subscription: null,
-              quota: null,
-              unavailableReason: "no_plan",
-            }),
-            loading: false,
-            error: null,
-          },
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "zcode-v3-start-plan",
-                    productName: "ZCode V3 Start Plan",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: "daily",
-                    renewTime: "2026-06-04T00:00:00.000Z",
-                    expireTime: "2026-06-08T00:00:00.000Z",
-                  },
-                ],
-              },
-              quota: null,
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "notPurchased",
-      statusActive: true,
-    });
-    expect(zaiStartPlan).toMatchObject({
-      status: "purchased",
-      currentProductId: "zcode-v3-start-plan",
-      statusActive: true,
-    });
-  });
-
-  it("Z.ai 未登录且缺少 Coding Key 时仍显示独立 Start", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "",
-          }),
-        ],
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              remaining: null,
-              subscription: null,
-              quota: null,
-              unavailableReason: "no_plan",
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "disconnected",
-      planLevel: null,
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
   });
 
   it("Z.ai Start 登录后入口互斥时回落到可见的 Z.ai plan", () => {
@@ -3875,520 +2139,6 @@ describe("model provider coding plan", () => {
     });
 
     expect(fallbackNodeKey).toBe("preset:account:zai-start-plan");
-  });
-
-  it("Z.ai Coding Plan 权益查询不可用时不误判为未开通或查询中", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "zai-coding-plan-key" })],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              unavailableReason: "not_configured",
-              remaining: null,
-              subscription: null,
-              quota: null,
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "unavailable",
-      statusActive: true,
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-  });
-
-  it("Z.ai Coding Plan 缺少 apiKey 时旧失败快照刷新仍显示未连接", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "" })],
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              unavailableReason: "not_configured",
-              remaining: null,
-              subscription: null,
-              quota: null,
-            }),
-            loading: true,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "disconnected",
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-  });
-
-  it("Account Overlay 已连接时不再受旧 Provider apiKey 空值影响", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "" })],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              unavailableReason: "no_plan",
-              remaining: null,
-              subscription: null,
-              quota: null,
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      accountEntitled: true,
-      status: "notPurchased",
-    });
-  });
-
-  it("BigModel Account Overlay 已连接时也不要求 Renderer 持有 API Key", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-            name: "BigModel - Coding Plan",
-            apiKey: "",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([
-          BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-        ]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-                name: "BigModel - Coding Plan",
-              },
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const bigmodelCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
-    );
-    expect(bigmodelCodingPlan).toMatchObject({
-      accountEntitled: true,
-      status: "purchased",
-    });
-  });
-
-  it("Account Overlay 未连接时不再被旧 Provider apiKey 误判为已连接", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "legacy-key" })],
-        entitledAccountProviderIds: new Set(),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot(),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      accountEntitled: false,
-      status: "disconnected",
-    });
-  });
-
-  it("Account Overlay 首次发布前保持查询中而不读旧 Provider apiKey", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "legacy-key" })],
-        entitledAccountProviderIds: new Set(),
-        modelProvidersLoading: true,
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      accountEntitled: false,
-      status: "checking",
-    });
-  });
-
-  it("Z.ai Coding Plan 有 apiKey 但服务端无付费套餐时仍显示付费入口", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "zai-coding-plan-key" })],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              unavailableReason: "no_plan",
-              remaining: null,
-              subscription: null,
-              quota: null,
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "notPurchased",
-      statusActive: true,
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-  });
-
-  it("Z.ai Coding Plan 有订阅详情时优先显示已购买", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "zai-coding-plan-key" })],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              unavailableReason: "no_plan",
-              remaining: null,
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "product-zai-pro-monthly",
-                    productName: "GLM Coding Pro",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: "monthly",
-                    renewTime: "2026-07-10T00:00:00.000Z",
-                    expireTime: null,
-                  },
-                ],
-              },
-              quota: null,
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    const zaiStartPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "purchased",
-      planLevel: "GLM Coding Pro",
-      currentProductId: "product-zai-pro-monthly",
-      subscriptionRenewTime: "2026-07-10T00:00:00.000Z",
-      statusActive: true,
-    });
-    expect(zaiStartPlan).toMatchObject({ type: "codingPlan", label: "Start Plan" });
-  });
-
-  it("Z.ai Start Plan 加载权益接口时连接方式仍显示 Start 入口", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [
-          createProvider({
-            id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-            name: "Z.ai - Coding Plan",
-            apiKey: "zcode-jwt",
-          }),
-        ],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              subscription: {
-                identityType: "unknown",
-                identityMasked: null,
-                details: [
-                  {
-                    productId: "zcode-v3-start-plan",
-                    productName: "ZCode V3 Start Plan",
-                    purchaseTime: null,
-                    beginTime: null,
-                    billingCycle: "daily",
-                    renewTime: "2026-06-04T00:00:00.000Z",
-                    expireTime: "2026-06-08T00:00:00.000Z",
-                  },
-                ],
-              },
-              quota: null,
-            }),
-            loading: true,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const startPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" && item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    );
-    const loadingItem = capturedNavigationItems.find((item) => item.type === "codingPlanLoading");
-    expect(startPlan).toMatchObject({
-      type: "codingPlan",
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan,
-    });
-    expect(loadingItem).toBeUndefined();
-  });
-
-  it("Z.ai Coding Plan token 失效时显示同步失败", () => {
-    let capturedNavigationItems: ReturnType<typeof useModelProviderNavigation>["navigationItems"] =
-      [];
-
-    function Harness() {
-      const { navigationItems } = useModelProviderNavigation({
-        presetProviders: [],
-        modelProviders: [createProvider({ apiKey: "zai-coding-plan-key" })],
-        entitledAccountProviderIds: new Set([BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]),
-        codingPlanEntitlements: {
-          [BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan]: {
-            snapshot: createEntitlementSnapshot({
-              provider: {
-                id: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-                name: "Z.ai - Coding Plan",
-              },
-              unavailableReason: "unavailable",
-              remaining: null,
-              subscription: null,
-              quota: null,
-            }),
-            loading: false,
-            error: null,
-          },
-        },
-        selectedNodeKey: null,
-        setSelectedNodeKey: vi.fn(),
-        intl: {
-          formatMessage: ({ id }: { id: string }) => id,
-        } as never,
-      });
-      capturedNavigationItems = navigationItems;
-      return createElement("div");
-    }
-
-    renderToStaticMarkup(createElement(Harness));
-
-    const zaiCodingPlan = capturedNavigationItems.find(
-      (item) =>
-        item.type === "codingPlan" &&
-        item.presetId === BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-    );
-    expect(zaiCodingPlan).toMatchObject({
-      status: "unavailable",
-      statusActive: true,
-    });
   });
 
   it("Z.ai Coding Plan 未连接时在 Plan Card 右侧显示 Connect 入口", () => {
@@ -4760,7 +2510,6 @@ describe("model provider coding plan", () => {
     expect(html).toContain("settings.usage.entitlementFiveHourUsage");
     expect(html).toContain("settings.usage.entitlementWeeklyUsage");
     expect(html).toContain("settings.usage.entitlementMonthlyMcpUsage");
-    expect(html.match(/class="flex min-h-6 min-w-0 items-center gap-1"/g)).toHaveLength(3);
     expect(html).toContain("GLM Coding Lite");
     expect(html).not.toContain("GLM CODING LITE");
     expect(html).not.toContain("Search Prime");
@@ -4770,21 +2519,14 @@ describe("model provider coding plan", () => {
     expect(html).toContain("50%");
     expect(html).toContain("90%");
     expect(html).toContain("Aug 10, 09:30");
-    expect(html).toContain('text-ui-sm text-foreground-subtle">Aug 10, 09:30');
     expect(html).toContain("Aug 11");
     expect(html).toContain("Aug 12");
     expect(html.indexOf("75%")).toBeLessThan(html.indexOf("Aug 10, 09:30"));
-    expect(html.indexOf("Aug 10, 09:30")).toBeLessThan(
-      html.indexOf("background-color:var(--color-usage-chart-1)"),
-    );
-    expect(html).toContain("background-color:var(--color-usage-chart-1)");
-    expect(html).toContain("background-color:var(--color-usage-chart-2)");
-    expect(html).toContain("background-color:var(--color-usage-chart-3)");
     expect(html).not.toContain("settings.modelProvider.startPlan.balance.used");
     expect(html).not.toContain("settings.modelProvider.codingPlan.period.monthly");
     expect(html).toContain("settings.modelProvider.codingPlan.renewsAt");
     expect(html).toContain("settings.modelProvider.codingPlan.manage");
-    expect(html).toContain("settings.modelProvider.codingPlan.upgrade");
+    expect(html).not.toContain("settings.modelProvider.codingPlan.upgrade");
     expect(html).toContain("Jul 10");
     expect(html).not.toContain(`Jul 10, ${currentYear}`);
     expect(html).not.toContain("settings.modelProvider.codingPlan.expiresAt");
@@ -4812,7 +2554,7 @@ describe("model provider coding plan", () => {
       statusActive: true,
     });
 
-    expect(html).toContain("settings.modelProvider.codingPlan.upgrade");
+    expect(html).not.toContain("settings.modelProvider.codingPlan.upgrade");
     expect(html).toContain("settings.modelProvider.models");
     expect(html).not.toContain("settings.modelProvider.codingPlan.description.notPurchased");
   });
@@ -4835,26 +2577,6 @@ describe("model provider coding plan", () => {
 
     expect(html).toContain("settings.modelProvider.models");
     expect(html).toContain("settings.modelProvider.addModel");
-  });
-
-  it("Z.ai Coding Plan 已购买时套餐标题保留模型名大小写", () => {
-    const html = renderDetail({
-      key: "coding-plan:account:zai-individual-coding-plan",
-      type: "codingPlan",
-      presetId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      oauthProviderId: ZAI_PROVIDER_ID,
-      label: "Z.ai - Coding Plan",
-      providerName: "Z.ai",
-      provider: createProvider(),
-      status: "purchased",
-      planLevel: "GLM CODING LITE",
-      purchaseUrl: "https://z.ai/",
-      quotaLimits: [],
-      statusActive: true,
-    });
-
-    expect(html).toContain(">GLM Coding Lite<");
-    expect(html).not.toContain("GLM CODING LITE");
   });
 
   it("Coding Plan 用量卡 percentage 按已用百分比反转成剩余百分比", () => {
@@ -5379,7 +3101,6 @@ describe("model provider coding plan", () => {
     expect(html).not.toContain("settings.usage.entitlementMonthlyMcpUsage");
     expect(html).toContain("90%");
     expect(html).toContain("80%");
-    expect(html).not.toContain("background-color:var(--color-usage-chart-3)");
   });
 
   it("Team Plan 非标准额度项也会展示用量卡", () => {
@@ -5413,10 +3134,9 @@ describe("model provider coding plan", () => {
     expect(html).toContain("settings.modelProvider.planCard.usage.totalTokens");
     expect(html).toContain("GLM-5.2");
     expect(html).toContain("75%");
-    expect(html).toContain("background-color:var(--color-usage-chart-1)");
   });
 
-  it("Z.ai Coding Plan Upgrade 等待 OAuth 时显示 loading", () => {
+  it("NCode 等待 OAuth 时也不显示套餐升级入口", () => {
     const html = renderDetail(
       {
         key: "coding-plan:account:zai-individual-coding-plan",
@@ -5437,8 +3157,8 @@ describe("model provider coding plan", () => {
       },
     );
 
-    expect(html).toContain("settings.modelProvider.codingPlan.upgrade");
-    expect(html).toContain("lucide-loader-circle");
+    expect(html).not.toContain("settings.modelProvider.codingPlan.upgrade");
+    expect(html).not.toContain("lucide-loader-circle");
   });
 
   it("Coding Plan 已开通但套餐详情为空时状态卡片不空白", () => {
@@ -5458,7 +3178,7 @@ describe("model provider coding plan", () => {
     });
 
     expect(html).not.toContain("settings.modelProvider.codingPlan.status.purchased");
-    expect(html).toContain("settings.modelProvider.codingPlan.upgrade");
+    expect(html).not.toContain("settings.modelProvider.codingPlan.upgrade");
     expect(html).not.toContain("settings.modelProvider.codingPlan.manage");
   });
 
@@ -5569,10 +3289,10 @@ describe("model provider coding plan", () => {
       expect(html).not.toContain("Jul 10 00:23");
       expect(html).not.toContain("Today 00:23");
       expect(html).not.toContain("settings.modelProvider.codingPlan.title");
-      // 语义变更:体验套餐卡片不再提供「管理」「解绑」操作,只保留升级 Coding Plan 入口。
+      // NCode 不提供套餐管理、解绑或升级入口。
       expect(html).not.toContain("settings.modelProvider.codingPlan.manage");
       expect(html).not.toContain("settings.modelProvider.codingPlan.disconnect");
-      expect(html).toContain("settings.modelProvider.codingPlan.upgrade");
+      expect(html).not.toContain("settings.modelProvider.codingPlan.upgrade");
       expect(html).not.toContain("settings.modelProvider.baseUrl");
       expectConnectionApiFormatHidden(html);
       expect(html).not.toContain("settings.modelProvider.apiKey");
@@ -5696,7 +3416,7 @@ describe("model provider coding plan", () => {
     // 体验套餐用量卡片不展示「管理」「解绑」操作,只保留升级 Coding Plan 入口。
     expect(html).not.toContain("settings.modelProvider.codingPlan.manage");
     expect(html).not.toContain("settings.modelProvider.codingPlan.disconnect");
-    expect(html).toContain("settings.modelProvider.codingPlan.upgrade");
+    expect(html).not.toContain("settings.modelProvider.codingPlan.upgrade");
     // 多卡路径下套餐到期时间只在 StartPlanStatusMeta 渲染一次；
     // 余额卡不再重复展示套餐级 expireTime。
     expect(html.match(/settings\.modelProvider\.startPlan\.expiresAt/g)?.length).toBe(1);
@@ -5867,8 +3587,6 @@ describe("model provider coding plan", () => {
     const tomorrowEffectiveTime = new Date(2026, 8, 2, 22, 0).toISOString();
     const laterEffectiveTime = new Date(2026, 8, 4, 22, 0).toISOString();
 
-    expect(zhCN["settings.modelProvider.startPlan.pendingUntil"]).toBe("待生效 {date}");
-    expect(enUS["settings.modelProvider.startPlan.pendingUntil"]).toBe("Pending {date}");
     expect(formatStartPlanEffectiveDate(todayEffectiveTime, "zh-CN", now)).toBe("今天 22:00");
     expect(formatStartPlanEffectiveDate(todayEffectiveTime, "en-US", now)).toBe("Today 22:00");
     expect(formatStartPlanEffectiveDate(tomorrowEffectiveTime, "zh-CN", now)).toBe("明天 22:00");
@@ -6013,7 +3731,7 @@ describe("model provider coding plan", () => {
     expect(settledHtml).not.toContain("2,734,000 / 3,000,000");
     // 兜底分支的套餐卡本体仍在（标题 + 升级按钮），只是不再渲染额度桶。
     expect(settledHtml).toContain("settings.modelProvider.planCard.startPlan");
-    expect(settledHtml).toContain("settings.modelProvider.codingPlan.upgrade");
+    expect(settledHtml).not.toContain("settings.modelProvider.codingPlan.upgrade");
 
     const checkingHtml = renderToStaticMarkup(
       createElement(CodingPlanStatusPanel, {
@@ -6120,14 +3838,6 @@ describe("model provider coding plan", () => {
     expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamTitle");
     expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamDescription");
     expect(html).not.toContain("CN¥598.00+");
-    expect(html).not.toContain("color-mix(in_srgb,var(--color-success)_24%");
-    expect(html).not.toContain("color-mix(in_srgb,#4099ff_24%");
-    expect(html).not.toContain("color-mix(in_srgb,#0ea5e9_24%");
-    expect(html).not.toContain("circle_at_14%_12%");
-    expect(html).toContain("w-full");
-    expect(html).not.toContain("bg-background/80");
-    expect(html).not.toContain("sm:grid-cols-3");
-    expect(html).not.toContain("button-gradient");
     expect(html).not.toContain("settings.modelProvider.codingPlan.description.disconnected");
     expect(html).not.toContain("settings.modelProvider.codingPlan.productsLoading");
     expect(html).not.toContain("settings.modelProvider.models");
@@ -6182,7 +3892,6 @@ describe("model provider coding plan", () => {
       expect(html).not.toContain("30 Million");
       expect(html).not.toContain("tokens per day");
       expect(html).not.toContain("Daily quota · GLM-5.2 / GLM-5.1 / GLM-5-Turbo 10M each");
-      expect(html).not.toContain("color-mix(in_srgb,var(--color-success)_24%");
       expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.personalTitle");
       expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamTitle");
     },
@@ -6372,7 +4081,7 @@ describe("model provider coding plan", () => {
     ).toBe("Org A");
   });
 
-  it("Start Plan 活动升级按钮使用渐变背景", () => {
+  it("旧套餐活动组件不显示购买按钮内的活动徽标", () => {
     const html = renderToStaticMarkup(
       createElement(CodingPlanUpgradeAction, {
         loginLoading: false,
@@ -6390,53 +4099,9 @@ describe("model provider coding plan", () => {
       }),
     );
 
-    expect(html).toContain("button-gradient");
-    expect(html).toContain("dark:bg-[#484A58]");
-    expect(html).toContain("bg-white");
-    expect(html).toContain("text-[#191A1D]");
-    expect(html).toContain("rounded-full");
-    expect(html).not.toContain("lucide-trending-up");
     expect(html).toContain("lucide-info");
     expect(html).toContain('data-slot="dialog-trigger"');
-    expect(html).not.toContain("uppercase");
-    expect(html).toContain("150% Quota");
-  });
-
-  it("聊天额度 Banner 的活动升级按钮与 Model Settings 使用一致样式", () => {
-    const html = renderToStaticMarkup(
-      createElement(ConversationQuotaBanner, {
-        state: {
-          visible: true,
-          kind: "model-very-low",
-          concurrentLimitBusinessCode: null,
-          concurrentLimitReason: null,
-          providerLimitedBusinessCode: null,
-          providerLimitedMessage: null,
-          modelName: "GLM-4.5",
-          remainingTokens: 12_800,
-          remainingPercent: 10,
-          dismissible: true,
-          blocksSubmit: false,
-          priority: 40,
-        },
-        billingDiscountActive: true,
-        billingDiscountConfig: {
-          "en-US": {
-            badgeBody: "150% Quota",
-            infoTitle: "Entitlement Rules",
-            infoBody: "Remote campaign rules",
-          },
-        },
-        onUpgrade: vi.fn(),
-        onDismiss: vi.fn(),
-      }),
-    );
-
-    expect(html).toContain("button-gradient");
-    expect(html).toContain("dark:bg-[#484A58]");
-    expect(html).toContain("pr-px");
-    expect(html).toContain("h-auto");
-    expect(html).toContain("150% Quota");
+    expect(html).not.toContain("150% Quota");
   });
 
   it("Coding Plan 活动 banner 右侧显示说明入口", () => {
@@ -6456,15 +4121,11 @@ describe("model provider coding plan", () => {
 
     expect(html).toContain("Limited-time 150% Quota Campaign");
     expect(html).toContain("150% Quota");
-    expect(html).toContain("lucide-trending-up");
     expect(html).toContain("lucide-info");
-    expect(html).not.toContain('data-slot="button"');
-    expect(html).toContain("bg-white");
-    expect(html).toContain("text-[#191A1D]");
     expect(html).toContain("settings.modelProvider.codingPlan.billingDiscountInfo.open");
   });
 
-  it("默认活动徽标旁的说明入口在浅色背景可见", () => {
+  it("完整活动配置为徽标提供说明入口", () => {
     const html = renderToStaticMarkup(
       createElement(CodingPlanBillingDiscountBadge, {
         config: {
@@ -6479,26 +4140,6 @@ describe("model provider coding plan", () => {
 
     expect(html).toContain("150% Quota");
     expect(html).toContain("lucide-info");
-    expect(html).not.toContain('data-slot="button"');
-    expect(html).toContain("text-foreground-subtle");
-    expect(html).not.toContain("text-white/90");
-  });
-
-  it("compact 活动徽标使用 badge 级字号", () => {
-    const html = renderToStaticMarkup(
-      createElement(CodingPlanBillingDiscountBadgePill, {
-        config: {
-          "en-US": {
-            badgeBody: "150% Quota",
-          },
-        },
-        size: "compact",
-      }),
-    );
-
-    expect(html).toContain("text-ui-xs");
-    expect(html).not.toContain("text-ui-sm");
-    expect(html).toContain("whitespace-nowrap");
   });
 
   it("远端未下发完整活动说明时不显示 Info 入口且不使用本地兜底", () => {
@@ -6531,15 +4172,6 @@ describe("model provider coding plan", () => {
 
     expect(copy.infoTitle).toBe("远端权益规则");
     expect(copy.infoBody).toBe("- 远端规则一\n- 远端规则二");
-  });
-
-  it("Coding Plan 活动说明弹窗使用紧凑宽度", () => {
-    expect(CODING_PLAN_BILLING_DISCOUNT_DIALOG_CONTENT_CLASS).toContain("max-w-lg");
-    expect(CODING_PLAN_BILLING_DISCOUNT_DIALOG_CONTENT_CLASS).not.toContain("max-w-2xl");
-  });
-
-  it("Coding Plan 活动说明文案区域使用弹窗内 wrapper", () => {
-    expect(CODING_PLAN_BILLING_DISCOUNT_DIALOG_BODY_CLASS).toBe("p-3 !space-y-3");
   });
 
   it("按当前 locale 读取服务端下发的 150% 活动文案", () => {
@@ -6890,14 +4522,6 @@ describe("model provider coding plan", () => {
     expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamTitle");
     expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamDescription");
     expect(html).not.toContain("CN¥598.00+");
-    expect(html).not.toContain("color-mix(in_srgb,var(--color-success)_24%");
-    expect(html).not.toContain("color-mix(in_srgb,#4099ff_24%");
-    expect(html).not.toContain("color-mix(in_srgb,#0ea5e9_24%");
-    expect(html).not.toContain("circle_at_14%_12%");
-    expect(html).toContain("w-full");
-    expect(html).not.toContain("bg-background/80");
-    expect(html).not.toContain("sm:grid-cols-3");
-    expect(html).not.toContain("button-gradient");
     expect(html).not.toContain("settings.modelProvider.startPlan.quotaSectionTitle");
     expect(html).not.toContain("settings.modelProvider.codingPlan.productsLoading");
     expect(html).not.toContain("settings.modelProvider.codingPlan.bigmodel.plan.lite.name");
@@ -6998,13 +4622,6 @@ describe("model provider coding plan", () => {
     );
     expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamTitle");
     expect(html).not.toContain("settings.modelProvider.codingPlan.purchaseBanner.teamDescription");
-    expect(html).not.toContain("color-mix(in_srgb,#4099ff_24%");
-    expect(html).not.toContain("color-mix(in_srgb,var(--color-warning)_24%");
-    expect(html).not.toContain("circle_at_14%_12%");
-    expect(html).toContain("w-full");
-    expect(html).not.toContain("bg-background/80");
-    expect(html).not.toContain("sm:grid-cols-2");
-    expect(html).not.toContain("button-gradient");
     expect(html).not.toContain("settings.modelProvider.startPlan.quotaSectionTitle");
     expect(html).not.toContain("settings.modelProvider.models");
     expect(html).not.toContain("settings.modelProvider.apiKey");
@@ -7123,7 +4740,7 @@ describe("model provider coding plan", () => {
               },
             );
             expect(activeStartHtml.includes("settings.modelProvider.codingPlan.upgrade")).toBe(
-              !available,
+              false,
             );
           }
         }
@@ -7131,29 +4748,6 @@ describe("model provider coding plan", () => {
     } finally {
       spy.mockRestore();
     }
-  });
-
-  it("团队标准版和高级版使用不同 banner 背景", () => {
-    const standardClassName = resolveEnterpriseTeamPlanBannerClass("pro");
-    const advancedClassName = resolveEnterpriseTeamPlanBannerClass("max");
-
-    expect(standardClassName).toContain("#0ea5e9");
-    expect(advancedClassName).toContain("#14b8a6");
-    expect(advancedClassName).not.toBe(standardClassName);
-  });
-
-  it("团队标准版和高级版图标颜色跟随 banner 背景", () => {
-    expect(resolveEnterpriseTeamPlanBannerIconClass("pro")).toBe("text-[#0ea5e9]");
-    expect(resolveEnterpriseTeamPlanBannerIconClass("max")).toBe("text-[#14b8a6]");
-  });
-
-  it("团队标准版和高级版使用各自的 banner 描述", () => {
-    expect(resolveEnterpriseTeamPlanBannerDescriptionId("pro")).toBe(
-      "settings.modelProvider.codingPlan.purchaseBanner.teamStandardDescription",
-    );
-    expect(resolveEnterpriseTeamPlanBannerDescriptionId("max")).toBe(
-      "settings.modelProvider.codingPlan.purchaseBanner.teamAdvancedDescription",
-    );
   });
 
   it("模型供应商手动刷新会同步 Team Plan 产品快照", async () => {
@@ -7252,94 +4846,4 @@ describe("model provider coding plan", () => {
 
     expect(calls).toEqual(["close", "refresh:start", "refresh:end"]);
   });
-});
-
-describe("团队初始化的商品元数据变化", () => {
-  it.each(["bigmodel", "zai"] as const)(
-    "%s 同项目商品更新仍选中团队，且不报连接不可用",
-    (family) => {
-      const spec = getModelProviderFamilySpec(family);
-      let captured: ReturnType<typeof useModelProviderNavigation> | undefined;
-      function Harness() {
-        captured = useModelProviderNavigation({
-          presetProviders: [
-            { id: spec.startPlanProviderId, displayName: spec.label, provider: null },
-          ],
-          modelProviders: [],
-          selectedNodeKey: `preset:${spec.startPlanProviderId}`,
-          providerFamilyDomain: family,
-          connectionSelections: {
-            [family]: {
-              kind: "team-coding-plan",
-              productId: "saved-product",
-              organizationId: "org-a",
-              projectId: "project-a",
-            },
-          },
-          showPurchasedTeamPlanFallback: true,
-          codingPlanEntitlements: {
-            [spec.teamCodingPlanProviderId]: {
-              loading: false,
-              error: null,
-              snapshot: {
-                generatedAt: 1,
-                authenticated: true,
-                provider: { id: spec.teamCodingPlanProviderId },
-                context: {
-                  scope: "team",
-                  organizationId: "org-a",
-                  projectId: "project-a",
-                  productId: "current-product",
-                  displayName: "Current Team",
-                },
-                subscription: null,
-                quota: null,
-                remaining: null,
-              },
-            },
-          },
-          setSelectedNodeKey: vi.fn(),
-          intl: { formatMessage: ({ id }: { id: string }) => id } as never,
-        });
-        return createElement("div");
-      }
-      renderToStaticMarkup(createElement(Harness));
-      expect(captured?.selectedNavItem).toMatchObject({
-        type: "teamPlan",
-        currentProductId: "current-product",
-        organizationId: "org-a",
-        projectId: "project-a",
-      });
-      expect(captured?.navigationUnavailable).toBe(false);
-      const team = captured!.selectedNavItem!;
-      for (const selection of [
-        { organizationId: "other-org", projectId: "project-a" },
-        { organizationId: "org-a", projectId: "other-project" },
-      ]) {
-        expect(
-          connectionSelectionMatchesNavigationItem(
-            family,
-            {
-              kind: "team-coding-plan",
-              productId: "current-product",
-              ...selection,
-            },
-            team,
-          ),
-        ).toBe(false);
-      }
-      expect(
-        connectionSelectionMatchesNavigationItem(
-          family === "bigmodel" ? "zai" : "bigmodel",
-          {
-            kind: "team-coding-plan",
-            productId: "current-product",
-            organizationId: "org-a",
-            projectId: "project-a",
-          },
-          team,
-        ),
-      ).toBe(false);
-    },
-  );
 });

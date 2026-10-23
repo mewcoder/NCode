@@ -253,7 +253,7 @@ describe("SessionPane error banner wiring", () => {
     );
   });
 
-  it("renders the feedback shortcut in the subscription error state", () => {
+  it("renders only the reconnect action in the subscription error state", () => {
     projectionState.current = {
       status: "error",
       snapshot: null,
@@ -266,7 +266,8 @@ describe("SessionPane error banner wiring", () => {
     const html = renderPane();
 
     expect(html).toContain("EPERM: operation not permitted");
-    expect(html).toContain("反馈问题");
+    // NCode 关闭反馈入口，只保留重连动作。
+    expect(html).not.toContain("反馈问题");
     expect(html).toContain("重新连接");
   });
 });

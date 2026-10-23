@@ -99,6 +99,7 @@ afterEach(() => {
 });
 
 describe("帮助菜单更新状态", () => {
+  // NCode 关闭点在上游消费方（WorkspaceHelpMenuButton 传 false），hook 本身保持上游语义。
   it("实时检查状态不被较晚返回的 idle 快照覆盖，并在卸载时取消订阅", async () => {
     let resolve!: (state: UpdateStatePayload) => void;
     let listener!: (state: UpdateStatePayload) => void;

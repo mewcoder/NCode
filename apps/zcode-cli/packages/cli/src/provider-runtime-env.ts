@@ -74,29 +74,9 @@ export async function prepareCliProviderRuntimeEnv(
     }));
   const personalFilePath =
     explicitPersonal ?? join(dataBaseDir, ".zcode", "v2", PERSONAL_PROVIDER_CONFIG_FILE_NAME);
-  const appVersion = options.appVersion ?? ZCODE_VERSION;
-  const platform = options.platform ?? resolveZCodeBuiltinClientPlatform();
-  const zcodeEndpointOrigin = resolveRuntimeZCodeEndpointOrigin(options.env);
-  const cachePaths = resolveZCodeBuiltinCachePaths({
-    environmentConfigRoot: join(dataBaseDir, ".zcode", "v2"),
-    platform,
-    appVersion,
-    zcodeEndpointOrigin,
-  });
-  const source = new NodeZCodeBuiltinProviderConfigSource({
-    bundledFilePath: zcodeBuiltinFilePath,
-    activeFilePath: cachePaths.activeFilePath,
-    watch: false,
-  });
-  // 入口只准备资源和路径；下载由 Prompt/TUI 长生命周期 Runtime 持有并取消。
-  try {
-    await source.read();
-  } finally {
-    source.dispose();
-  }
-
+  // NCode 使用随应用打包的内置 Provider，不生成官方刷新缓存。
   return {
-    [ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]: cachePaths.activeFilePath,
+    [ZCODE_BUILTIN_PROVIDER_CONFIG_FILE_ENV]: zcodeBuiltinFilePath,
     [ZCODE_BUILTIN_PROVIDER_BUNDLED_CONFIG_FILE_ENV]: zcodeBuiltinFilePath,
     [ZCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]: personalFilePath,
   };
