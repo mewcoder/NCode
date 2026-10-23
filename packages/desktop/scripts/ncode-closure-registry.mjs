@@ -137,8 +137,9 @@ export const NCODE_CLOSURE_ANCHORS = [
     section: "一、关闭功能 · 7 会话分享",
     kind: "forbid",
     file: "packages/services/src/node.ts",
-    pattern: /createConversationShareService\(/,
-    note: "分享服务不在共享服务运行时注册（导出与本地上传辅助不受限）",
+    pattern:
+      /(?:createConversationShareService|new\s+ConversationShare(?:Service|HttpClient))\s*\(/,
+    note: "不装配真实分享服务或 HTTP client；保留关闭态接口与本地副本按需读取",
   },
   // 8. 手机远控
   {

@@ -54,4 +54,21 @@ describe("NCode 关闭项静态锚点", () => {
     const sections = new Set(NCODE_CLOSURE_ANCHORS.map((anchor) => anchor.section.split(" · ")[0]));
     expect([...sections].sort()).toEqual(["一、关闭功能", "二、定制修改"]);
   });
+
+  it("分享装配锚点同时拦截工厂和构造器，不能再漏过 new 写法", () => {
+    const anchor = NCODE_CLOSURE_ANCHORS.find(
+      (item) =>
+        item.section.endsWith("7 会话分享") && item.file === "packages/services/src/node.ts",
+    );
+    expect(anchor).toBeDefined();
+    for (const source of [
+      "createConversationShareService({})",
+      "new ConversationShareService({})",
+      "new ConversationShareHttpClient({})",
+    ]) {
+      expect(anchor!.pattern.test(source), source).toBe(true);
+    }
+    expect(anchor!.pattern.test("createUnsupportedConversationShareService({})")).toBe(false);
+    expect(anchor!.pattern.test("getImportedConversation: readImportedConversation")).toBe(false);
+  });
 });
