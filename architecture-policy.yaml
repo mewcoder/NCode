@@ -46,6 +46,15 @@ modules:
   - id: web
     roots: [packages/web/src]
     managed: false
+  - id: desktop-telemetry
+    roots: [packages/desktop/src/telemetry]
+    managed: true
+    requires: [shared]
+    publicEntrypoints:
+      - packages/desktop/src/telemetry/index.ts
+      - packages/desktop/src/telemetry/contract.ts
+    layers: { adapters: . }
+    owner: desktop
   - id: desktop
     roots: [packages/desktop/src]
     managed: false
@@ -396,12 +405,15 @@ modules:
   - id: host-database-startup
     roots:
       - packages/desktop/src/host/database-startup
+      - packages/desktop/src/main/databaseStartupTelemetry.ts
     managed: true
     requires:
       - project-storage
       - shared
       - desktop
+      - desktop-telemetry
     publicEntrypoints:
+      - packages/desktop/src/main/databaseStartupTelemetry.ts
       - packages/desktop/src/host/database-startup/contract.ts
       - packages/desktop/src/host/database-startup/tasksStorageWorker.ts
       - packages/desktop/src/host/database-startup/hostDatabaseStartup.ts

@@ -1,6 +1,6 @@
 /* eslint-disable max-lines -- 稳定性上报集中单模块，拆分反而增加跨文件状态同步 */
 import { createHash, randomUUID } from "node:crypto";
-import armsRum from "@arms/rum-electron";
+import { desktopRum as armsRum } from "../telemetry/index.js";
 import { BrowserWindow, type WebContents } from "electron";
 import {
   mapZCodeEnvToArmsRumEnv,
@@ -448,7 +448,7 @@ function reportStabilityCustom(
   try {
     // ARMS 原始日志/控制台按 custom 类型展示；业务分组用 group
     // value 填具体数值：ANR/挂死为 duration_ms，退出为 exit_code，计数类统一为 1
-    armsRum.sendCustom({
+    armsRum?.sendCustom({
       name,
       type: "custom",
       group: "stability",
@@ -478,7 +478,7 @@ export function reportAgentProcessExceptionToArms(
   try {
     // 根因：Electron collector 只监听自身进程，CLI 异常必须携带原始栈显式发送，
     // 不能先转成 console.error 包装字符串，也不能等待进程退出后再上报。
-    armsRum.sendEvent({
+    armsRum?.sendEvent({
       event_type: "exception",
       type: "error",
       source: diagnostic.kind,
@@ -884,7 +884,7 @@ function attachWebContentsStabilityWatch(
 
 export function configureDesktopStabilityTelemetry(context: StabilityGlobalContext): void {
   globalContext = context;
-  armsRum.setConfig("properties", {
+  armsRum?.setConfig("properties", {
     device_mid: context.deviceMid,
     platform: normalizeOsCategory(context.platform),
     app_version: context.appVersion,

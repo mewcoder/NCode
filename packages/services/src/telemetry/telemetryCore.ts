@@ -504,6 +504,8 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
       talkId?: string;
       messageId?: string;
     }): Promise<void> {
+      // NCode 构建关闭上报时，不查询身份、不采集事件也不建立上传队列。
+      if (!REPORT_ENDPOINT) return Promise.resolve();
       return trackReport(
         (async () => {
           const userId = input.userId ?? (await loadUserId());
@@ -536,6 +538,8 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     },
 
     reportAppLaunch(context: TelemetryRendererContext): Promise<void> {
+      // NCode 构建关闭上报时，不查询身份、不采集事件也不建立上传队列。
+      if (!REPORT_ENDPOINT) return Promise.resolve();
       return trackReport(
         (async () => {
           const eventId = randomUUID();
@@ -560,6 +564,8 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
     },
 
     reportAppDailyActive(context: TelemetryRendererContext): Promise<void> {
+      // NCode 构建关闭上报时，不查询身份、不采集事件也不建立上传队列。
+      if (!REPORT_ENDPOINT) return Promise.resolve();
       return trackReport(
         (async () => {
           const timestamp = now();
