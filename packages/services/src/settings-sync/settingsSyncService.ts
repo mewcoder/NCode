@@ -417,7 +417,10 @@ const CODEX_PLUGIN_MANIFEST_PATH = [".codex-plugin", "plugin.json"] as const;
 const INLINE_PLUGIN_MARKETPLACE = "inline";
 
 function resolveUserHomeDir(): string {
-  const envHome = process.env.HOME?.trim() || process.env.USERPROFILE?.trim();
+  const envHome =
+    process.env.ZCODE_DESKTOP_HOME_DIR?.trim() ||
+    process.env.HOME?.trim() ||
+    process.env.USERPROFILE?.trim();
   return envHome && envHome.length > 0 ? envHome : homedir();
 }
 
@@ -560,13 +563,13 @@ async function importSkillDirectory(
   });
 }
 
-function getSkillDirectorySymlinkType(
+export function getSkillDirectorySymlinkType(
   platform: NodeJS.Platform | string = process.platform,
 ): "dir" | "junction" {
   return platform === "win32" ? "junction" : "dir";
 }
 
-function getCommandFileSymlinkType(): "file" {
+export function getCommandFileSymlinkType(): "file" {
   return "file";
 }
 
@@ -2257,6 +2260,22 @@ async function copyClaudeAgentsFileToZcodeAgentsFile(params: {
   };
 }
 
+async function readGlobalAgentsInstructions(): Promise<string> {
+  const filePath = getUserZcodeAgentsFilePath();
+  try {
+    return await readFile(filePath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "";
+    throw error;
+  }
+}
+
+async function writeGlobalAgentsInstructions(content: string): Promise<void> {
+  const filePath = getUserZcodeAgentsFilePath();
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, "utf8");
+}
+
 export function createSettingsSyncService(
   dependencies: SettingsSyncServiceDependencies,
 ): ISettingsSyncService {
@@ -2267,6 +2286,9 @@ export function createSettingsSyncService(
   }
 
   return {
+    getGlobalAgentsInstructionsPath: async () => getUserZcodeAgentsFilePath(),
+    readGlobalAgentsInstructions,
+    writeGlobalAgentsInstructions,
     async getClaudeAgentsFileMigrationStatus(
       request,
     ): Promise<SettingsSyncClaudeAgentsFileMigrationStatus> {
