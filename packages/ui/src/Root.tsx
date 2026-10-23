@@ -31,10 +31,7 @@ import {
   readV4ComposerDraft,
   V4_DRAFT_SCOPE_ROOT,
 } from "@/v4/composer/composerDraftStore.js";
-import {
-  useDynamicWorkflowAvailabilityLoader,
-  useDynamicWorkflowUserModeSync,
-} from "@/hooks/useDynamicWorkflowAvailability.js";
+import { useDynamicWorkflowAvailabilityLoader } from "@/hooks/useDynamicWorkflowAvailability.js";
 import { DirectoryBrowser } from "@/DirectoryBrowser.js";
 import { attachRemoteProjectWorkspace, resolveEntryProject } from "@/project-sidebar/index.js";
 import { useTabPersistence, type WorkspacePersistenceGate } from "@/hooks/useTabPersistence.js";
@@ -263,14 +260,6 @@ function RootInner({
     refresh: refreshAppSettings,
     update: updateAppSettings,
   } = useSettings();
-  // docs/dynamic-workflow/launch.md「The user's choice」：设置里的动态工作流选择变化后，通知本窗口
-  // 的 Host 重发 CLI 策略（并转发给远程 Host），再重读灰度快照。
-  useDynamicWorkflowUserModeSync({
-    settingsLoaded: Boolean(appSettings),
-    userMode: appSettings?.dynamicWorkflowMode,
-    zcodeAgentService: services.zcodeAgentService,
-    codingPlanSubscriptionService: services.codingPlanSubscriptionService,
-  });
   const [welcomeScreenOpenReason, setWelcomeScreenOpenReason] =
     useState<WelcomeScreenOpenReason | null>(() => {
       // NCode 关闭官方账号，旧登录失效标记只消费清理，不再阻塞本地主界面。

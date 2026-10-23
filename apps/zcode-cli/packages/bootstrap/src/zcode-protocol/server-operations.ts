@@ -3516,12 +3516,7 @@ async function createRecord(
     permissionBroker: createProtocolInteractionBroker(context),
     automationPort: createProtocolAutomationPort(context, () => ownSessionRecord),
     topicResourcePort: createProtocolTopicResourcePort(context),
-    // 只接入 Host 已开放的工具面；缺省不注入。复用现行异步工厂，
-    // 不恢复旧 deferred ModelAdapter/Registry overlay，也不改变 Session Selection。
-    ...(("offPeakToolEnabled" in params && params.offPeakToolEnabled === true) ||
-    context.appRuntimePreferences.offPeakToolEnabled === true
-      ? { offPeakPort: createProtocolOffPeakPort(context, () => ownSessionRecord) }
-      : {}),
+    // NCode 不注入闲时任务工具端口。
     resolveInitialBashShellSelection: startupPreferences.resolveInitialBashShellSelection,
     ...(startupPreferences.subagentRuntimeConfigEnabled &&
     !(workspace.workspaceIdentity && isRemoteWorkspaceIdentity(workspace.workspaceIdentity))

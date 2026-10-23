@@ -372,15 +372,13 @@ describe("SavedWorkflowsSection（全局 + 多项目页）", () => {
     });
     groupReadiness.global = { loaded: true, empty: true, count: 0 };
     mount();
-    const button = await screen.findByTestId(TID_WORKFLOWS_OPEN_SETTINGS);
-    expect(button.textContent).toContain("工作流设置");
-    expect(button.textContent).toContain("通过命令启用");
-    fireEvent.click(button);
-    expect(settingsNavigation.setPendingSettingsSectionIntent).toHaveBeenCalledWith("general");
-    expect(tabStoreState.openSettingsTab).toHaveBeenCalledTimes(1);
+    await screen.findByTestId(TID_WORKFLOWS_REFRESH);
+    expect(screen.queryByTestId(TID_WORKFLOWS_OPEN_SETTINGS)).toBeNull();
+    expect(settingsNavigation.setPendingSettingsSectionIntent).not.toHaveBeenCalled();
+    expect(tabStoreState.openSettingsTab).not.toHaveBeenCalled();
   });
 
-  it("服务端默认 disabled、用户选了始终开启：中枢在，「工作流设置」也在", async () => {
+  it("服务端默认 disabled、用户选了始终开启：中枢在，也不显示「工作流设置」", async () => {
     useDynamicWorkflowAvailabilityStore.setState({
       status: "ready",
       enabled: true,
@@ -391,8 +389,8 @@ describe("SavedWorkflowsSection（全局 + 多项目页）", () => {
     });
     groupReadiness.global = { loaded: true, empty: true, count: 0 };
     mount();
-    const button = await screen.findByTestId(TID_WORKFLOWS_OPEN_SETTINGS);
-    expect(button.textContent).toContain("始终开启");
+    await screen.findByTestId(TID_WORKFLOWS_REFRESH);
+    expect(screen.queryByTestId(TID_WORKFLOWS_OPEN_SETTINGS)).toBeNull();
   });
 
   it("旧 Host 的快照没有 offeredMode：不出「工作流设置」链接（它要打开的设置行不存在）", async () => {

@@ -300,21 +300,21 @@ describe("OffPeakNewTaskEntry", () => {
     expect(copy.tabIndex).toBe(0);
   });
 
-  it("首次挂载交由共享机制初始化和登记 freshness，连接变化后刷新", () => {
+  it("NCode 不因挂载旧闲时组件初始化资格查询", () => {
     const view = renderEntry();
 
-    expect(h.initialize).toHaveBeenCalledOnce();
-    // 去重归 Store 所有；这里验证组件交付通知，不再要求它自行跳过首次通知。
-    expect(h.refreshCodingPlanSupport).toHaveBeenCalledOnce();
+    expect(h.initialize).not.toHaveBeenCalled();
+    // 入口已停用；遗留组件挂载也不启动资格刷新。
+    expect(h.refreshCodingPlanSupport).not.toHaveBeenCalled();
     view.rerender(createElement(OffPeakNewTaskEntry));
-    expect(h.refreshCodingPlanSupport).toHaveBeenCalledOnce();
+    expect(h.refreshCodingPlanSupport).not.toHaveBeenCalled();
 
     h.settings.providerFamilyDomain = "zai";
     h.settings.modelProviderFamilyModes = { zai: "oauth" };
     h.settings.modelProviderFamilySelectedKeys = { zai: "zai-coding-plan" };
     view.rerender(createElement(OffPeakNewTaskEntry));
 
-    expect(h.refreshCodingPlanSupport).toHaveBeenCalledTimes(2);
+    expect(h.refreshCodingPlanSupport).not.toHaveBeenCalled();
   });
 
   it("非 Coding Plan 用户点击模板时直接弹升级 toast，并拦截草稿与导航", () => {
