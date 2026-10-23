@@ -1,4 +1,8 @@
-import type { ApiClient } from "@zcode/shared";
+import {
+  NCODE_FEATURE_POLICY,
+  createDynamicWorkflowClientConfig,
+  type ApiClient,
+} from "@zcode/shared";
 import type { ICredentialService } from "../credential/credential.js";
 import type { ICodingPlanSubscriptionService } from "./codingPlanSubscription.js";
 import { BigModelCodingPlanSubscriptionProvider } from "./bigmodelCodingPlanSubscriptionProvider.js";
@@ -9,6 +13,10 @@ interface CodingPlanSubscriptionServiceDependencies {
   apiClient: ApiClient;
   credentialService: Pick<ICredentialService, "load">;
   resolveOffPeakModelSelectionView?: () => Promise<ModelSelectionView>;
+  /**
+   * 保留上游装配接口；NCode 固定使用 onDemand，不读取旧用户选择。
+   */
+  resolveDynamicWorkflowUserMode?: () => Promise<unknown>;
 }
 
 /**
@@ -38,16 +46,24 @@ export function createCodingPlanSubscriptionService(
 
   return {
     batchPreview: (request) => bigmodelProvider.batchPreview(request),
-    getStaticProducts: () => bigmodelProvider.getStaticProducts(),
-    getStaticTeamProducts: () => bigmodelProvider.getStaticTeamProducts(),
-    getStartPlanPreview: () => bigmodelProvider.getStartPlanPreview(),
-    getOffPeakClientConfig: (options) => bigmodelProvider.getOffPeakClientConfig(options),
-    // 动态工作流灰度：与 client/configs 同源，
-    // 因此和其它平台级配置一样固定走 bigmodel provider，与 family 无关。
-    getDynamicWorkflowClientConfig: (options) =>
-      bigmodelProvider.getDynamicWorkflowClientConfig(options),
+    // NCode 停用套餐展示和领取，旧调用方读取空结果，不发起官方请求。
+    getStaticProducts: async () => ({}),
+    getStaticTeamProducts: async () => ({}),
+    getStartPlanPreview: async () => null,
+    getManualClaimPlanPreviews: async () => ({ plans: [] }),
+    claimManualPlan: async () => ({ success: false, code: 403, message: "" }),
+    // 入口关闭后旧调用也不能访问官方灰度，模型视图不再加载。
+    getOffPeakClientConfig: async (options) =>
+      NCODE_FEATURE_POLICY.offPeakAvailability
+        ? bigmodelProvider.getOffPeakClientConfig(options)
+        : { enabled: false, modelSelectionView: { revision: 0, providers: [] } },
+    // NCode 仅通过 /workflow 激活；旧本地选择不再覆盖命令模式。
+    getDynamicWorkflowClientConfig: async () =>
+      createDynamicWorkflowClientConfig(NCODE_FEATURE_POLICY.dynamicWorkflowMode, "default"),
     getModelContextBudgetStrategy: () => bigmodelProvider.getModelContextBudgetStrategy(),
-    getForceUpdateConfig: () => bigmodelProvider.getForceUpdateConfig(),
+    getBillingDiscount: async () => undefined,
+    getRequestVerificationConfig: async () => null,
+    getForceUpdateConfig: async () => null,
     productInfo: (request) => bigmodelProvider.productInfo(request),
     preview: (request) => bigmodelProvider.preview(request),
     createSign: (request) => bigmodelProvider.createSign(request),

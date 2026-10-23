@@ -6352,9 +6352,8 @@ const enUS: Record<string, string> = {
   "settings.automations.betaBadge": "Beta",
   "automations.noWorkspace": "Open a workspace to manage its scheduled tasks.",
   "automations.workspace.label": "Project",
-  "automations.description":
-    "Schedule recurring tasks or queue background work that runs during idle time.",
-  "automations.description.populated": "Run tasks on a schedule or whenever you need them.",
+  "automations.description": "Create scheduled tasks that run in the background.",
+  "automations.description.populated": "Run scheduled tasks in the background.",
   "automations.refresh": "Refresh",
   "automations.refreshing": "Refreshing…",
   "automations.create": "Create",

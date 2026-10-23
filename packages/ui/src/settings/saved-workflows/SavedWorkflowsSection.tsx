@@ -6,12 +6,12 @@ import {
   TID_WORKFLOWS_REFRESH,
   resolveWorkspaceKey,
 } from "@zcode/shared";
+import { useTabStore } from "@/store/TabStoreProvider.js";
 import { Button } from "@/components/ui/button.js";
 import { Spinner } from "@/components/ui/spinner.js";
 import { cn } from "@/components/lib/utils.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { useTabStore } from "@/store/TabStoreProvider.js";
 import {
   buildAutomationWorkspaceOptions,
   type AutomationWorkspaceOption,
@@ -263,18 +263,20 @@ export function SavedWorkflowsSection({
             <span className="ml-1 font-normal text-foreground-subtlest">{totalCount}</span>
           ) : null}
         </h2>
-        <ControlHintTooltip title={intl.formatMessage({ id: "workflows.hub.refresh" })}>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            aria-label={intl.formatMessage({ id: "workflows.hub.refresh" })}
-            data-testid={TID_WORKFLOWS_REFRESH}
-            onClick={() => setRefreshSeq((seq) => seq + 1)}
-          >
-            <AutomationRefreshIcon className="size-3.5" aria-hidden="true" />
-          </Button>
-        </ControlHintTooltip>
+        <div className="flex items-center gap-3">
+          <ControlHintTooltip title={intl.formatMessage({ id: "workflows.hub.refresh" })}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={intl.formatMessage({ id: "workflows.hub.refresh" })}
+              data-testid={TID_WORKFLOWS_REFRESH}
+              onClick={() => setRefreshSeq((seq) => seq + 1)}
+            >
+              <AutomationRefreshIcon className="size-3.5" aria-hidden="true" />
+            </Button>
+          </ControlHintTooltip>
+        </div>
       </div>
 
       {!anyLoaded ? (
