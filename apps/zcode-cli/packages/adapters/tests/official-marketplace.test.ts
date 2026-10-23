@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,9 @@ import {
   writeBundledOfficialMarketplacePartitionSync,
   writeCdnOfficialMarketplacePartitionSync,
   updateMarketplace,
+  ensureDefaultPluginMarketplaces,
+  addMarketplace,
+  installMarketplacePlugin,
 } from "../src/plugins/index.js";
 
 describe("ZCode official marketplace partitions", () => {
@@ -22,6 +25,117 @@ describe("ZCode official marketplace partitions", () => {
     cleanups.push(storageRoot);
     return storageRoot;
   }
+
+  it("registers GitHub by default and migrates only the exact retired official source once", async () => {
+    const storageRoot = await makeStorageRoot();
+    expect(
+      ensureDefaultPluginMarketplaces(storageRoot).find(
+        (record) => record.id === "zcode-plugins-official",
+      )?.source,
+    ).toEqual({ source: "github", repo: "zai-org/zcode-plugins" });
+    expect(ensureDefaultPluginMarketplaces(storageRoot).map((record) => record.id)).toEqual([
+      "zcode-plugins-official",
+    ]);
+    const record = {
+      id: "zcode-plugins-official",
+      name: "zcode-plugins-official",
+      source: {
+        source: "url",
+        url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+      },
+      addedAt: "2026-01-01T00:00:00.000Z",
+      lastUpdated: "2026-01-02T00:00:00.000Z",
+      lastRefreshFailure: {
+        code: "plugin_marketplace_invalid",
+        failedAt: "2026-01-02T00:00:00.000Z",
+        message: "old source failed",
+      },
+      pluginCount: 12,
+    };
+    const knownPath = join(storageRoot, "known_marketplaces.json");
+    await writeFile(knownPath, JSON.stringify({ version: 1, marketplaces: [record] }));
+    const migrated = ensureDefaultPluginMarketplaces(storageRoot);
+    expect(migrated.find((item) => item.id === record.id)).toEqual({
+      id: record.id,
+      name: record.name,
+      addedAt: record.addedAt,
+      pluginCount: 12,
+      source: { source: "github", repo: "zai-org/zcode-plugins" },
+    });
+    const firstMtime = (await stat(knownPath)).mtimeMs;
+    expect(ensureDefaultPluginMarketplaces(storageRoot)).toEqual(migrated);
+    expect((await stat(knownPath)).mtimeMs).toBe(firstMtime);
+
+    const custom = {
+      ...record,
+      source: { source: "directory", path: join(storageRoot, "custom") },
+    };
+    const personal = { ...record, id: "personal-market", name: "personal-market" };
+    await writeFile(knownPath, JSON.stringify({ version: 1, marketplaces: [custom, personal] }));
+    expect(ensureDefaultPluginMarketplaces(storageRoot)).toEqual(
+      expect.arrayContaining([custom, personal]),
+    );
+  });
+
+  it("keeps official partitions across directory refreshes, installation and bundled reseeding", async () => {
+    const storageRoot = await makeStorageRoot();
+    const sourceRoot = await makeStorageRoot();
+    const pluginRoot = join(sourceRoot, "plugins", "remote");
+    await mkdir(join(pluginRoot, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(pluginRoot, ".claude-plugin", "plugin.json"),
+      JSON.stringify({ name: "remote", version: "1.0.0" }),
+    );
+    await writeFile(join(pluginRoot, "README.md"), "remote plugin contents");
+    await writeFile(
+      join(sourceRoot, "marketplace.json"),
+      JSON.stringify({
+        name: "zcode-plugins-official",
+        plugins: [{ name: "remote", source: "./plugins/remote", version: "1.0.0" }],
+      }),
+    );
+    const bundled = {
+      name: "zcode-plugins-official",
+      plugins: [{ name: "bundled", source: "filesystem", version: "1.0.0" }],
+    };
+    writeBundledOfficialMarketplacePartitionSync({ manifest: bundled, storageRoot });
+    // 仓库内容不能替换应用持有的内置分片。
+    await writeFile(
+      join(sourceRoot, "bundled-marketplace.json"),
+      JSON.stringify({ version: 1, manifest: { name: "zcode-plugins-official", plugins: [] } }),
+    );
+    await addMarketplace({
+      storageRoot,
+      source: { source: "directory", path: sourceRoot },
+      trustedId: "zcode-plugins-official",
+    });
+    const installed = await installMarketplacePlugin({
+      storageRoot,
+      marketplace: "zcode-plugins-official",
+      name: "remote",
+      scope: "user",
+    });
+    expect(
+      await readFile(join(installed.installed[0]?.installPath ?? "", "README.md"), "utf8"),
+    ).toBe("remote plugin contents");
+    const [updated] = await updateMarketplace({
+      storageRoot,
+      marketplace: "zcode-plugins-official",
+    });
+    expect(updated?.pluginCount).toBe(2);
+    writeBundledOfficialMarketplacePartitionSync({ manifest: bundled, storageRoot });
+    const marketplaceRoot = join(storageRoot, "marketplaces", "zcode-plugins-official");
+    const manifest = JSON.parse(
+      await readFile(join(marketplaceRoot, "marketplace.json"), "utf8"),
+    ) as { plugins: Array<{ name: string }> };
+    expect(manifest.plugins.map((plugin) => plugin.name)).toEqual(["remote", "bundled"]);
+    expect(
+      JSON.parse(await readFile(join(marketplaceRoot, "bundled-marketplace.json"), "utf8")),
+    ).toMatchObject({ manifest: bundled });
+    expect(
+      JSON.parse(await readFile(join(marketplaceRoot, "cdn-marketplace.json"), "utf8")),
+    ).toMatchObject({ plugins: [{ name: "remote" }] });
+  });
 
   it("merges bundled and CDN entries under one marketplace with CDN entries taking precedence", async () => {
     const storageRoot = await makeStorageRoot();

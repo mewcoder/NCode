@@ -20,7 +20,10 @@ import {
 import { enumeratePluginComponents, type PluginComponentGroup } from "./plugin-components.js";
 import { applyNetworkEgressEnv } from "../network/subprocess-env.js";
 import { createNodeWebFetchHttpClientAdapter } from "../http/index.js";
-import { writeCdnOfficialMarketplacePartitionSync } from "./official-marketplace.js";
+import {
+  copyOfficialMarketplacePartitions,
+  writeCdnOfficialMarketplacePartitionSync,
+} from "./official-marketplace.js";
 import {
   isZipPluginUrlSource,
   readZipPluginSourceSha256,
@@ -49,6 +52,8 @@ const KNOWN_MARKETPLACES_FILE = "known_marketplaces.json";
 const INSTALLED_PLUGINS_FILE = "installed_plugins.json";
 const MARKETPLACE_FILE = "marketplace.json";
 const CLAUDE_OFFICIAL_MARKETPLACE = "claude-plugins-official";
+const RETIRED_OFFICIAL_MARKETPLACE_URL =
+  "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json";
 const PLUGIN_ICON_SOURCES_FILE = "icon-sources.json";
 const PLUGIN_ICON_ASSETS_BASE_URL = "https://cdn-zcode.z.ai/zcode/official-plugin/assets/";
 const PLUGIN_ICON_SOURCES_URL = `${PLUGIN_ICON_ASSETS_BASE_URL}${PLUGIN_ICON_SOURCES_FILE}`;
@@ -347,7 +352,28 @@ export function loadKnownMarketplacesSync(storageRoot: string): KnownMarketplace
 }
 
 export function ensureDefaultPluginMarketplaces(storageRoot: string): KnownMarketplaceRecord[] {
-  const known = loadKnownMarketplacesSync(storageRoot);
+  const officialDefault = DEFAULT_PLUGIN_MARKETPLACES.find(
+    (marketplace) => marketplace.id === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE,
+  );
+  let migrated = false;
+  const known = loadKnownMarketplacesSync(storageRoot).map((record) => {
+    if (
+      !officialDefault ||
+      record.id !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE ||
+      record.source.source !== "url" ||
+      record.source.url !== RETIRED_OFFICIAL_MARKETPLACE_URL
+    )
+      return record;
+    // 默认值只补种缺失市场，旧用户会永远沿用已保存的 CDN 地址。
+    // 仅迁移旧默认来源，并清除其刷新状态，让既有商店刷新链路拉取 GitHub 目录。
+    const {
+      lastUpdated: _lastUpdated,
+      lastRefreshFailure: _lastRefreshFailure,
+      ...previous
+    } = record;
+    migrated = true;
+    return { ...previous, source: defaultMarketplaceSourceFromString(officialDefault.source) };
+  });
   const existingIds = new Set(known.map((record) => record.id));
   const now = new Date().toISOString();
   const missing = DEFAULT_PLUGIN_MARKETPLACES.filter(
@@ -363,7 +389,7 @@ export function ensureDefaultPluginMarketplaces(storageRoot: string): KnownMarke
       pluginCount: marketplace.pluginCount,
     }),
   );
-  if (missing.length === 0) return known;
+  if (missing.length === 0 && !migrated) return known;
   const next = [...known, ...missing];
   writeKnownMarketplacesSync(storageRoot, next);
   return next;
@@ -1980,6 +2006,11 @@ async function stageMarketplaceDirectoryPlugins(
   return activateDirectoryAtomically({
     authorityPath: join(storageRoot, KNOWN_MARKETPLACES_FILE),
     prepare: async (stagedPath) => {
+      if (marketplace === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE) {
+        // 仓库目录替换会丢失应用生成的两个分片，导致再次刷新或启动播种时插件消失。
+        // 以本地 owner 的分片覆盖仓库同名文件，再写合并目录。
+        await copyOfficialMarketplacePartitions(storageRoot, stagedPath);
+      }
       await writeJsonFile(join(stagedPath, MARKETPLACE_FILE), manifest);
     },
     signal,
@@ -2193,8 +2224,24 @@ function parseMarketplaceManifest(value: unknown): PluginMarketplaceManifest | n
   return normalizeMarketplaceManifest({
     ...value,
     name,
-    plugins: pluginEntries,
+    plugins:
+      name === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE
+        ? pluginEntries.map(fillOfficialPublisherType)
+        : pluginEntries,
   });
+}
+
+function fillOfficialPublisherType(entry: unknown): unknown {
+  if (!isRecord(entry) || entry.publisherType !== undefined || typeof entry.source !== "string") {
+    return entry;
+  }
+  // GitHub 源码目录没有 CDN 发布阶段生成的 publisherType，UI 缺省会全部归入公开。
+  // 仅按已知的直接源码目录补齐展示归属，显式字段及其他来源保持原义。
+  const root = /^(?:\.\/)?(plugins|external_plugins)\/[a-z0-9][a-z0-9._-]*\/?$/u.exec(
+    entry.source,
+  )?.[1];
+  if (!root) return entry;
+  return { ...entry, publisherType: root === "external_plugins" ? "community" : "official" };
 }
 
 function normalizeMarketplaceManifest(
