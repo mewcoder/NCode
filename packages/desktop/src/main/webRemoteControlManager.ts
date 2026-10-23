@@ -1821,6 +1821,8 @@ export function createWebRemoteControlManager(dependencies: WebRemoteControlMana
       windowId: number,
       candidates: Array<WebRemoteControlContext & { label?: string }>,
     ): Promise<boolean> {
+      // NCode 关闭远控时，不读取或恢复旧配对上下文。
+      if (!dependencies.featureGate.isEnabled()) return false;
       // 修复原因：候选快照与 syncAvailableWorkspaces 共用同一份 WorkspaceTarget 表，label 是必填展示字段；
       // 生产调用方传入完整目标，只有仅携带 context 的调用需要回退到路径，不能写入缺 label 的列表项。
       availableWorkspacesByWindowId.set(

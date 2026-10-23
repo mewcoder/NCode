@@ -14,6 +14,13 @@ import {
   collectStartupRemoteWorkspaceReconnectGroups,
   useRemoteWorkspaceHistory,
 } from "@/root/useRemoteWorkspaceHistory.js";
+
+// NCode 关闭远程工作区入口后，该 hook 同时返回 false 并停用远程会话恢复。
+// 本文件覆盖的是「恢复逻辑本身」，因此显式打开入口；关闭态由文件末尾的用例单独断言。
+vi.mock("@/hooks/useRemoteConnectionEntryVisibility.js", () => ({
+  useRemoteConnectionEntryVisibility: () => true,
+  shouldShowRemoteConnectionEntry: () => true,
+}));
 import { createTabStore, isWorkspaceTab } from "@/store/tabStore.js";
 
 const PROFILE_ID = "69d675cc-7753-4fa2-a1a1-594281f2c833";
@@ -509,5 +516,81 @@ describe("useRemoteWorkspaceHistory Source Directory identity projection", () =>
     ).toEqual([DEFAULT_PATH, DEV_PATH].toSorted());
 
     unmount();
+  });
+});
+
+describe("NCode 关闭远程工作区后的恢复边界", () => {
+  it("入口关闭时即使显式允许远程工作区，也不恢复远程会话或发起连接", async () => {
+    vi.resetModules();
+    vi.doMock("@/hooks/useRemoteConnectionEntryVisibility.js", () => ({
+      useRemoteConnectionEntryVisibility: () => false,
+      shouldShowRemoteConnectionEntry: () => false,
+    }));
+    try {
+      const { useRemoteWorkspaceHistory: useHookWithClosedEntry } =
+        await import("@/root/useRemoteWorkspaceHistory.js");
+      const connectRemote = vi.fn();
+      const services = {
+        sourceServerManagementService: {
+          getSnapshot: vi.fn(async () => managementSnapshot(1, true)),
+          onDidChangeState: () => ({ dispose() {} }),
+          onDidChangeDirectory: () => ({ dispose() {} }),
+        },
+        settingService: {
+          get: vi.fn(async () => initialSettings()),
+          update: vi.fn(async () => undefined),
+        },
+        credentialService: {
+          load: vi.fn(async () => null),
+          save: vi.fn(async () => undefined),
+          delete: vi.fn(async () => undefined),
+        },
+        fileService: {},
+        modelSelectionService: {},
+        providerSettingsService: {},
+        zcodeSessionService: {},
+      } as unknown as IServiceAccessor;
+      const platform = {
+        connectRemote,
+        disposeRemoteSession: vi.fn(async () => undefined),
+        onRemoteConnectionLog: vi.fn(() => () => undefined),
+        onRemoteSessionClosed: vi.fn(() => () => undefined),
+        onRemoteSessionReconnected: vi.fn(() => () => undefined),
+      } as unknown as IPlatformService;
+      const tabStoreApi = createTabStore();
+
+      const { result, unmount } = renderHook(() =>
+        useHookWithClosedEntry({
+          intl: { formatMessage: ({ id }: { id: string }) => id } as never,
+          services,
+          platform,
+          supportsSettings: false,
+          isDesktop: true,
+          // 显式允许远程工作区也必须被入口关闭覆盖。
+          allowRemoteWorkspace: true,
+          tabStoreApi,
+          activateTabByPath: tabStoreApi.getState().activateTabByPath,
+          addTab: tabStoreApi.getState().addTab,
+        }),
+      );
+
+      await act(async () => {
+        await result.current.restorePersistedSession(initialSettings());
+      });
+
+      expect(connectRemote).not.toHaveBeenCalled();
+      // 历史仍作为数据投影出来（便于将来恢复入口），但不会创建 workspace tab 或远端 runtime。
+      expect(tabStoreApi.getState().tabs.filter(isWorkspaceTab)).toEqual([]);
+      expect(result.current.remoteWorkspaceSessions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ workspacePath: DEFAULT_PATH }),
+          expect.objectContaining({ workspacePath: DEV_PATH }),
+        ]),
+      );
+      unmount();
+    } finally {
+      vi.doUnmock("@/hooks/useRemoteConnectionEntryVisibility.js");
+      vi.resetModules();
+    }
   });
 });

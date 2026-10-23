@@ -381,7 +381,7 @@ describe("WorkspaceSidebarFooter web remote control tooltip", () => {
     ).toBeNull();
   });
 
-  it("does not wrap the remote control trigger in a second tooltip", () => {
+  it("NCode 关闭手机远控后，侧栏不再渲染远控入口", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceSidebarFooter, {
         theme: "dark",
@@ -394,7 +394,7 @@ describe("WorkspaceSidebarFooter web remote control tooltip", () => {
       }),
     );
 
-    expect(html).toContain('data-testid="web-remote-control-trigger"');
+    expect(html).not.toContain('data-testid="web-remote-control-trigger"');
     expect(html).not.toContain('data-tooltip-title="webRemoteControl.trigger"');
   });
 });

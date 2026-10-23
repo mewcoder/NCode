@@ -15,6 +15,7 @@
 | remoteClientConfigs                             | false            | 公共配置强刷只返回本地默认值；Main 不再装配远端预热                            |
 | officialAccountQueries                          | false            | 官方账号源身份、旧团队组织补全、侧栏/模型页套餐查询                            |
 | desktopContextPrompt                            | true             | Main 创建 Host 的既有显式开关                                                  |
+| webRemoteControl                                | false            | Main 运行门禁与桌面 Root 参数同源，Renderer 不查询或订阅远控状态               |
 | dynamicWorkflowMode                             | onDemand         | Host 策略与公开快照使用同一模式                                                |
 | offPeakAvailability                             | false            | 旧闲时配置读取返回关闭；已删除调度入口不恢复                                   |
 | pluginPanels                                    | installed        | 已安装清单派生面板；可设 hidden 隐藏入口                                       |
@@ -24,6 +25,17 @@
 | build.armsRumEndpoint / telemetryReportEndpoint | 空               | 既有构建期遥测禁用机制；不改变生产依赖剥离规则                                 |
 
 审计确认：`createAccountProviderConnectionResolver` 在检查账号 identity 之前就读取 settings，后者可能运行旧团队连接迁移并请求 `/api/biz/customer/getCustomerInfo`。因此仅注入空 identity 不足以阻止这条请求，关闭官方账号查询时必须在迁移 owner 的入口短路，旧配置本地数据保持原样。
+
+手机远控由不可变本地策略统一裁决：Main 使用 `createWebRemoteControlFeatureGate`，桌面 Renderer 向 Root 显式传入同一个值。公共 UI context 的上游默认值保留；不能以 Main 已拒绝远控为由省略 Renderer 参数，否则 Root 与侧栏仍会按默认开启值轮询 IPC。状态唯一事实源仍为 Main，Renderer 不新增缓存或关闭态副本。验收：从桌面 Root JSX 读取实际参数，挂载两个真实状态 hook 后推进时钟，查询和订阅调用为零；隔离启用时仍按原节拍查询，卸载正确释放。
+
+```mermaid
+flowchart LR
+  Policy[policy.js: webRemoteControl=false] --> Main[Main 既有 feature gate]
+  Policy --> Renderer[桌面 Root 显式参数]
+  Renderer --> Context[既有 UI context]
+  Context --> Consumers[Root 与侧栏 enabled=false]
+  Consumers --> Quiet[不查询、不订阅、不创建轮询]
+```
 
 远端 stdio Server 的设备身份由 `ensureRemoteServerDeviceMid` 拥有。它必须先检查既有构建期 ARMS/事件上报端点；两者为空时，在调用身份初始化器之前返回 undefined，不读写 MID 文件、不打印缺失告警，旧环境变量不能重新启用。任一端点非空的显式启用夹具仍沿用原初始化与失败告警，不另加状态或开关。
 

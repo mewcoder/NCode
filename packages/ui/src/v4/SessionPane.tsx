@@ -10,7 +10,6 @@ import { useStartPlanRecommendation } from "@/hooks/useStartPlanRecommendation.j
 import type { SessionCreateSource } from "@zcode/shared";
 import { reportSessionCreate } from "@/lib/sessionCreateTelemetry.js";
 import { getLocalTtftObserver } from "@/v4/telemetry/localTtftObserver.js";
-import { BotGroupDeliveryProvider } from "@/v4/BotGroupDeliveryAction.js";
 /* oxlint-disable eslint(max-lines) -- SessionPane 是单 pane 竖切的命令编排收口（订阅/发送/停止/fork/edit/retry/queue/slash 全集），与旧 ChatView 同粒度；HEAD 已超限（693 行计数），拆散命令组会打散 dispatchCommand/snapshotRef 的闭包纪律。 */
 import { useOptionalProjectDirectory } from "@/project-sidebar/index.js";
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
@@ -5836,122 +5835,112 @@ export function SessionPane({
               workspaceIdentity={workspaceIdentity}
               workspacePath={workspacePath}
             >
-              <BotGroupDeliveryProvider
-                taskId={sessionId}
-                workspacePath={workspacePath}
-                workspaceIdentity={workspaceIdentity}
-              >
-                <ConversationTimeline
-                  compactForRemoteControl={compactForRemoteControl}
-                  scrollToBottomActionRef={timelineScrollToBottomRef}
-                  scrollToQueryActionRef={timelineScrollToQueryRef}
-                  selectionPanelLayoutContainerRef={conversationLayoutContainerRef}
-                  rows={timelineSnapshot?.rows.window ?? []}
-                  pendingGuides={timelineSnapshot ? pendingGuideProjection?.pendingGuides : []}
-                  apiRetry={timelineSnapshot?.control.apiRetry ?? null}
-                  totalCount={timelineSnapshot?.rows.totalCount ?? 0}
-                  sessionKey={sessionId ?? "draft"}
-                  scrollMemoryKey={timelineScrollMemoryKey}
-                  rowContext={rowContext}
-                  onFork={forkActionsEnabled ? handleFork : undefined}
-                  onRetry={retryActionsEnabled ? handleRetry : undefined}
-                  onFeedbackChange={
-                    !readOnly && !selectionSideChat && sessionId
-                      ? handleAssistantFeedback
-                      : undefined
-                  }
-                  onEdit={editActionsEnabled ? handleEdit : undefined}
-                  canLoadOlder={timelineSnapshot ? hasOlderRows(timelineSnapshot) : false}
-                  loadingOlder={timelineSnapshot ? state.loadingOlder : false}
-                  onLoadOlder={handleLoadOlder}
-                  onLoadAllOlder={handleLoadAllOlder}
-                  turnNavigatorDirectoryRevision={state.turnNavigatorDirectoryRevision}
-                  bottomDock={conversationBottomDock}
-                  hideTurnNavigator={shareSelectionPanelVisible && !compactForRemoteControl}
-                  backgroundScrollLocked={false}
-                  headerSlot={
-                    // unsupportedRowCount 也要开这个门：整份副本的行都被本 build 跳过时
-                    // rows 为空，但只读块必须留下来显示「需要更新 ZCode」，不能整块消失。
-                    importedShare &&
-                    (importedShare.rows.length > 0 || importedShare.unsupportedRowCount > 0) ? (
-                      <ConversationShareImportNotice
-                        rows={importedShare.rows}
-                        contentBlocks={importedShare.contentBlocks}
-                        unsupportedRowCount={importedShare.unsupportedRowCount}
-                        artifactNames={importedShareArtifactNames}
-                        artifactWorkspaceRelativePaths={importedShareArtifactWorkspaceRelativePaths}
-                        workspacePath={workspacePath}
-                        {...(workspaceIdentity ? { workspaceIdentity } : {})}
-                        {...(remoteSessionId ? { workspaceRemoteSessionId: remoteSessionId } : {})}
-                        locale={locale}
-                        theme={theme}
-                        codePreviewSettings={codePreviewSettings}
-                        onOpenShareUrl={onOpenBrowserUrl ? handleOpenImportedShareUrl : undefined}
-                        onOpenFileLink={onOpenFileLink}
-                        onOpenCodeViewer={onOpenCodeViewer}
+              <ConversationTimeline
+                compactForRemoteControl={compactForRemoteControl}
+                scrollToBottomActionRef={timelineScrollToBottomRef}
+                scrollToQueryActionRef={timelineScrollToQueryRef}
+                selectionPanelLayoutContainerRef={conversationLayoutContainerRef}
+                rows={timelineSnapshot?.rows.window ?? []}
+                pendingGuides={timelineSnapshot ? pendingGuideProjection?.pendingGuides : []}
+                apiRetry={timelineSnapshot?.control.apiRetry ?? null}
+                totalCount={timelineSnapshot?.rows.totalCount ?? 0}
+                sessionKey={sessionId ?? "draft"}
+                scrollMemoryKey={timelineScrollMemoryKey}
+                rowContext={rowContext}
+                onFork={forkActionsEnabled ? handleFork : undefined}
+                onRetry={retryActionsEnabled ? handleRetry : undefined}
+                onFeedbackChange={
+                  !readOnly && !selectionSideChat && sessionId ? handleAssistantFeedback : undefined
+                }
+                onEdit={editActionsEnabled ? handleEdit : undefined}
+                canLoadOlder={timelineSnapshot ? hasOlderRows(timelineSnapshot) : false}
+                loadingOlder={timelineSnapshot ? state.loadingOlder : false}
+                onLoadOlder={handleLoadOlder}
+                onLoadAllOlder={handleLoadAllOlder}
+                turnNavigatorDirectoryRevision={state.turnNavigatorDirectoryRevision}
+                bottomDock={conversationBottomDock}
+                hideTurnNavigator={shareSelectionPanelVisible && !compactForRemoteControl}
+                backgroundScrollLocked={false}
+                headerSlot={
+                  // unsupportedRowCount 也要开这个门：整份副本的行都被本 build 跳过时
+                  // rows 为空，但只读块必须留下来显示「需要更新 ZCode」，不能整块消失。
+                  importedShare &&
+                  (importedShare.rows.length > 0 || importedShare.unsupportedRowCount > 0) ? (
+                    <ConversationShareImportNotice
+                      rows={importedShare.rows}
+                      contentBlocks={importedShare.contentBlocks}
+                      unsupportedRowCount={importedShare.unsupportedRowCount}
+                      artifactNames={importedShareArtifactNames}
+                      artifactWorkspaceRelativePaths={importedShareArtifactWorkspaceRelativePaths}
+                      workspacePath={workspacePath}
+                      {...(workspaceIdentity ? { workspaceIdentity } : {})}
+                      {...(remoteSessionId ? { workspaceRemoteSessionId: remoteSessionId } : {})}
+                      locale={locale}
+                      theme={theme}
+                      codePreviewSettings={codePreviewSettings}
+                      onOpenShareUrl={onOpenBrowserUrl ? handleOpenImportedShareUrl : undefined}
+                      onOpenFileLink={onOpenFileLink}
+                      onOpenCodeViewer={onOpenCodeViewer}
+                    />
+                  ) : null
+                }
+                emptyState={
+                  !remoteAvailable ? (
+                    <div className="p-6 text-center text-ui-base text-foreground-subtle">
+                      {intl.formatMessage({ id: "remote.conversation.placeholder" })}
+                    </div>
+                  ) : isDraft ? (
+                    <div data-testid={TID_CHAT_EMPTY} className="w-full">
+                      <ConversationDraftEmptyState
+                        compactForRemoteControl={compactForRemoteControl}
                       />
-                    ) : null
-                  }
-                  emptyState={
-                    !remoteAvailable ? (
-                      <div className="p-6 text-center text-ui-base text-foreground-subtle">
-                        {intl.formatMessage({ id: "remote.conversation.placeholder" })}
-                      </div>
-                    ) : isDraft ? (
-                      <div data-testid={TID_CHAT_EMPTY} className="w-full">
-                        <ConversationDraftEmptyState
-                          compactForRemoteControl={compactForRemoteControl}
-                        />
-                      </div>
-                    ) : null
-                  }
-                  // 浮窗形态只露出底部输入区，空会话也必须贴底，不能居中。
-                  centerEmptyStateWithDock={isDraft && !isFloatingPresentation}
-                  floatingComposerDock={isFloatingPresentation}
-                  onComposerDockHeightChange={
-                    isFloatingPresentation && focused
-                      ? panePresentation.reportComposerDockHeight
-                      : undefined
-                  }
-                  onLatestTurnSummaryChange={
-                    isFloatingPresentation && focused
-                      ? handleFloatingLatestTurnSummaryChange
-                      : undefined
-                  }
-                  compactEmptyStateWithDock={compactForRemoteControl}
-                  summaryPanelLayout={statusPanelLayout}
-                  conversationFindQuery={!isDraft && focused ? conversationFindQuery : ""}
-                  conversationFindActiveIndex={
-                    !isDraft && focused ? conversationFindActiveIndex : -1
-                  }
-                  conversationFindNavigationRequestId={
-                    !isDraft && focused ? conversationFindNavigationRequestId : 0
-                  }
-                  onConversationFindMatchStateChange={
-                    !isDraft && focused ? onConversationFindMatchStateChange : undefined
-                  }
-                  searchResultHighlightRequest={isDraft ? null : searchResultHighlightRequest}
-                  onSearchResultHighlightDone={onSearchResultHighlightDone}
-                  sessionPhase={isDraft ? undefined : snapshot?.control.phase}
-                  selectionActions={
-                    !isDraft &&
-                    sessionId &&
-                    !readOnly &&
-                    !selectionSideChat &&
-                    !isMobileTextInputViewport
-                      ? {
-                          enabled: resolveConversationSelectionTooltipEnabled({
-                            selectionActionsEnabled: focused && !blockingInteractionId,
-                            partialShareActive: shareActive,
-                          }),
-                          sideActionDisabled: selectionSideActionBlocked,
-                          onAddToCurrentTask: handleAddSelectionToCurrentTask,
-                          onAskInSideChat: handleOpenSelectionSideConversation,
-                        }
-                      : undefined
-                  }
-                />
-              </BotGroupDeliveryProvider>
+                    </div>
+                  ) : null
+                }
+                // 浮窗形态只露出底部输入区，空会话也必须贴底，不能居中。
+                centerEmptyStateWithDock={isDraft && !isFloatingPresentation}
+                floatingComposerDock={isFloatingPresentation}
+                onComposerDockHeightChange={
+                  isFloatingPresentation && focused
+                    ? panePresentation.reportComposerDockHeight
+                    : undefined
+                }
+                onLatestTurnSummaryChange={
+                  isFloatingPresentation && focused
+                    ? handleFloatingLatestTurnSummaryChange
+                    : undefined
+                }
+                compactEmptyStateWithDock={compactForRemoteControl}
+                summaryPanelLayout={statusPanelLayout}
+                conversationFindQuery={!isDraft && focused ? conversationFindQuery : ""}
+                conversationFindActiveIndex={!isDraft && focused ? conversationFindActiveIndex : -1}
+                conversationFindNavigationRequestId={
+                  !isDraft && focused ? conversationFindNavigationRequestId : 0
+                }
+                onConversationFindMatchStateChange={
+                  !isDraft && focused ? onConversationFindMatchStateChange : undefined
+                }
+                searchResultHighlightRequest={isDraft ? null : searchResultHighlightRequest}
+                onSearchResultHighlightDone={onSearchResultHighlightDone}
+                sessionPhase={isDraft ? undefined : snapshot?.control.phase}
+                selectionActions={
+                  !isDraft &&
+                  sessionId &&
+                  !readOnly &&
+                  !selectionSideChat &&
+                  !isMobileTextInputViewport
+                    ? {
+                        enabled: resolveConversationSelectionTooltipEnabled({
+                          selectionActionsEnabled: focused && !blockingInteractionId,
+                          partialShareActive: shareActive,
+                        }),
+                        sideActionDisabled: selectionSideActionBlocked,
+                        onAddToCurrentTask: handleAddSelectionToCurrentTask,
+                        onAskInSideChat: handleOpenSelectionSideConversation,
+                      }
+                    : undefined
+                }
+              />
             </SessionPluginReferenceIconBoundary>
           )}
         </div>

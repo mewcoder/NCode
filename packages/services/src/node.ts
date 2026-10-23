@@ -166,7 +166,9 @@ export type {
   CuaHelperInstallerOptions,
 } from "./cua-permission-broker/index.js";
 export { createProjectWorkspaceNavigation } from "#src/project-workspace-navigation/index.js";
-export { createBotsService } from "./bots/botsService.js";
+// NCode 关闭 Bot/群聊：不导出 Bot 服务装配，宿主打包图因此不含 feishu provider，
+// @larksuiteoapi/node-sdk（约 9.2MB 双份）不再进入生产 app.asar。宿主对
+// IBotsService 的 getOptional 防御性查找保留，上游实现仍在源码内。
 export { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 export { createOAuthService } from "./oauth/oauthService.js";
 export { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
@@ -378,7 +380,6 @@ import {
   ConversationShareService,
   conversationShareConnectionScopeFactory,
 } from "./conversation-share/conversationShareService.js";
-import { createLocalConversationShareArtifactSource } from "./conversation-share/conversationShareArtifactSource.js";
 import { ConversationShareHttpClient } from "./conversation-share/conversationShareHttpClient.js";
 import { IBotsService } from "./bots/bots.js";
 import { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
@@ -428,12 +429,7 @@ import { createZCodeTaskIndexSyncer } from "./zcode-agent/zcodeTaskIndexSyncer.j
 import { TaskIndexRepo } from "./session/taskIndexRepo.js";
 import { AutomationRepo } from "#src/session/automationRepo.js";
 import type { AppSettings } from "@zcode/shared";
-import { createBotsService } from "./bots/botsService.js";
-import { BotsRepo } from "#src/bots/repo.js";
-import {
-  createBotProjectRuntime,
-  type BotProjectConnection,
-} from "#src/bot-project-runtime/index.js";
+import type { BotProjectConnection } from "#src/bot-project-runtime/contract.js";
 export type { BotProjectConnection } from "#src/bot-project-runtime/contract.js";
 import type { SessionMessageSendRequested } from "#src/session/sessionMailbox.js";
 import { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
@@ -594,12 +590,10 @@ import {
   formatLogPrefix,
   isCredentialDecryptError,
   isStartPlanModelProviderId,
-  OFF_PEAK_PROVIDER_IDS,
   BIGMODEL_PROVIDER_ID,
   type ProviderFamilyDomain,
   type ServiceAuthorityMode,
   resolveRuntimeZCodeEndpointOrigin,
-  resolveSafeTelemetryHostname,
   type BrowserBackendDescriptor,
   type BrowserClientMode,
   type BrowserCommand,
@@ -615,7 +609,6 @@ import {
   zcodeAccountAccessSchema,
   zcodeProviderAccountAccessSchema,
   ZCODE_VERSION,
-  buildRuntimeZCodeApiUrl,
 } from "@zcode/shared";
 
 // 这些 conversation-share 实现依赖 Node 文件系统；仅通过 @zcode/services/node 暴露，
@@ -1650,11 +1643,6 @@ export function createLocalServices(options: {
   const subagentsService = createSubagentsService({
     isDesktopRuntime: true,
   });
-  const commandsService = createCommandsService({ isDesktopRuntime: true });
-  const hooksService = createHooksService({
-    grantWorkspaceHookTrust: (params) => zcodeAgentService.grantWorkspaceHookTrust(params),
-  });
-  const memoryService = createMemoryService();
   // 只要当前进程已经装配 Provider Runtime，就由该 Environment 自己的 Selection View
   // 决定执行就绪状态。Desktop-attached remote 也读取远端自己的 Config/Account Facts。
   const modelSelectionReadinessSource = providerRuntime.modelSelection;
@@ -2064,16 +2052,12 @@ export function createLocalServices(options: {
       }
     },
   };
-  // 动态工作流的用户选择（docs/dynamic-workflow/launch.md「The user's choice」）：本机设置文件是唯一来源，
-  // 每次使用时读取。desktop-attached remote Host 读不到桌面的设置，选择由 desktop 推送
-  // （zcodeAgentService.syncDynamicWorkflowUserMode），这里不注入。读取失败按「跟随」处理。
-  const resolveDynamicWorkflowUserMode = isDesktopAttachedRemote
-    ? undefined
-    : async () => (await settingService.get()).dynamicWorkflowMode;
+  // NCode 仅通过 /workflow 激活；策略和会话创建共用此装配，旧设置不参与裁决。
+  const resolveDynamicWorkflowUserMode = async () => NCODE_FEATURE_POLICY.dynamicWorkflowMode;
   const codingPlanSubscriptionService = createCodingPlanSubscriptionService({
     apiClient,
     credentialService,
-    ...(resolveDynamicWorkflowUserMode ? { resolveDynamicWorkflowUserMode } : {}),
+    resolveDynamicWorkflowUserMode,
     resolveOffPeakModelSelectionView: async () => {
       await providerRuntime.start();
       return buildOffPeakModelSelectionView(providerRuntime.registryService.getView());
@@ -2081,15 +2065,9 @@ export function createLocalServices(options: {
   });
   // OffPeakTaskService 单例在下方 DI register IIFE 中创建（晚于 agent service）；
   // 用前向引用 holder 惰性绑定——offPeak/create 协议请求只会发生在服务集合装配完成后。
-  let offPeakTaskServiceForAgent: OffPeakTaskService | undefined;
+
   // desktop-attached-remote 装配不暴露 Off-Peak 工具面（远程不在支持范围）。
-  const offPeakToolWiring =
-    options?.serviceAuthorityMode === "desktop-attached-remote"
-      ? {}
-      : {
-          resolveOffPeakClientConfig: () => codingPlanSubscriptionService.getOffPeakClientConfig(),
-          resolveOffPeakTaskService: () => offPeakTaskServiceForAgent,
-        };
+
   const setWorkspaceProjection =
     options?.setWorkspaceProjection ?? localSettings?.setWorkspaceProjection;
   setWorkspaceProjection?.(async (settings) => {
@@ -2185,13 +2163,13 @@ export function createLocalServices(options: {
     accountRequestAuthService,
     ...(modelSelectionReadinessSource ? { modelSelectionReadinessSource } : {}),
     authorizeLocalMediaPreviewPath: options?.authorizeLocalMediaPreviewPath,
-    ...offPeakToolWiring,
+    // NCode 不注入闲时任务工具端口。
     // 动态工作流灰度：与 Off-Peak 不同，
     // 这里不按 serviceAuthorityMode 裁剪——SSH/WSL/Docker 的 desktop-attached-remote Host
     // 是它自己那些 workspace 的唯一裁决者，灰度开启时远程 workspace 同样提供工作流。
     resolveDynamicWorkflowClientConfig: () =>
       codingPlanSubscriptionService.getDynamicWorkflowClientConfig(),
-    ...(resolveDynamicWorkflowUserMode ? { resolveDynamicWorkflowUserMode } : {}),
+    resolveDynamicWorkflowUserMode,
     forwardDynamicWorkflowUserMode: options?.forwardDynamicWorkflowUserMode,
     commandResolver: options?.zcodeAgentCommandResolver,
     presentationSurface: resolveZCodeAgentPresentationSurface({
@@ -2460,39 +2438,7 @@ export function createLocalServices(options: {
     settingService,
     cuaProductMcpServerResolver,
   });
-  const botsRepo = new BotsRepo();
-  const botLog = createServiceLogger("bots");
-  const botRemoteWorkspaceService = options.resolveBotProjectConnection
-    ? createBotProjectRuntime({
-        remoteProjectService,
-        resolveOnline: options.resolveBotProjectConnection,
-        onConnectionsChanged: (listener) =>
-          broadcastService.onMessage((event) => {
-            if (event.channel === "state:projects") listener();
-          }),
-        readBoundTargets: async () =>
-          Object.values((await botsRepo.readState()).bots).flatMap((context) =>
-            context.workspaceIdentity
-              ? [
-                  {
-                    workspacePath: context.workspacePath,
-                    workspaceIdentity: context.workspaceIdentity,
-                    hostId: context.hostId,
-                  },
-                ]
-              : [],
-          ),
-        readRuntimePreferences: async () => {
-          const settings = await settingService.get();
-          return {
-            askUserQuestionAutoResolutionEnabled:
-              settings.askUserQuestionAutoResolutionEnabled !== false,
-            modelIoFullRetentionEnabled: settings.modelIoFullRetentionEnabled === true,
-          };
-        },
-        warn: (message) => botLog.warn(message),
-      })
-    : undefined;
+
   const oauthService = createOAuthService(credentialService, {
     apiClient,
     onProviderLogout: handleOAuthProviderLogout,
@@ -2557,30 +2503,13 @@ export function createLocalServices(options: {
     authorizeLocalMediaPreviewPath: options?.authorizeLocalMediaPreviewPath,
     createLocalMediaPreviewUrl: buildLocalMediaPreviewUrl,
   });
-  const conversationShareClient = new ConversationShareHttpClient({
-    // 分享运行时始终走真实 API；测试/Mock 场景应在 service 单测或 Web fixture 中显式注入，
-    // 不能让开发环境默认生成仅存在于进程内存的 mock-share 链接。
-    apiClient,
-    baseUrl: buildRuntimeZCodeApiUrl(process.env, "/api/v1"),
-    tokenProvider: async (): Promise<string | null> => {
-      const activeProvider = await oauthCredentialRepo.getActiveProvider();
-      if (!activeProvider) {
-        return null;
-      }
-      const tokenSet = await oauthCredentialRepo.loadTokenSet(activeProvider);
-      return tokenSet?.zcodeJwtToken ?? tokenSet?.accessToken ?? null;
-    },
-  });
-  const conversationShareService: IConversationShareServiceType = isDesktopAttachedRemote
-    ? createUnsupportedConversationShareService({
-        message: "Conversation publishing is not available for remote workspaces",
-      })
-    : new ConversationShareService({
-        zcodeAgentService,
-        zcodeSessionService,
-        client: conversationShareClient,
-        artifactSource: createLocalConversationShareArtifactSource(),
-      });
+  // 修复原因：隐藏入口不会阻止真实分享服务构造时读取索引、清理遗留导入。
+  // NCode 不保留分享内容展示的兼容读取：所有宿主统一关闭态，历史内容查询
+  // 返回 null（不访问分享目录、不删除用户数据），磁盘上的旧分享文件原样保留。
+  const conversationShareService: IConversationShareServiceType =
+    createUnsupportedConversationShareService({
+      message: "Conversation sharing is disabled in NCode",
+    });
   // 注册链上的懒工厂（如 OffPeak）会各自创建 tasks-index sqlite repo；先收集到本数组，
   // services 集合建好后在 return 前统一登记进 sharedSqliteRepos 侧表
   const sqliteReposToClose: Array<{ close(): void }> = [];
@@ -2604,26 +2533,6 @@ export function createLocalServices(options: {
     .register(ICuaPermissionService, cuaPermissionService)
     .register(ICuaPipSessionService, cuaPipSessionService)
     .register(IConversationShareService, conversationShareService)
-    .register(
-      IBotsService,
-      createBotsService({
-        repo: botsRepo,
-        projectService,
-        remoteProjectService,
-        ownerHostId: options?.projectStorageHostId ?? "local",
-        credentialService,
-        zcodeTaskService,
-        broadcastService,
-        settingService,
-        modelSelectionService: providerRuntime.modelSelection,
-        remoteWorkspaceService: botRemoteWorkspaceService
-          ? { ...botRemoteWorkspaceService, resolveWorkspace: options?.resolveBotRemoteWorkspace }
-          : undefined,
-        // 远端与本地 Bot 都读取所属 Environment 的 Model Selection View。
-        // 远端启动期不再轮询旧 Preset，避免重新制造一套模型候选事实。
-        runStartupBackgroundTasks: !isDesktopAttachedRemote,
-      }),
-    )
     .register(IFileWatcherService, createFileWatcherService())
     .register(IOAuthService, oauthService)
     .register(ISourceServerWorkspaceService, sourceServerWorkspaceService)
@@ -2650,88 +2559,6 @@ export function createLocalServices(options: {
       }),
     )
     .register(IClientScenesService, createClientScenesService({ apiClient }))
-    .register(
-      IOffPeakTaskService,
-      (() => {
-        // 闲时任务编排服务（与 automation 服务面独立）：
-        // 单例属主在本集合，renderer 经 ProxyChannel 直连，host 派发经 getOptional 取同一实例。
-        const offPeakLogger = createServiceLogger("off-peak");
-        const resolveCredentials = () => resolveOffPeakCredentials(offPeakCredentialResolverDeps);
-        const originResolver = createOffPeakOriginResolver({
-          logger: offPeakLogger,
-          resolveUpstream: () => resolveOffPeakMockUpstream(offPeakCredentialResolverDeps),
-        });
-        const offPeakTaskRepo = new OffPeakTaskRepo();
-        // OffPeakTaskRepo 也持有 tasks-index.sqlite 连接；收集到链前数组，services 建好后统一登记
-        // （工厂在注册链求值期执行，此时 services 常量尚未初始化，不能直接引用）
-        sqliteReposToClose.push(offPeakTaskRepo);
-        const offPeakTaskService = new OffPeakTaskService({
-          prepareProjectExecution,
-          repo: offPeakTaskRepo,
-          client: createOffPeakServerClient({
-            resolveOrigin: originResolver.resolveOrigin,
-            resolveCredentials,
-            logger: offPeakLogger,
-          }),
-          resolveCodingPlanSupport: () =>
-            resolveOffPeakCodingPlanSupport(offPeakCredentialResolverDeps),
-          resolveTelemetryProviderName: async () =>
-            resolveSafeTelemetryHostname(await originResolver.resolveOrigin()),
-          resolveModelSelection: async (input) => {
-            await providerRuntime.start();
-            const support = await resolveOffPeakCodingPlanSupport(offPeakCredentialResolverDeps);
-            const providerId = support.supported
-              ? OFF_PEAK_PROVIDER_IDS[support.providerFamily]
-              : undefined;
-            const provider = providerId
-              ? providerRuntime.registryService
-                  .getView()
-                  .providers.find((candidate) => candidate.providerId === providerId)
-              : undefined;
-            const modelId = input.modelId ?? provider?.models[0]?.modelId;
-            if (!provider || !modelId) {
-              return {
-                ok: false as const,
-                validation: {
-                  ok: false as const,
-                  code: "provider-not-found" as const,
-                  providerId: OFF_PEAK_PROVIDER_IDS.zai,
-                },
-              };
-            }
-            // 旧行没有 Provider 身份；只能复用当前账号凭据链已裁定的 Account Family，
-            // 不能靠 Registry/JSON 顺序在 Z.ai 与 BigModel 间猜测。
-            const selection = {
-              providerId: provider.providerId,
-              modelId,
-              ...(input.reasoningLevel
-                ? { options: { reasoningLevel: input.reasoningLevel } }
-                : {}),
-            };
-            const validation = providerRuntime.registryService.validateSelection(selection);
-            return validation.ok
-              ? { ok: true as const, selection }
-              : { ok: false as const, validation };
-          },
-          logger: offPeakLogger,
-          requestSchedulerWake: options?.onOffPeakSchedulerWakeRequested,
-          stopRunningTask: async (params) => {
-            await zcodeTaskService.stopGeneration({
-              taskId: params.conversationId,
-              workspacePath: params.workspacePath,
-              ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
-            });
-          },
-          onDispose: () => {
-            void originResolver.close().catch(() => undefined);
-          },
-        });
-        offPeakTaskService.startSync();
-        // 回写前向引用，供 zcodeAgentService 的 offPeak/create、offPeak/list 协议 handler 调用。
-        offPeakTaskServiceForAgent = offPeakTaskService;
-        return offPeakTaskService;
-      })(),
-    )
     .register(IHighspeedCardService, {
       prepareTurn: async () => ({ kind: "fallback", reason: "unavailable", nextDrawAt: null }),
       getSnapshot: async () => ({ card: null, nextDrawAt: null, drawing: false }),

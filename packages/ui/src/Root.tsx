@@ -78,7 +78,6 @@ import { consumeZcodeJwtInvalidRestartMarker } from "@/root/zcodeJwtInvalidResta
 import { useDesktopNativeThemeSync } from "@/root/useDesktopNativeThemeSync.js";
 import { useRootPlatformEffects } from "@/root/useRootPlatformEffects.js";
 import { useRootWorkspaceActions } from "@/root/useRootWorkspaceActions.js";
-import { useBotBroadcastEffects } from "@/root/useBotBroadcastEffects.js";
 import { registerBaseWorkspaceServices } from "@/store/remoteWorkspaceSessionStore.js";
 import type { RootProps } from "@/root/types.js";
 import { DiffsWorkerPoolProvider } from "@/root/DiffsWorkerPoolProvider.js";
@@ -341,9 +340,7 @@ function RootInner({
         void services.zcodeAgentService.syncAppRuntimePreferences(parsed.data).catch((error) => {
           logger.warn("[settings] 同步跨窗口运行时偏好失败", error);
         });
-        void services.botsService.syncAppRuntimePreferences(parsed.data).catch((error) => {
-          logger.warn("[settings] 同步跨窗口 Bot 运行时偏好失败", error);
-        });
+
         return;
       }
 
@@ -394,15 +391,6 @@ function RootInner({
       })
       .catch((error) => {
         logger.warn("[settings] 初始化运行时偏好失败", error);
-      });
-    void services.botsService
-      .syncAppRuntimePreferences({
-        askUserQuestionAutoResolutionEnabled:
-          appSettings.askUserQuestionAutoResolutionEnabled !== false,
-        modelIoFullRetentionEnabled: appSettings.modelIoFullRetentionEnabled === true,
-      })
-      .catch((error) => {
-        logger.warn("[settings] 初始化 Bot 运行时偏好失败", error);
       });
   }, [
     appSettings?.askUserQuestionAutoResolutionEnabled,
@@ -525,8 +513,8 @@ function RootInner({
   const webRemoteControlStatus = useWebRemoteControlStatus({
     enabled: Boolean(webRemoteControlFeatureEnabled && isDesktop),
   });
-  const webRemoteControlSessionActive =
-    webRemoteControlStatus.status === "running" || webRemoteControlStatus.status === "active";
+  // NCode 关闭手机远控；状态仍按原语义订阅，供启动门禁判断使用。
+  void webRemoteControlStatus;
   const refreshProviderState = useRootProviderStateRefresh(services);
   useRootProviderSettingsSnapshot(services);
   useEffect(() => {
@@ -626,7 +614,7 @@ function RootInner({
     registerBaseWorkspaceServices(services);
   }, [services]);
 
-  useBotBroadcastEffects(services, tabStoreApi);
+  // NCode 停用官方账号恢复 / Bot 订阅。
 
   const handleOpenRemoteConnection = useCallback(
     (preference?: RemoteConnectionOpenPreference) => {

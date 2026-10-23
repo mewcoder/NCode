@@ -394,6 +394,7 @@ describe("createLocalServices remote authority", () => {
       ]);
     const createApiClient = vi.spyOn(apiModule, "createNodeApiClient");
     const services = createLocalServices({
+      zcodeBuiltinProviderConfigFilePath: join(makeTempHome(), "bundled.json"),
       hostApiNetworkTransport: transport,
       serviceAuthorityMode: "desktop-attached-remote",
     });

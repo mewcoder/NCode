@@ -38,6 +38,47 @@ interface RemoteHandle {
 
 describe("Window Host 的 Source 重连与数据库启动整合", () => {
   it.each([true, false, undefined])(
+    "NCode 的两个启动批次均不读取旧开关或枚举候选（旧设置=%s）",
+    async (legacyValue) => {
+      const source = await loadHostSource();
+      const factories: ts.Expression[] = [];
+      function collect(node: ts.Node): void {
+        if (
+          ts.isCallExpression(node) &&
+          node.expression.getText(source) === "runStartupReconnectBatch"
+        ) {
+          const options = node.arguments[0];
+          if (options && ts.isObjectLiteralExpression(options)) {
+            const property = options.properties.find(
+              (item) =>
+                ts.isPropertyAssignment(item) && item.name.getText(source) === "getSettings",
+            );
+            if (property && ts.isPropertyAssignment(property)) factories.push(property.initializer);
+          }
+        }
+        ts.forEachChild(node, collect);
+      }
+      collect(source);
+      expect(factories).toHaveLength(2);
+      for (const factory of factories) {
+        const get = vi.fn(async () => ({ remoteStartupAutoReconnectEnabled: legacyValue }));
+        const getSettings = runInNewContext(
+          `${compile(`const getSettings = ${factory.getText(source)};`)};getSettings;`,
+          { services: { get: () => ({ get }) }, ISettingService: {} },
+        );
+        const listCandidates = vi.fn(async () => ["saved-server"]);
+        const reconnect = vi.fn(async () => ["online"]);
+        await expect(
+          runStartupReconnectBatch({ getSettings, listCandidates, reconnect }),
+        ).resolves.toEqual([]);
+        expect(get).not.toHaveBeenCalled();
+        expect(listCandidates).not.toHaveBeenCalled();
+        expect(reconnect).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it.each([true, false, undefined])(
     "Source 遥测初始声明为 %s 时按能力门控，重连换代刷新能力并释放旧订阅",
     async (initialTelemetryCapability) => {
       const source = await loadHostSource();

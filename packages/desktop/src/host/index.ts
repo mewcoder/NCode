@@ -4088,9 +4088,9 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
           });
         logWindowHostTopology("base-attachment-ready");
         logger.info("local services ready, all channels registered");
-        // URL Host 复用相同启动开关与 Registry；项目发现不创建 logical workspace/Agent。
+        // NCode 隐藏远程入口后，旧开关开启或缺省仍会触发重连；两类启动批次使用现有门禁固定关闭。
         void runStartupReconnectBatch({
-          getSettings: () => services.get(ISettingService).get(),
+          getSettings: async () => ({ remoteStartupAutoReconnectEnabled: false }),
           listCandidates: async () =>
             (await services.get(IRemoteProjectService).readDirectory()).hosts.filter(
               (host) => host.kind === "server",
@@ -4113,7 +4113,7 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
           .initialize()
           .then(async () =>
             runStartupReconnectBatch({
-              getSettings: () => services.get(ISettingService).get(),
+              getSettings: async () => ({ remoteStartupAutoReconnectEnabled: false }),
               listCandidates: async () => {
                 const retained = new Set(
                   (await services.get(IRemoteProjectService).readDirectory()).hosts.map(

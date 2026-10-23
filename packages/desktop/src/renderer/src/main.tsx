@@ -28,6 +28,7 @@ import {
   LAUNCH_MARKS_QUERY_KEY,
   type LaunchMarks,
   DEFAULT_LOCALE,
+  NCODE_FEATURE_POLICY,
 } from "@zcode/shared";
 import type { Locale } from "@zcode/shared";
 import type { IServiceAccessor } from "@zcode/services";
@@ -350,6 +351,8 @@ function initializeBusinessRoot(port: MessagePort): void {
       >
         <StartupReadyNotifier />
         <Root
+          // Bug 原因：只关闭 Main 门禁时，UI 缺省开启仍会轮询状态；两端必须消费同一本地策略。
+          webRemoteControlFeatureEnabled={NCODE_FEATURE_POLICY.webRemoteControl}
           services={services}
           platform={desktopPlatform}
           isDesktop

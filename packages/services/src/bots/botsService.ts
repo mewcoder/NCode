@@ -103,6 +103,9 @@ import type {
   IModelSelectionService,
   ModelSelectionView,
 } from "../model-provider/providerFacadeServices.js";
+// NCode：node.ts 不再导出 Bot 装配（关闭 Bot/群聊）；本模块经 services 的 ./bots
+// 公开入口仅供测试 harness 消费，此类型随入口一并透出。
+export type { IModelSelectionService };
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import type {
   BotBindCodeResult,

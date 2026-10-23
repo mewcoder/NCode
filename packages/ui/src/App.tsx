@@ -814,7 +814,9 @@ export function App({
   const testActions = useMemo<TestActions>(
     () => ({
       ...taskListE2EActions,
-      sendBotMessage: (message) => services.botsService.handleInboundMessage(message),
+      sendBotMessage: async () => {
+        throw new Error("NCode Bot is disabled");
+      },
       submitBotGroupInput: (params) => {
         const submit = services.zcodeTaskService.submitBotGroupInput;
         if (!submit) throw new Error("Task material admission unavailable");

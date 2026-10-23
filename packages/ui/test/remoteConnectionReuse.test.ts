@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, screen, cleanup } from "@testing-library/react";
+import { renderHook, cleanup } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { IServiceAccessor } from "@zcode/services";
 import type { IPlatformService, RemoteTarget } from "@zcode/shared";
@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 it.each([false, true])(
-  "Host 声明复用：只为新建意图提示实际连接且不覆盖凭据（%s）",
+  "NCode 隐藏远程连接后拒绝启动连接且不覆盖凭据（%s）",
   async (announceReusedConnection) => {
     const reused = true;
     const target: RemoteTarget = { kind: "ssh", host: "actual.example.com", username: "dev" };
@@ -63,24 +63,15 @@ it.each([false, true])(
         addTab: tabStoreApi.getState().addTab,
       }),
     );
-    await act(async () => {
-      await result.current.handleConnectRemote(
+    await expect(
+      result.current.handleConnectRemote(
         { ...target, password: "newly-entered-password" },
         undefined,
         undefined,
         { announceReusedConnection },
-      );
-    });
-    if (announceReusedConnection)
-      expect(
-        await screen.findByText(
-          "这台设备已通过 SSH · dev@actual.example.com:22 连接，已直接使用现有连接",
-        ),
-      ).toBeTruthy();
-    else expect(screen.queryByText(/已直接使用现有连接/u)).toBeNull();
-    await act(async () => {
-      await result.current.handleSelectRemoteProject(sessionId, "/srv/project");
-    });
-    if (reused) expect(save).not.toHaveBeenCalled();
+      ),
+    ).rejects.toThrow("Remote workspace is disabled in this mode");
+    expect(platform.connectRemote).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
   },
 );
