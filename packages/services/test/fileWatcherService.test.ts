@@ -48,6 +48,31 @@ describe("fileWatcherService", () => {
     expect(fired).toBe(false);
   });
 
+  it("returns an inert watcher for a missing directory instead of throwing ENOENT", async () => {
+    const service = createFileWatcherService();
+    const missing = join(tmpdir(), `zcode-file-watcher-missing-${Date.now()}`, "workflows");
+
+    // 修复依据：窗口恢复时 UI 对每个工作区 watch `.zcode/workflows`，目录缺失是常态；
+    // 抛错只会在 RPC 日志层留下 warn 噪音。占位 watcher 保持订阅与清理语义。
+    const { id } = await service.watch({ path: missing });
+    expect(id).toBeTruthy();
+
+    let fired = false;
+    const subscription = service.onDynamicChange(id)(() => {
+      fired = true;
+    });
+    await service.unwatch({ id });
+    subscription.dispose();
+    expect(fired).toBe(false);
+  });
+
+  it("still throws for watch failures other than ENOENT", async () => {
+    const service = createFileWatcherService();
+    await expect(service.watch({ path: undefined as unknown as string })).rejects.toThrow(
+      /无法监视目录/,
+    );
+  });
+
   it("disposes all active watchers and keeps stale ids no-op", async () => {
     const service = createFileWatcherService();
     const firstDir = makeTempDir();

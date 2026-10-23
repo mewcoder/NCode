@@ -2,10 +2,7 @@ import { watch, type FSWatcher } from "node:fs";
 import { resolve } from "node:path";
 import { Emitter, Event, type Event as RpcEvent } from "@zcode/rpc";
 import type { FileWatchEvent } from "@zcode/shared";
-import {
-  createServiceLogger,
-  type ServiceLogger,
-} from "#src/logger/serviceLogger.js";
+import { createServiceLogger, type ServiceLogger } from "#src/logger/serviceLogger.js";
 import type { IFileWatcherService } from "./fileWatcher.js";
 import { registerMemoryDiagnosticsProvider } from "#src/memoryDiagnostics.js";
 
@@ -21,6 +18,19 @@ interface WatcherInstance {
   /** 同一防抖窗口只含一个明确路径时才透传，避免过滤掉同批次里的目标文件事件 */
   pendingChangedPaths: Set<string>;
   hasUnknownChangedPath: boolean;
+}
+
+/**
+ * 目录不存在（ENOENT）时的占位 watcher：保持注册与清理语义，但永不产生事件。
+ * 调用方按正常 id 订阅/注销即可，无需感知目录缺失。
+ */
+function createInertFsWatcher(): FSWatcher {
+  return {
+    close() {},
+    on() {
+      return this;
+    },
+  } as unknown as FSWatcher;
 }
 
 export function resolveFileWatchChangedPath(
@@ -92,9 +102,19 @@ export function createFileWatcherService(options?: {
           }, DEBOUNCE_MS);
         });
       } catch (error) {
-        changeEmitter.dispose();
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`无法监视目录 '${params.path}': ${message}`);
+        // 修复依据：窗口恢复时 UI 会对每个工作区的 `.zcode/workflows` 调用 watch，多数项目
+        // 并没有该目录。调用方（useSavedWorkflowsDirectoryWatch 等）本就把这种失败当常态
+        // 静默跳过，但它仍会经 RPC 日志层落成一条带完整堆栈的 `file-watcher.watch FAIL`
+        // warn 噪音（每个无目录工作区一条）。目录不存在属于常态而非故障：ENOENT 改为返回
+        // 不产生事件的占位 watcher，订阅/清理语义不变；其余错误（权限、参数非法等）照抛，
+        // 不掩盖真实监听故障。
+        if ((error as NodeJS.ErrnoException | undefined)?.code !== "ENOENT") {
+          changeEmitter.dispose();
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`无法监视目录 '${params.path}': ${message}`);
+        }
+        log.debug("目录不存在，返回不产生事件的占位 watcher", { path: params.path });
+        fsWatcher = createInertFsWatcher();
       }
 
       // 监视目录被删除/重命名时，发送最终事件并清理
