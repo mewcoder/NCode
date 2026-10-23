@@ -2,6 +2,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClientConfigService } from "../src/client-config/clientConfigService.js";
 import type { ApiClient } from "@zcode/shared";
 
+// 保留上游读取机制的回归覆盖；本地关闭态另行验证零请求。
+const policy = vi.hoisted(() => ({ remoteClientConfigs: true }));
+vi.mock("@zcode/shared", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@zcode/shared")>();
+  return {
+    ...original,
+    NCODE_FEATURE_POLICY: {
+      ...original.NCODE_FEATURE_POLICY,
+      get remoteClientConfigs() {
+        return policy.remoteClientConfigs;
+      },
+    },
+  };
+});
+
 const order = {
   code: { categoryOrder: ["developer-tools"] },
   work: { categoryOrder: ["finance"] },
@@ -28,7 +43,10 @@ function setup(request: ApiClient["request"]) {
     },
   };
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  policy.remoteClientConfigs = true;
+});
 
 describe("ClientConfigService", () => {
   it("同上下文请求合并与缓存，只返回公开字段且不携带账户鉴权", async () => {
@@ -173,5 +191,39 @@ describe("ClientConfigService", () => {
       zsrcUrl: null,
       uiPluginRecommendations: [],
     });
+  });
+});
+
+describe("NCode 本地 ClientConfigService", () => {
+  it("普通、并发、强刷都不解析 endpoint 或请求远端，返回值互相隔离", async () => {
+    policy.remoteClientConfigs = false;
+    const request = vi.fn(async () => {
+      throw new Error("不应请求远端");
+    });
+    const resolveRequestContext = vi.fn(async () => {
+      throw new Error("不应解析 endpoint");
+    });
+    const service = createClientConfigService({ apiClient: { request }, resolveRequestContext });
+    const defaults = { pluginStoreOrder: null, zsrcUrl: null, uiPluginRecommendations: [] };
+    expect(
+      await Promise.all([
+        service.getSnapshot(),
+        service.getSnapshot(),
+        service.getSnapshot({ forceRefresh: true }),
+      ]),
+    ).toEqual([defaults, defaults, defaults]);
+    const snapshot = await service.getSnapshot();
+    snapshot.uiPluginRecommendations.push({ pluginId: "injected", surfaceId: "main" });
+    expect(await service.getSnapshot({ forceRefresh: true })).toEqual(defaults);
+    expect(request).not.toHaveBeenCalled();
+    expect(resolveRequestContext).not.toHaveBeenCalled();
+  });
+  it("保留 RPC 参数校验", async () => {
+    policy.remoteClientConfigs = false;
+    const service = createClientConfigService({
+      apiClient: { request: vi.fn() },
+      resolveRequestContext: vi.fn(),
+    });
+    await expect(service.getSnapshot({ forceRefresh: "true" } as never)).rejects.toThrow();
   });
 });

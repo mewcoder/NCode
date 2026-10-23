@@ -1,10 +1,8 @@
-/** NCode 构建期固定关闭遥测与应用内更新，运行时统一读取这些 define。 */
+import { NCODE_FEATURE_POLICY } from "../packages/shared/src/ncode-feature-policy/policy.js";
+
+/** 构建与 Runtime 使用同一份本地策略，不读取环境变量或私有远端配置。 */
 export async function resolveBuildTimeConfig() {
-  return {
-    armsRumEndpoint: "",
-    telemetryReportEndpoint: "",
-    autoUpdateEnabled: false,
-  };
+  return { ...NCODE_FEATURE_POLICY.build };
 }
 
 export function createBuildTimeConfigDefines(config) {
