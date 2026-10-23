@@ -153,43 +153,8 @@ export function createOfficialMcpAuthFetch(
 
     const send = async (attempt: number): Promise<{ authApplied: boolean; response: Response }> => {
       let authHeaders: Record<string, string> = {};
-      let resolveDurationMs: number | undefined;
-      if (input.authHeadersPort) {
-        const resolveStartedAt = Date.now();
-        const resolved = await input.authHeadersPort.resolveHeaders({
-          mcpKey: input.official.mcpKey,
-          pluginId: input.official.pluginId,
-          targetOrigin: origin,
-          ...(input.workspaceIdentity ? { workspaceIdentity: input.workspaceIdentity } : {}),
-          ...(input.workspacePath ? { workspacePath: input.workspacePath } : {}),
-          ...(init?.signal ? { signal: init.signal } : {}),
-        });
-        resolveDurationMs = Date.now() - resolveStartedAt;
-        if (resolved.ok) {
-          authHeaders = resolved.headers;
-        } else {
-          // 解析不到身份时仍把无身份请求交给 server 做权威判定；adapter 不缓存旧凭证，
-          // 也不在本地把解析失败冒充为网络失败。
-          input.logger?.warn("Official MCP auth headers unavailable for request", {
-            ...logBase,
-            attempt,
-            event: "mcp.official_auth.resolve",
-            fallback: "anonymous",
-            reason: resolved.reason,
-            resolveDurationMs,
-            status: "failed",
-          });
-        }
-      } else {
-        input.logger?.warn("Official MCP auth port unavailable for request", {
-          ...logBase,
-          attempt,
-          event: "mcp.official_auth.resolve",
-          fallback: "anonymous",
-          reason: "official_auth_unavailable",
-          status: "failed",
-        });
-      }
+      const resolveDurationMs = 0;
+      // NCode 不解析或注入官方账号身份头。
       // 只记 header 名与套餐维度，绝不记 header 值。targetType 是 PERSONAL/TEAM 这类
       // 低敏枚举，但对"为什么服务端判我没权益"最关键，因此保留原值。
       const identity = summarizeOfficialMcpIdentityHeaders(authHeaders);

@@ -64,6 +64,18 @@ export function createUsageStatsService(
       ? { officialMcpCredentialSource: dependencies.officialMcpCredentialSource }
       : {}),
   });
+  const regularTpsCache = new Map<string, { expiresAt: number; value: number | undefined }>();
+  const regularTpsInFlight = new Map<string, Promise<number | undefined>>();
+
+  function regularTpsCacheKey(request: CodingPlanRegularTpsRequest): string {
+    return JSON.stringify([
+      request.preferredProviderId,
+      // Team scope（organizationId/projectId）已内含在 accountAccess 里，整体入 key，
+      // 避免同一 provider 下不同账号或不同团队项目共用同一条 TPS 缓存。
+      request.accountAccess,
+      request.timeZone ?? null,
+    ]);
+  }
 
   return {
     async getAppUsageSnapshot(request: AppUsageRequest): Promise<AppUsageSnapshot> {
@@ -122,7 +134,18 @@ export function createUsageStatsService(
     async getEntitlementSnapshot(
       request: UsageEntitlementRequest = {},
     ): Promise<UsageEntitlementSnapshot> {
-      return quotaProvider.getSnapshotForRequest(request);
+      // NCode 不查询官方套餐及 MCP 额度，本地 App 用量使用独立接口。
+      void request;
+      return {
+        generatedAt: Date.now(),
+        authenticated: false,
+        unavailableReason: "not_configured",
+        provider: null,
+        remaining: null,
+        subscription: null,
+        quota: null,
+        mcpQuota: null,
+      };
     },
   };
 }

@@ -40,7 +40,13 @@
       ],
       "sourceUrl": "repository:packages/desktop/build/icons/128x128.png",
       "sourceOwner": "Z.AI",
+<<<<<<< HEAD
       "normalization": "Byte-for-byte copy of the existing 128x128 ZCode application PNG. No extra Dock padding, redraw, inversion or added outline."
+||||||| parent of 46ebc3ae (feat(ncode): NCode closure policy, identity and base closures)
+      "normalization": "Byte-for-byte copy of the existing 128x128 ZCode application PNG. No extra Dock padding, redraw, inversion or added outline. User decision corrected in Todo148 on 2026-09-15."
+=======
+      "normalization": "Independent copy of the original 128x128 ZCode/Z.AI application artwork. Retained as the Z.AI provider brand; not derived from the NCode application icon."
+>>>>>>> 46ebc3ae (feat(ncode): NCode closure policy, identity and base closures)
     },
     {
       "brand": "BigModel",

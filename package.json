@@ -17,6 +17,8 @@
     "dep:graph": "node scripts/dependency-graph.mjs",
     "dep:refs": "node scripts/dep-refs.mjs",
     "verify:pre-push": "pnpm run lint && pnpm run architecture:check -- --changed",
+    "ncode:branding:check": "node scripts/ncode-branding.mjs --check",
+    "ncode:branding:sync": "node scripts/ncode-branding.mjs --sync",
     "build": "pnpm -r build",
     "build:desktop-agent:bytecode": "node scripts/build-desktop-agent-bytecode.mjs",
     "build:zcode": "node scripts/build-zcode.mjs",
@@ -44,7 +46,9 @@
     "architecture:check": "node scripts/architecture/architecture-check.mjs check",
     "architecture:report": "node scripts/architecture/architecture-check.mjs report",
     "architecture:baseline:update": "node scripts/architecture/architecture-check.mjs baseline:update",
-    "architecture:context": "node scripts/architecture/architecture-check.mjs context"
+    "architecture:context": "node scripts/architecture/architecture-check.mjs context",
+    "ncode:artifact:audit": "node scripts/ncode-artifact-audit.mjs",
+    "ncode:closure:impact": "node scripts/ncode-closure-impact.mjs"
   },
   "dependencies": {
     "border-beam": "^1.0.1",

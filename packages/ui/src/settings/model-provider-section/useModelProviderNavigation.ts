@@ -11,7 +11,6 @@ import {
   BUILTIN_MODEL_PROVIDER_IDS,
   isStartPlanModelProviderId,
   resolveModelProviderFamilySpecByProviderId,
-  resolveProviderFamilyDomainFromOAuthProvider,
   type OAuthProviderId,
 } from "@zcode/shared";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
@@ -223,7 +222,8 @@ export function useModelProviderNavigation({
       },
     ];
 
-    return groups;
+    // NCode 只展示个人 API Key 供应商；保留上游预置元数据供兼容解析使用。
+    return groups.filter((group) => group.id !== "preset");
   }, [
     customProviders,
     codingPlanItems,
@@ -237,14 +237,11 @@ export function useModelProviderNavigation({
     modelProviders,
   ]);
 
-  const navigationItems = useMemo(() => {
-    const visibleItems = navigationGroups.flatMap((group) => group.items);
-    const visibleKeys = new Set(visibleItems.map((item) => item.key));
-    return [
-      ...visibleItems,
-      ...connectionModeCodingPlanItems.filter((item) => !visibleKeys.has(item.key)),
-    ];
-  }, [connectionModeCodingPlanItems, navigationGroups]);
+  // NCode 的选中解析与可见导航同源，旧套餐不能通过历史 key 绕过入口隐藏。
+  const navigationItems = useMemo(
+    () => navigationGroups.flatMap((group) => group.items),
+    [navigationGroups],
+  );
 
   const selectableNavigationItems = useMemo(
     () => navigationItems.filter((item) => item.type !== "codingPlanLoading"),
@@ -299,9 +296,10 @@ export function useModelProviderNavigation({
         ),
       ));
 
+  // 隐藏的套餐仍在连接索引中，默认选中必须仅从可见导航取值，避免选中不存在的入口。
   const fallbackNodeKey = resolveFallbackModelProviderNodeKey({
     selectedNodeKey,
-    selectableNavigationItems,
+    selectableNavigationItems: selectableSideNavigationItems,
   });
   useEffect(() => {
     const hasSelectedNode = selectedNodeKey ? sideNavigationItemByKey.has(selectedNodeKey) : false;
@@ -332,10 +330,10 @@ function shouldShowCodingPlanForProviderFamilyDomain(
   oauthProviderId: OAuthProviderId,
   providerFamilyDomain: ProviderFamilyDomain | null,
 ): boolean {
-  if (!providerFamilyDomain) {
-    return true;
-  }
-  return resolveProviderFamilyDomainFromOAuthProvider(oauthProviderId) === providerFamilyDomain;
+  // NCode 不展示官方账号连接及个人/团队套餐。
+  void oauthProviderId;
+  void providerFamilyDomain;
+  return false;
 }
 
 function resolvePresetFamilyStatusProvider({
