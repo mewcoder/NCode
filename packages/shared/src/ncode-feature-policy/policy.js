@@ -7,6 +7,7 @@ export const NCODE_FEATURE_POLICY = Object.freeze({
   remoteClientConfigs: false,
   officialAccountQueries: false,
   desktopContextPrompt: true,
+  webRemoteControl: false,
   offPeakAvailability: false,
   /** @type {"disabled" | "onDemand" | "alwaysOn"} */
   dynamicWorkflowMode: "onDemand",

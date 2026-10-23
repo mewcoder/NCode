@@ -83,6 +83,8 @@
 ### 8. 手机远控
 
 - **界面**：隐藏手机配对和远控入口。
+- **进程开关**：本地策略 `webRemoteControl: false` 同时传给 Main 的既有 feature gate 与桌面 Renderer 的 `Root.webRemoteControlFeatureEnabled`。Root 和侧栏复用已有 context / hook 的 `enabled` 门禁，不查询远控状态、不订阅状态变化、不创建一秒轮询；不修改公共 Provider 的上游默认值。
+- **验收**：按桌面入口的实际参数挂载 Root/侧栏状态消费者，启动及推进时钟后状态查询、状态订阅调用均为零；显式开启的隔离测试仍能轮询并在卸载时释放订阅和计时器。普通会话、窗口标签同步及共享 Host 路由不受影响。
 - **后台**：在桌面启动装配处停止创建或启动远控 manager/relay，覆盖重连、心跳和远控专属订阅；共享 Host 和协议继续由原有功能使用。
 - **位置**：[main/index.ts](packages/desktop/src/main/index.ts)、[webRemoteControlManager.ts](packages/desktop/src/main/webRemoteControlManager.ts)、[web-remote-relay](packages/desktop/src/main/web-remote-relay/)、[desktopWebRemoteControlIpc.ts](packages/desktop/src/main/desktopWebRemoteControlIpc.ts)、[Root.tsx](packages/ui/src/Root.tsx)。定位 `createWebRemoteControlManager` 及启动调用。
 

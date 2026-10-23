@@ -18,6 +18,8 @@ import {
   WandSparkles,
   Keyboard,
   FileSearch,
+  UserRoundCog,
+  Import as ImportIcon,
 } from "lucide-react";
 import { isSettingsSectionEnabled, type SettingsSectionId } from "@/lib/settingsNavigation.js";
 import type { Theme } from "@/useTheme.js";
@@ -31,7 +33,7 @@ export const THEME_MODES: Array<{
   { mode: "zai-light", icon: Sun },
 ];
 
-type SettingsSectionGroupId = "basics" | "agentCapabilities" | "dataAndStats";
+export type SettingsSectionGroupId = "basics" | "agentCapabilities" | "dataAndStats";
 
 interface SettingsSectionDefinition {
   id: SettingsSectionId;
@@ -72,6 +74,12 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     icon: Package,
     titleId: "settings.modelProviderTitle",
     groupId: "basics",
+  },
+  {
+    id: "personalization",
+    icon: UserRoundCog,
+    titleId: "settings.personalizationTitle",
+    groupId: "agentCapabilities",
   },
   {
     id: "memory",
@@ -156,6 +164,12 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     titleId: "settings.usageTitle",
     groupId: "dataAndStats",
   },
+  {
+    id: "migration",
+    icon: ImportIcon,
+    titleId: "settings.migration.title",
+    groupId: "dataAndStats",
+  },
 ];
 
 // 兼容既有只读消费者：默认配置代表不带桌面平台能力的 Web 视图；
@@ -164,7 +178,7 @@ export const SETTINGS_SECTIONS = BASE_SETTINGS_SECTIONS.filter(
   (section) => section.id !== "computerUse" && isSettingsSectionEnabled(section.id),
 );
 
-interface SettingsPageConfigOptions {
+export interface SettingsPageConfigOptions {
   isDesktop?: boolean;
   isMacDesktop?: boolean;
   isWindowsDesktop?: boolean;
@@ -201,3 +215,12 @@ export function resolveSettingsSectionForPlatform(
 }
 
 export type { SettingsSectionId };
+
+export function isSettingsSectionAvailable(
+  section: SettingsSectionId,
+  isDesktop: boolean,
+): boolean {
+  void isDesktop;
+  // NCode 在所有平台隐藏「远程设备」分区，历史导航由 resolveSettingsSection 回落。
+  return section !== "remoteDevices";
+}
