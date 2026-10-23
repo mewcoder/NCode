@@ -178,8 +178,7 @@ describe("applyDynamicWorkflowUserMode（DWG-18）", () => {
     ).toBe(true);
     expect(isDynamicWorkflowOffered(offer("disabled"))).toBe(false);
   });
-
-  it("isDynamicWorkflowOffered：没有 offeredMode 的快照（旧 Host）或读不懂的值按未提供", () => {
+  it("readDynamicWorkflowOfferedMode：没有 offeredMode 的快照（旧 Host）或读不懂的值返回 undefined", () => {
     // 新 UI（例如手机远控 bundle）连旧 Host 时，快照只有生效的 mode / enabled，没有 offeredMode；
     // 旧 Host 不认用户选择，所以不能把设置行摆出来。
     const legacy = { mode: "alwaysOn", enabled: true, source: "remote" } as unknown as Parameters<
@@ -192,5 +191,31 @@ describe("applyDynamicWorkflowUserMode（DWG-18）", () => {
         offeredMode: "sometimes",
       } as unknown as Parameters<typeof isDynamicWorkflowOffered>[0]),
     ).toBe(false);
+  });
+});
+
+// NCode（ncode-feature.md 6.6）：用户模式由装配固定为 onDemand（/workflow 命令启用），
+// 旧配置存了 disabled、alwaysOn 或根本没有模式值时，生效模式都必须是 onDemand。
+// node.ts 的固定装配由关闭项锚点登记保证，这里覆盖纯函数层的旧配置矩阵。
+describe("NCode 固定 onDemand × 旧 offer 矩阵", () => {
+  const offer = (mode: "disabled" | "onDemand" | "alwaysOn") =>
+    createDynamicWorkflowClientConfig(mode, "remote");
+
+  it.each(["disabled", "alwaysOn", "onDemand"] as const)(
+    "旧 offer 为 %s 时固定选择 onDemand 生效",
+    (offered) => {
+      expect(applyDynamicWorkflowUserMode(offer(offered), "onDemand")).toMatchObject({
+        mode: "onDemand",
+        enabled: true,
+        offeredMode: offered,
+        userMode: "onDemand",
+      });
+    },
+  );
+
+  it("远端未下发（无模式值）时固定选择 onDemand 同样生效", () => {
+    expect(
+      resolveDynamicWorkflowClientConfig({ remote: undefined, userMode: "onDemand" }),
+    ).toMatchObject({ mode: "onDemand", enabled: true, userMode: "onDemand" });
   });
 });

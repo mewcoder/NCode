@@ -147,25 +147,30 @@ describe("getDynamicWorkflowClientConfig", () => {
     });
     expect(apiClient.request).not.toHaveBeenCalled();
   });
+});
 
-  it("service 把 options 原样委托给 bigmodel provider", async () => {
-    const apiClient: ApiClient = {
-      request: vi
-        .fn()
-        .mockResolvedValueOnce(createConfigsResponse({ mode: "disabled" }))
-        .mockResolvedValueOnce(createConfigsResponse({ mode: "alwaysOn" })),
-    };
-    const service = createCodingPlanSubscriptionService({
-      apiClient,
-      credentialService: { load: vi.fn() },
-    });
-
-    await expect(service.getDynamicWorkflowClientConfig()).resolves.toMatchObject({
-      enabled: false,
-    });
-    await expect(
-      service.getDynamicWorkflowClientConfig({ forceRefresh: true }),
-    ).resolves.toMatchObject({ enabled: true, source: "remote" });
-    expect(apiClient.request).toHaveBeenCalledTimes(2);
-  });
+describe("NCode 工作流命令启用", () => {
+  it.each([undefined, "disabled", "alwaysOn", "onDemand"])(
+    "旧设置 %s 不影响固定 onDemand，刷新不请求官方配置",
+    async (mode) => {
+      const request = vi.fn(async () => {
+        throw new Error("must stay local");
+      });
+      const resolveDynamicWorkflowUserMode = vi.fn(async () => mode);
+      const service = createCodingPlanSubscriptionService({
+        apiClient: { request },
+        credentialService: { load: vi.fn() },
+        resolveDynamicWorkflowUserMode,
+      });
+      for (const options of [undefined, { forceRefresh: true }]) {
+        await expect(service.getDynamicWorkflowClientConfig(options)).resolves.toMatchObject({
+          mode: "onDemand",
+          enabled: true,
+          offeredMode: "onDemand",
+        });
+      }
+      expect(request).not.toHaveBeenCalled();
+      expect(resolveDynamicWorkflowUserMode).not.toHaveBeenCalled();
+    },
+  );
 });

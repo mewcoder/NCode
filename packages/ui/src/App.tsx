@@ -64,7 +64,6 @@ import { useTaskSidePaneMemoryBridge } from "@/app-shell/useTaskSidePaneMemoryBr
 import { resolveAppWorkspaceRpcTarget } from "@/app-shell/workspaceRpcTarget.js";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
 import { useWorkspaceTerminalTaskNotifications } from "@/hooks/useTaskNotifications.js";
-import { useOffPeakTaskNotifications } from "@/hooks/useOffPeakTaskNotifications.js";
 import type { AppProps, WorkspaceMainView } from "@/app-shell/types.js";
 import type {
   ChatSearchResultHighlightRequest,
@@ -290,13 +289,7 @@ export function App({
     platform,
     formatMessage: intl.formatMessage,
   });
-  // 闲时任务终态/等确认通知：仅桌面本地链路，main 进程按 status:taskId 去重多窗口重复。
-  useOffPeakTaskNotifications({
-    offPeakTaskService: services.offPeakTaskService,
-    platform,
-    enabled: Boolean(notificationEnabled && isDesktop),
-    formatMessage: intl.formatMessage,
-  });
+  // 闲时任务终态/等确认通知：NCode 停用闲时任务，不再挂载通知查询。
   const lastHandledDraftSidePaneCloseRef = useRef({
     workspaceKey,
     draftFocusVersion,

@@ -2576,6 +2576,33 @@ describe("createCodingPlanSubscriptionService (family routing)", () => {
     };
   }
 
+  it("NCode 全部客户端配置兼容入口只返回本地策略，不请求远端", async () => {
+    const apiClient = {
+      request: vi.fn(async () => {
+        throw new Error("不应请求远端");
+      }),
+    };
+    const service = createCodingPlanSubscriptionService({
+      apiClient,
+      credentialService: createCredentialService(),
+    });
+    expect(await service.getOffPeakClientConfig({ forceRefresh: true })).toEqual({
+      enabled: false,
+      modelSelectionView: { revision: 0, providers: [] },
+    });
+    expect((await service.getDynamicWorkflowClientConfig({ forceRefresh: true })).mode).toBe(
+      "onDemand",
+    );
+    expect(await service.getModelContextBudgetStrategy()).toBe("preflight-v1");
+    expect(await service.getStaticProducts()).toEqual({});
+    expect(await service.getStaticTeamProducts()).toEqual({});
+    expect(await service.getStartPlanPreview()).toBeNull();
+    expect(await service.getBillingDiscount()).toBeUndefined();
+    expect(await service.getRequestVerificationConfig()).toBeNull();
+    expect(await service.getForceUpdateConfig()).toBeNull();
+    expect(apiClient.request).not.toHaveBeenCalled();
+  });
+
   it("getEnterprisePricing 缺省 family 时走 bigmodel 域名（向后兼容）", async () => {
     const requestUrls: string[] = [];
     const apiClient: ApiClient = {
