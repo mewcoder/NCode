@@ -137,12 +137,14 @@ describe("Windows E2E shard runner", () => {
     expect(specs.some((spec) => spec.includes("/manual-review/"))).toBe(false);
     expect(specs.some((spec) => spec.includes("conversation-session-ssh-remote"))).toBe(false);
 
+    // NCode 关闭远程工作区：SSH 正式 spec 与其他关闭项 spec 一样无条件不进入默认
+    // 基线，SSH 环境变量不再改变该结果（docs/ncode-closure-regression.spec.md）。
     const sshSpecs = listDefaultFormalE2ESpecs(resolve(process.cwd(), "packages/desktop"), {
       ZCODE_E2E_SSH_HOST: "ssh.example.test",
       ZCODE_E2E_SSH_USERNAME: "root",
       ZCODE_E2E_SSH_PASSWORD: "secret-from-test-env",
     });
-    expect(sshSpecs).toContain(
+    expect(sshSpecs).not.toContain(
       "./test/e2e/conversation-session/conversation-session-ssh-remote-connection-p0.test.ts",
     );
   });

@@ -16,6 +16,8 @@
 - 用户调整需求时，同步更新本文对应的功能规则、文案和验收项。
 - 路径和符号用于定位，文件移动后沿当前调用链查找。旧 `ncode` 分支用于参考需求和提取品牌资源，实施以当前上游结构为准。
 - 当前仍有控制入口的本地策略统一维护在 `packages/shared/src/ncode-feature-policy/policy.js`，接入位置与边界见 [spec](docs/ncode-local-client-config.spec.md)。已有开关优先复用；没有开关的请求在入口门禁，保留既有实现。已移除组件/依赖继续按本文维护，不以假开关代替实际装配控制。
+- 关闭项的可执行回归：静态锚点与 E2E 基线见 [closure spec](docs/ncode-closure-regression.spec.md)，打包产物审计见 [audit spec](docs/ncode-artifact-audit.spec.md)。上游更新后先运行 `pnpm ncode:closure:impact --base <基线 ref>` 输出受影响关闭项（或 `--validate [--ref <ref>]` 预检锚点与策略值），再按本文核对行为；锚点或基线清单随本文规则同步维护。
+- 定位补充（2026-10-24）：在关闭项之外，围绕网络请求、运行时进程、安装体积与官方残留持续做减法；基线数据、已执行优化与候选见 [footprint](docs/ncode-runtime-footprint.md)。
 
 ## 一、关闭功能
 
@@ -77,8 +79,25 @@
 ### 7. 会话分享
 
 - **界面**：隐藏会话发布、分享导入和分享链接入口，停止注册分享发布操作。
-- **后台**：检查分享服务是否会在启动时建立连接、订阅或上传；仅处理入口关闭后仍会自行运行的部分。
+- **后台**：本地服务装配复用既有 `createUnsupportedConversationShareService` 关闭态，不创建真实分享服务或 HTTP client；启动时不读取 `.zcode-share-imports.json`、不扫描或清理 `.zcode-share`，也不创建分享专属订阅、计时器或网络请求。发布、导入、预检、公开预览及继续分享接口均以 `feature_disabled` 拒绝，进度事件为空。
+- **历史内容**：本地已落盘的 `shared-conversation.json` 继续通过既有 `getImportedConversation` 接口按需离线读取；只在打开对应历史内容时访问该工作区副本，不初始化完整分享服务、不读取全局导入索引、不清理或删除已有数据。远程 attachment 沿用关闭态空读取，通用服务接口和原版分享实现保留。
+- **回归**：实际装配本地 Host 服务后断言分享索引读取、目录扫描与网络请求为零，关闭接口全部拒绝；显式读取历史副本仍能返回原内容，缺失时返回 null。静态锚点同时拦截真实服务的工厂调用和构造器调用，不能仅按旧工厂名判断关闭。
 - **位置**：[WorkspaceHeaderActionSection.tsx](packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx)、[conversation-share](packages/services/src/conversation-share/)、[host/index.ts](packages/desktop/src/host/index.ts)、[node.ts](packages/services/src/node.ts)。
+
+```mermaid
+sequenceDiagram
+  participant Host as 本地 Host
+  participant Services as createLocalServices
+  participant Closed as 分享关闭态接口
+  participant Disk as 历史只读副本
+  Host->>Services: 初始化服务
+  Services->>Closed: 注册关闭态（不访问分享目录）
+  Host->>Closed: 发布 / 导入 / 预检
+  Closed-->>Host: feature_disabled
+  Host->>Closed: 显式读取历史内容
+  Closed->>Disk: 按 workspacePath 与 contextId 读取副本
+  Disk-->>Host: 已有内容或 null（不写入）
+```
 
 ### 8. 手机远控
 
@@ -99,6 +118,7 @@
 
 - **界面**：隐藏 Bot 配置、群绑定、群任务和投递入口。
 - **后台**：在服务装配处停止 Bot 服务、Repo、远程桥、消息订阅和后台任务的初始化。普通会话、原生子智能体和 Cron 使用各自的原有链路。
+- **依赖边界**（2026-10-24）：`node.ts` 不导出 `createBotsService`，宿主打包图因此不含飞书 provider；`@larksuiteoapi/node-sdk` 不作为生产依赖（Desktop 声明移至 devDependencies 供 E2E 类型解析、services 为 devDependencies 仅供编译期类型），不进入 app.asar（1.64.0 含 15.1MB 单文件 d.ts，合计约 24.6MB），bundle 必需依赖清单与产物审计同步移除/禁止。宿主对 `IBotsService` 的 `getOptional` 防御性查找保留；上游 Bot E2E harness 经 services `./bots` 公开入口消费装配与 `IModelSelectionService` 类型，仅测试可达。
 - **会话挂载**：核对 [SessionPane.tsx](packages/ui/src/v4/SessionPane.tsx) 的 `BotGroupDeliveryProvider` 及 App 的 Bot hook/操作注册；普通会话打开、切换及恢复时不查询 Bot 通道或轮询群成员。服务停用与消费者停止挂载一起完成。
 - **位置**：[BotsDialog.tsx](packages/ui/src/BotsDialog.tsx)、[bots](packages/services/src/bots/)、[node.ts](packages/services/src/node.ts)、[zcodeAgentService.ts](packages/services/src/zcode-agent/zcodeAgentService.ts)、[zcodeTaskServiceAdapter.ts](packages/services/src/zcode-agent/zcodeTaskServiceAdapter.ts)。定位 `IBotsService`、`createBotsService`、`BotsRepo` 及群投递上下文。
 
@@ -462,6 +482,7 @@ sequenceDiagram
 ### 15. 构建产物补查
 
 - [ ] 桌面构建后检查安装图标、应用图标、macOS DMG 背景及关于窗口资源。
+- [x] 打包后运行 `pnpm ncode:artifact:audit -- --app <产物路径>`，遥测依赖、上报端点、升级 feed、image-search、品牌标记与关键运行时依赖逐项通过；规则与发布 runbook 见 [spec](docs/ncode-artifact-audit.spec.md)。（2026-10-24 macOS arm64 实测 19/19 通过，见第六节）
 - [ ] Web 启动后检查标题和 favicon；当前平台无法验证的项目记录为未验证。
 
 配套执行 `pnpm typecheck`、`pnpm lint` 和 `pnpm architecture:check --changed`，按修改范围运行相关测试。静态检查通过与页面实测结果分别记录。
@@ -481,12 +502,20 @@ sequenceDiagram
 - **5.2/5.3**：隔离数据下已看到“暂无供应商”水平居中与添加供应商页，英文 key `settings.modelProvider.providersEmpty` 为 “No providers yet”；英文界面与加载瞬时态未实跑。
 - **5.5/5.6/5.7**：旧套餐回落组合、API Key 新建保存后删除至空态、帮助说明未执行。
 - **6.1**：有任务时中英文副标题与目标值一致；无任务空态只核对了 `automations.description` 源码与文案，真实实例存在一个失败任务，未构造空态。
-- **6.6**：`node.ts` 已把用户模式固定为 `onDemand`，旧设置不参与；无模式值已实测“普通消息不激活、`/workflow` 激活”。disabled/alwaysOn 的重启矩阵与旧工作流历史未执行。
+- **6.6**：`node.ts` 已把用户模式固定为 `onDemand`，旧设置不参与；无模式值已实测“普通消息不激活、`/workflow` 激活”。disabled/alwaysOn 的重启矩阵与旧工作流历史未执行。（补充：旧 offer disabled/alwaysOn/无值 × 固定 onDemand 的纯函数矩阵已由 `packages/shared/test/dynamicWorkflowFeature.test.ts` 覆盖；重启级验证仍未执行。）
 - **14.5**：自定义供应商、普通 Cron、本地会话链路正常；API Key 新建保存与通用 MCP OAuth 未执行。
 - **第 15 节**：未构建安装包，安装图标、DMG 背景、关于窗口和 Web favicon 未查。
 
 补充证据与遗留：
 
-- 启动时对 6 个不存在 `.zcode/workflows` 的工作区各出现一次 `file-watcher.watch FAIL`（日志 12 行含 host 镜像），仅 10:53:00 一瞬间，之后无重试；属上游文件监听行为，与关闭项无关。
-- 静态盘点显示 27 个默认全量桌面 E2E spec 仍引用已关闭功能（闲时任务、高速卡、套餐升级等），需在后续上游适配中统一处置。
+- 启动时对 6 个不存在 `.zcode/workflows` 的工作区各出现一次 `file-watcher.watch FAIL`（日志 12 行含 host 镜像），仅 10:53:00 一瞬间，之后无重试；属上游文件监听行为，与关闭项无关。（2026-10-23 已修复：`fileWatcherService` 对 ENOENT 返回不产生事件的占位 watcher、其余错误照抛，`fileWatcherService.test.ts` 覆盖；通用修复列入 closure spec 的上游回提候选。）
+- 静态盘点显示 27 个默认全量桌面 E2E spec 仍引用已关闭功能（闲时任务、高速卡、套餐升级等），需在后续上游适配中统一处置。（2026-10-23 已处置：内容级核实共 43 个正式 spec 登记进 NCode E2E 基线并从默认全量排除，锚点回归与漂移检测见 [spec](docs/ncode-closure-regression.spec.md)；`help-menu-about` 为部分引用，导出日志与关于窗口等保留行为的替代 spec 待后续补充。）
 - 本轮测试数据已清理：测试定时任务、3 个测试会话、工作流草稿；语言恢复为中文。
+
+## 六、产物与回归补充（2026-10-24）
+
+- **真实产物审计（第 15 节）**：macOS arm64 完整打包产出 `NCode-3.16.2-mac-arm64.dmg`/`.zip`（zip 139.5 MiB），`pnpm ncode:artifact:audit -- --app packages/desktop/dist/mac-arm64/NCode.app` 19/19 通过：无 @arms/@opentelemetry 运行时包、应用 bundle 无 `/api/v1/event/report` 端点、`app-update.yml` 仅本地占位、asar 与 `Resources/glm/packages`（15 个包）均无 image-search、Renderer/主进程 N 形 SVG 与 Info.plist 产品名正确、10 个关键外置运行时依赖在包内。`icon.icns` 与 `build/icon.icns` 字节一致。首跑曾命中 renderer 图标注册表资产 `image-search-*.png`（`pluginIconSource.ts` 通用图标，非插件关闭面），已将规则收敛到插件包/定义与 glm staging 并在 spec 记录边界。
+- **仍未验证**：安装图标/DMG 背景的视觉核对、关于窗口视觉、Web favicon、5.2/5.3 英文界面实跑、14.5 API Key 新建保存与通用 MCP OAuth、6.6 重启级矩阵。
+- **回归工具**（见 [closure spec](docs/ncode-closure-regression.spec.md)）：关闭项锚点（37 项 + 策略值）与 E2E 基线（43 spec）纳入 vitest；`pnpm ncode:closure:impact --base <ref>` 输出上游 diff 命中的关闭项，`--validate [--ref <ref>]` 可对任意 git ref 预检（v3.15.1 演练：4/37 通过即差距清单，diff 模式与 18 笔实际适配提交一一对应）；关闭方式分类盘点与上游回提候选清单同文维护。
+- **飞书 SDK 移除与体积复测**：app.asar 100MB→88.8MB（larksuite 条目 0）、NCode.app 424MB→408MB、zip 138.6MiB，审计 19/19 通过（含新增的关闭项依赖禁止规则）。体积/进程/网络/官方残留基线与候选见 [footprint](docs/ncode-runtime-footprint.md)。
+- **分支策略落地**：仓库收敛为 `main` / `ncode`（最新已验收快照，验收后**覆盖式**指向当版 tip，不合并不留旧提交）/ `ncode-v<版本号>`（含演练用 `ncode-v3.15.1`）；临时与备份分支已清理（含远端 `origin/dev`）。
