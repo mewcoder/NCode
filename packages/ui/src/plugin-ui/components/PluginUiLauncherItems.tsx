@@ -2,7 +2,7 @@ import { documentViewerInstance } from "@/plugin-ui/contract.js";
 import { useOptionalPlatform } from "@/hooks/usePlatform.js";
 import { toast } from "@/components/ui/toast.js";
 import { isRemoteWorkspaceIdentity } from "@zcode/shared";
-import { useRecommendedUiPlugins } from "@/plugin-ui/adapters/useRecommendedUiPlugins.js";
+import { useInstalledUiPlugins } from "@/plugin-ui/adapters/useInstalledUiPlugins.js";
 import { resolveItemDisplayName, resolveItemDescription } from "@/settings/pluginStoreListing.js";
 import { useEffect, type ReactNode } from "react";
 import { PluginStoreAvatar } from "@/settings/PluginStoreAvatar.js";
@@ -44,7 +44,7 @@ export function PluginUiLauncherItems(props: PluginUiLauncherItemsProps) {
     resolveSurface,
     isBusy: isPluginBusy,
     error,
-  } = useRecommendedUiPlugins(props);
+  } = useInstalledUiPlugins(props);
   useEffect(() => {
     if (error) toast(error, { variant: "warning" });
   }, [error]);
@@ -108,11 +108,9 @@ export function PluginUiLauncherItems(props: PluginUiLauncherItemsProps) {
         const actionLabel = intl.formatMessage({
           id: isBusy
             ? "common.loading"
-            : !item.installed
-              ? "settings.plugins.store.install"
-              : !item.info?.enabled
-                ? "settings.plugins.store.menu.enable"
-                : "settings.plugins.store.ui.open",
+            : !item.info?.enabled
+              ? "settings.plugins.store.menu.enable"
+              : "settings.plugins.store.ui.open",
         });
         const open = async () => {
           if (!item.installed || !item.info?.enabled) {

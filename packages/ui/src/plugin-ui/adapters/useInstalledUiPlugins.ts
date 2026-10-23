@@ -1,3 +1,4 @@
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import { withPluginTelemetry } from "@zcode/services";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServices } from "@/hooks/useServices.js";
@@ -7,31 +8,22 @@ import {
   isItemBusy,
   type StorePluginItem,
 } from "@/settings/pluginStoreListing.js";
-import { useUiPluginRecommendations } from "@/plugin-ui/adapters/useUiPluginRecommendations.js";
-import { invalidateDeferredDraftSessionForSkillChange } from "@/lib/zcodeDraftSkillInvalidation.js";
-import { refreshSharedSkillStoreForWorkspace } from "@/lib/skillStoreRefresh.js";
 import { logger } from "@/logger.js";
 
-/** 推荐曝光读取完整市场目录；安装和启用继续由现有管理 store 与 CLI 负责。 */
-export function useRecommendedUiPlugins(target: {
+/** NCode 只投影已安装清单；插件管理 store 是安装和启停状态的唯一所有者。 */
+export function useInstalledUiPlugins(target: {
   workspacePath: string;
   workspaceIdentity?: string;
   sessionId: string | null;
   remoteSessionId?: string | null;
 }) {
-  const {
-    pluginManagementService: service,
-    skillsService,
-    pluginUiBridgeService: bridge,
-  } = useServices();
+  const { pluginManagementService: service, pluginUiBridgeService: bridge } = useServices();
+  const enabled = target.sessionId !== null && NCODE_FEATURE_POLICY.pluginPanels === "installed";
   const store = useScopedPluginManagementStore(service);
   const state = store();
-  const { recommendations, loading: configLoading } = useUiPluginRecommendations(
-    target.sessionId !== null,
-  );
   const key = JSON.stringify([
     target.workspacePath,
-    target.workspaceIdentity,
+    target.workspaceIdentity?.trim() || target.workspacePath,
     target.sessionId,
     target.remoteSessionId,
   ]);
@@ -47,7 +39,7 @@ export function useRecommendedUiPlugins(target: {
     let active = true;
     current.current = context;
     setReady(undefined);
-    if (service && target.sessionId !== null) {
+    if (service && enabled) {
       void store
         .getState()
         .initialize({
@@ -63,24 +55,26 @@ export function useRecommendedUiPlugins(target: {
       active = false;
       current.current = null;
     };
-  }, [context, service, store, target.workspaceIdentity, target.workspacePath, target.sessionId]);
-  const items = ready === context ? buildStoreItems(state) : [];
-  const entries = recommendations.flatMap((entry, index) => {
-    const item = items.find((candidate) => candidate.id === entry.pluginId);
-    if (
-      !item ||
-      recommendations.findIndex(
-        (candidate) =>
-          candidate.pluginId === entry.pluginId && candidate.surfaceId === entry.surfaceId,
-      ) !== index
-    )
-      return [];
-    return [{ ...entry, item }];
+  }, [context, service, store, target.workspaceIdentity, target.workspacePath, enabled]);
+  const items = enabled && ready === context ? buildStoreItems(state) : [];
+  // 远端推荐会漏掉个人/开发安装，还会展示未安装插件；以实际安装清单派生全部面板。
+  const seen = new Set<string>();
+  const entries = items.flatMap((item) => {
+    if (!item.installed || item.info?.packageStatus === "missing") return [];
+    return (item.info?.uiSurfaces ?? []).flatMap((surface) => {
+      const key = JSON.stringify([item.id, surface.id]);
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ pluginId: item.id, surfaceId: surface.id, item }];
+    });
   });
   const isCurrent = () => current.current === context;
   const prepare = async (item: StorePluginItem) => {
     // 读取 store 的即时状态，同插件重复点击被拦截，其他插件不受影响。
     if (!isCurrent() || !service || isItemBusy(item, store.getState())) return;
+    // 卸载与点击可能相邻发生，必须从唯一 store 确认仍已安装，不能用旧入口触发安装。
+    const installed = store.getState().plugins.find((plugin) => plugin.id === item.id);
+    if (!installed || installed.packageStatus === "missing") return;
     setFailure(undefined);
     try {
       const management = store.getState();
@@ -88,28 +82,17 @@ export function useRecommendedUiPlugins(target: {
         entry: "recommended_ui",
         client_kind: "desktop",
       });
-      const succeeded = !item.installed
-        ? item.restorable
-          ? await management.restoreBuiltin(item.id, operationService)
-          : await management.installPlugin(item.name, item.marketplace, operationService, "user")
-        : await management.setEnabled(item.id, true, operationService, "workspace");
+      const succeeded = await management.setEnabled(item.id, true, operationService, "workspace");
       if (!succeeded) {
         const message = store.getState().error;
         if (message && isCurrent()) setFailure({ context, message });
         return;
       }
-      if (!item.installed) {
-        await invalidateDeferredDraftSessionForSkillChange({
-          ...target,
-          reason: "settings-plugin-enabled",
-        });
-        await refreshSharedSkillStoreForWorkspace({ ...target, skillsService });
-      }
       // 成功只刷新安装/启用态，不替用户打开面板；旧目标完成也不能打开新会话。
     } catch (error) {
       if (isCurrent()) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.warn("[plugin-ui] 推荐插件操作失败", { pluginId: item.id, message });
+        logger.warn("[plugin-ui] 已安装插件启用失败", { pluginId: item.id, message });
         setFailure({ context, message });
       }
     }
@@ -122,20 +105,27 @@ export function useRecommendedUiPlugins(target: {
         workspaceIdentity: target.workspaceIdentity,
       });
       if (!isCurrent()) return undefined;
+      // 查询在途时可能已卸载/暂停；运行时旧响应不能越过当前安装事实重新打开面板。
+      const installed = store.getState().plugins.find((plugin) => plugin.id === pluginId);
+      if (
+        !installed?.enabled ||
+        installed.packageStatus === "missing" ||
+        !installed.uiSurfaces?.some((surface) => surface.id === surfaceId)
+      )
+        return null;
       return (
         surfaces.find((surface) => surface.pluginId === pluginId && surface.id === surfaceId) ??
         null
       );
     } catch (error) {
       if (!isCurrent()) return undefined;
-      logger.warn("[plugin-ui] 推荐面板读取失败", { pluginId, message: String(error) });
+      logger.warn("[plugin-ui] 已安装面板读取失败", { pluginId, message: String(error) });
       return null;
     }
   };
   return {
     entries,
-    loading:
-      target.sessionId !== null && (configLoading || (Boolean(service) && ready !== context)),
+    loading: enabled && Boolean(service) && ready !== context,
     resolveSurface,
     prepare,
     isBusy: (item: StorePluginItem) => isItemBusy(item, state),
