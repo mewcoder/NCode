@@ -1,3 +1,4 @@
+import { ZCODE_TELEMETRY_REPORT_ENDPOINT } from "@zcode/shared";
 import type { TelemetryRendererContext } from "@zcode/shared";
 
 interface StartupCoordinatorLike {
@@ -50,11 +51,10 @@ export function createAppTelemetryRuntime({
     reportDailyActive(latestRendererContext);
   }
 
-  const dailyActiveHeartbeat = setIntervalFn(
-    maybeReportDailyActive,
-    dailyActiveHeartbeatIntervalMs,
-  );
-  if (typeof dailyActiveHeartbeat === "object") {
+  const dailyActiveHeartbeat = ZCODE_TELEMETRY_REPORT_ENDPOINT
+    ? setIntervalFn(maybeReportDailyActive, dailyActiveHeartbeatIntervalMs)
+    : undefined;
+  if (dailyActiveHeartbeat && typeof dailyActiveHeartbeat === "object") {
     dailyActiveHeartbeat.unref?.();
   }
 
@@ -116,7 +116,7 @@ export function createAppTelemetryRuntime({
     },
 
     dispose(): void {
-      clearIntervalFn(dailyActiveHeartbeat);
+      if (dailyActiveHeartbeat) clearIntervalFn(dailyActiveHeartbeat);
     },
   };
 }

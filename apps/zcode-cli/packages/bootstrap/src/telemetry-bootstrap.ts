@@ -1,27 +1,25 @@
-import { getCapturedZCodeAgentTelemetryEnv } from "@zcode/shared";
 import {
-  prepareModelTelemetryEnv,
   shutdownPreparedModelTelemetry,
   type PrepareModelTelemetryOptions,
 } from "@zcode/telemetry";
 
 /**
- * 官方 CLI 异步入口在创建同步 App 之前调用；只把准备出的 device MID 放回业务 env，
- * OTLP Header 等私密配置仍保留在进程内捕获区，不进入 Tool/MCP 子进程环境。
+ * NCode CLI 入口剥离遥测环境，不初始化遥测 Owner 或生成设备标识。
  */
 export async function prepareZCodeTelemetryEnv(
   env: NodeJS.ProcessEnv = process.env,
   options: PrepareModelTelemetryOptions = {},
 ): Promise<NodeJS.ProcessEnv> {
-  const prepared = await prepareModelTelemetryEnv({
-    ...getCapturedZCodeAgentTelemetryEnv(),
-    ...env,
-  }, {
-    ...options,
-    productVersion: options.productVersion ?? env.ZCODE_APP_VERSION,
-  });
-  const deviceMid = prepared.ZCODE_TELEMETRY_DEVICE_MID;
-  return deviceMid ? { ...env, ZCODE_TELEMETRY_DEVICE_MID: deviceMid } : env;
+  // NCode 不创建模型遥测 Owner，也不向工具子进程传播上报配置。
+  void options;
+  return {
+    ...Object.fromEntries(
+      Object.entries(env).filter(
+        ([key]) => !key.startsWith("OTEL_") && !key.startsWith("ZCODE_TELEMETRY_"),
+      ),
+    ),
+    ZCODE_MODEL_TELEMETRY_ENABLED: "0",
+  };
 }
 
 /**

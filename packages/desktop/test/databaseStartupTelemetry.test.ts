@@ -1,9 +1,17 @@
 import { expect, it, vi } from "vitest";
 import type { DatabaseStartupState } from "@zcode/shared";
-const sdk = vi.hoisted(() => ({ sendCustom: vi.fn(), getConfig: () => ({ env: "prod" }) }));
+const sdk = vi.hoisted(() => ({
+  sendCustom: vi.fn(),
+  getConfig: vi.fn(() => ({ env: "prod" })),
+  deviceMid: vi.fn(() => "test-device"),
+}));
+vi.mock("@zcode/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@zcode/shared")>()),
+  ZCODE_ARMS_RUM_ENDPOINT: "https://rum.example.test",
+}));
 vi.mock("@arms/rum-electron", () => ({ default: sdk }));
 vi.mock("../src/main/desktopDeviceMid.js", () => ({
-  ensureDesktopDeviceMidSync: () => "test-device",
+  ensureDesktopDeviceMidSync: sdk.deviceMid,
 }));
 vi.mock("../src/main/logger.js", () => ({ logger: { info: vi.fn() } }));
 import { reportDatabaseStartupState } from "../src/main/databaseStartupTelemetry.js";
@@ -152,3 +160,29 @@ it.each(["failed", "starting_services"] as const)(
       expect(Object.keys(event.properties).length).toBeLessThanOrEqual(20);
   },
 );
+
+it("端点为空时不读取 SDK 配置或发送数据库启动遥测", async () => {
+  vi.resetModules();
+  vi.doMock("@zcode/shared", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@zcode/shared")>()),
+    ZCODE_ARMS_RUM_ENDPOINT: "",
+  }));
+  sdk.sendCustom.mockClear();
+  sdk.getConfig.mockClear();
+  sdk.deviceMid.mockClear();
+  const { reportDatabaseStartupState: report } =
+    await import("../src/main/databaseStartupTelemetry.js");
+  report({
+    schemaVersion: 1,
+    startupId: "off",
+    attemptId: "off",
+    sequence: 1,
+    phase: "ready",
+    startedAt: 0,
+    updatedAt: 1,
+    disk: [],
+  });
+  expect(sdk.sendCustom).not.toHaveBeenCalled();
+  expect(sdk.getConfig).not.toHaveBeenCalled();
+  expect(sdk.deviceMid).not.toHaveBeenCalled();
+});

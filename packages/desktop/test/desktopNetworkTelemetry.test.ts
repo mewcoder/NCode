@@ -2,6 +2,12 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 const ARMS_CUSTOM_PROPERTY_LIMIT = 20;
 
+// 仅为已有上报映射测试显式启用隔离的 SDK mock；NCode 默认关闭另由契约测试覆盖。
+vi.mock("@zcode/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@zcode/shared")>()),
+  ZCODE_ARMS_RUM_ENDPOINT: "https://example.test/rum-fixture",
+}));
+
 vi.mock("@arms/rum-electron", () => ({
   default: {
     sendCustom: vi.fn(),

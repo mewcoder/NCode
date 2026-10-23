@@ -1,6 +1,5 @@
 /* eslint-disable max-lines -- Desktop renderer bridge 聚合平台、远端 attachment 与启动编排契约。 */
 import { DatabaseStartupAdmission } from "./databaseStartupAdmission.js";
-import { initializeDesktopLocalTtft } from "./localTtftBootstrap.js";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import {
@@ -35,7 +34,6 @@ import type { IServiceAccessor } from "@zcode/services";
 import { syncAppTelemetryContext } from "../appTelemetryBridge.js";
 import { createDesktopPlatform } from "./desktopPlatform.js";
 import { startPerformanceTimelineCleanup } from "./performanceTimelineCleanup.js";
-import { initializeDesktopUserActionTrace } from "./userActionTraceBootstrap.js";
 import { buildRemoteWorkspaceSessionServicesForRegistration } from "./remoteWorkspaceSessionServices.js";
 import { handleSourceSettingsServicePortMessage } from "./sourceSettingsServicePortBridge.js";
 import {
@@ -148,11 +146,7 @@ let baseServicesForRemoteSessions: IServiceAccessor | null = null;
 const pendingRemoteWorkspaceServicePorts: RemoteWorkspaceServicePortRegistration[] = [];
 
 const desktopPlatform = createDesktopPlatform({ isLocalDevelopmentRuntime });
-initializeDesktopLocalTtft(desktopPlatform);
-initializeDesktopUserActionTrace({
-  platform: desktopPlatform,
-  isLocalDevelopmentRuntime,
-});
+// NCode 不启动动作采集：关闭端口不能仅阻止上传后仍创建观察器和事件订阅。
 
 /**
  * 等待 preload 通过 window.postMessage 转发 MessagePort。

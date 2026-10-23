@@ -79,7 +79,7 @@ describe("Window Host 的 Source 重连与数据库启动整合", () => {
   );
 
   it.each([true, false, undefined])(
-    "Source 遥测初始声明为 %s 时按能力门控，重连换代刷新能力并释放旧订阅",
+    "Source 重连换代时切换 services 且不再注册遥测订阅（初始能力=%s）",
     async (initialTelemetryCapability) => {
       const source = await loadHostSource();
       const node = source.statements.find(
@@ -179,24 +179,16 @@ describe("Window Host 的 Source 重连与数据库启动整合", () => {
       });
 
       expect(generations).toEqual([2]);
-      expect(registrations).toEqual([
-        {
-          generation: 1,
-          disposed: true,
-          config: clientConfig,
-          telemetrySupported: initialTelemetryCapability === true,
-        },
-        { generation: 2, disposed: false, config: clientConfig, telemetrySupported: true },
-      ]);
+      // NCode 停用遥测：Host 不再注册资源遥测订阅，重连换代也不重建。
+      expect(registrations).toEqual([]);
       await handle.dispose();
-      expect(registrations.every((registration) => registration.disposed)).toBe(true);
       reconnect?.({
         sourceServerId: "source-1",
         serverInfo: reconnectedInfo,
         services: { generation: 3 },
       });
       expect(handle.services.generation).toBe(2);
-      expect(registrations).toHaveLength(2);
+      expect(registrations).toHaveLength(0);
     },
   );
 
@@ -312,9 +304,6 @@ describe("Window Host 的 Source 重连与数据库启动整合", () => {
           }
         },
         createSourceServerManagementService: () => ({}),
-        wireLocalResourceTelemetry() {
-          events.push("local-telemetry");
-        },
         windowHostAttachmentRegistry: {
           attach() {
             events.push("base-attachment");
@@ -330,12 +319,12 @@ describe("Window Host 的 Source 重连与数据库启动整合", () => {
     finishPreparation();
     await complete;
     expect(createLocalServices).toHaveBeenCalledOnce();
+    // NCode 停用遥测：初始化不再调用 wireLocalResourceTelemetry。
     expect(events).toEqual([
       "prepare",
       "local-services",
       "source-directory",
       "source-manager",
-      "local-telemetry",
       "base-attachment",
       "source-background",
       "ready",

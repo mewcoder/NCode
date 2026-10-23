@@ -14,6 +14,12 @@ const getAllWindowsMock = vi.fn(() => [] as unknown[]);
 let logicalCpuCount = 8;
 let totalMemoryBytes = 16 * 1024 ** 3;
 
+// 仅为已有上报映射测试显式启用隔离的 SDK mock；NCode 默认关闭另由契约测试覆盖。
+vi.mock("@zcode/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@zcode/shared")>()),
+  ZCODE_ARMS_RUM_ENDPOINT: "https://example.test/rum-fixture",
+}));
+
 vi.mock("node:child_process", () => ({
   exec: execMock,
   execFile: execFileMock,

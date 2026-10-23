@@ -1,4 +1,5 @@
 import { ensureTelemetryDeviceMid } from "@zcode/services/node";
+import { ZCODE_ARMS_RUM_ENDPOINT, ZCODE_TELEMETRY_REPORT_ENDPOINT } from "@zcode/shared";
 
 export interface EnsureRemoteServerDeviceMidOptions {
   /** 仅测试注入；生产固定使用 services 的 ensureTelemetryDeviceMid。 */
@@ -7,7 +8,7 @@ export interface EnsureRemoteServerDeviceMidOptions {
 }
 
 /**
- * 远端 server 启动时确保所在主机拥有自己的 deviceMid。
+ * 远端 server 仅在构建期启用上报时确保所在主机拥有自己的 deviceMid。
  *
  * 远程工作区（SSH/WSL/Docker）里没有 Desktop main 进程，过去没有任何进程会在远端主机
  * 写设备身份文件，而 buildZCodeSourceHeaders() 只读不生成。3.12.0 起 Start Plan 权益由
@@ -21,6 +22,8 @@ export interface EnsureRemoteServerDeviceMidOptions {
 export async function ensureRemoteServerDeviceMid(
   options: EnsureRemoteServerDeviceMidOptions,
 ): Promise<string | undefined> {
+  // Main 的关闭判断不覆盖独立 Server；必须在初始化器之前短路，避免空端点仍写入设备身份文件。
+  if (!ZCODE_ARMS_RUM_ENDPOINT && !ZCODE_TELEMETRY_REPORT_ENDPOINT) return undefined;
   const ensureDeviceMid = options.ensureDeviceMid ?? ensureTelemetryDeviceMid;
   try {
     return await ensureDeviceMid();
