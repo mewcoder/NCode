@@ -31,7 +31,8 @@ describe("DBG01 开发者工具请求诊断", () => {
     await waitForV4AssistantMessageContaining("upstream-e2e-ok");
     await waitForV4ConversationState((state) => state.state === "idle", "主请求尚未结束");
     await browser.execute(() => {
-      localStorage.setItem("zcode:developer-tools:enabled", "1");
+      localStorage.removeItem("zcode:developer-tools:enabled");
+      localStorage.removeItem("zcode:token-debug:enabled");
       window.dispatchEvent(new Event("focus"));
     });
     const launcher = await $('[data-side-pane-open-tab-item="developer-tools"]');

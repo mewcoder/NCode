@@ -15,15 +15,18 @@ export function isDeveloperToolsStorageValueEnabled(value: string | null): boole
 
 export function readDeveloperToolsEnabled(storage: Storage | undefined = getLocalStorage()) {
   if (!storage) {
-    return false;
+    return true;
   }
-  return DEVELOPER_TOOLS_STORAGE_KEYS.some((key) => {
+  const values = DEVELOPER_TOOLS_STORAGE_KEYS.map((key) => {
     try {
-      return isDeveloperToolsStorageValueEnabled(storage.getItem(key));
+      return storage.getItem(key);
     } catch {
-      return false;
+      return null;
     }
   });
+  return (
+    values.every((value) => value === null) || values.some(isDeveloperToolsStorageValueEnabled)
+  );
 }
 
 function getLocalStorage(): Storage | undefined {
