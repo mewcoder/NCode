@@ -2611,6 +2611,14 @@ const enUS: Record<string, string> = {
     "You can type /workflow, and the model can also start a workflow on its own when your request calls for one.",
   "settings.dynamicWorkflow.defaultTag": "Default",
   "settings.dynamicWorkflow.saveError": "Could not save the dynamic workflow setting",
+  "settings.personalizationTitle": "Personalization",
+  "settings.customInstructions": "Global instructions",
+  "settings.customInstructionsFilePath": "File location: {path}",
+  "settings.customInstructionsPlaceholder":
+    "For example: Don't enter plan mode unless I explicitly ask.",
+  "settings.customInstructionsSaved": "Global instructions saved.",
+  "settings.customInstructionsLoadFailed": "Could not load global instructions.",
+  "settings.customInstructionsSaveFailed": "Could not save global instructions.",
   "settings.modelIoFullRetention": "Keep complete model I/O",
   "settings.modelIoFullRetentionDescription":
     "Keep complete model requests and responses without compression, size limits, or automatic deletion.",
@@ -2648,7 +2656,7 @@ const enUS: Record<string, string> = {
   "sidebar.settings.theme.zai-light": "Light theme",
   "sidebar.settings.theme.zai-dark": "Dark theme",
   "sidebar.settings.theme.dark": "Dark theme",
-  "settings.migration.title": "Migration",
+  "settings.migration.title": "Data import",
   "settings.migration.sectionTitle": "Claude History Migration",
   "settings.migration.sectionDescription":
     "Scan native Claude Code history on this machine, optionally filter by workspace and activity window, then import the selected sessions into their matching NCode task lists.",

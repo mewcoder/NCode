@@ -1605,3 +1605,31 @@ describe("settingsSyncService skills import", () => {
     }]);
   });
 });
+
+describe("NCode 全局指令", () => {
+  it("文件缺失时为空，保存后读取 UTF-8 内容", async () => {
+    const home = makeTempHome();
+    vi.stubEnv("HOME", home);
+    const { createSettingsSyncService } =
+      await import("../src/settings-sync/settingsSyncService.js");
+    const service = createSettingsSyncService({ settingService: createSettingService() });
+    await expect(service.getGlobalAgentsInstructionsPath()).resolves.toBe(
+      join(home, ".zcode", "AGENTS.md"),
+    );
+    await expect(service.readGlobalAgentsInstructions()).resolves.toBe("");
+    await service.writeGlobalAgentsInstructions("优先使用中文\n");
+    await expect(service.readGlobalAgentsInstructions()).resolves.toBe("优先使用中文\n");
+    expect(readFileSync(join(home, ".zcode", "AGENTS.md"), "utf8")).toBe("优先使用中文\n");
+  });
+  it("读取失败时抛出错误，避免把失败当成空文件覆盖", async () => {
+    const home = makeTempHome();
+    vi.stubEnv("HOME", home);
+    mkdirSync(join(home, ".zcode", "AGENTS.md"), { recursive: true });
+    const { createSettingsSyncService } =
+      await import("../src/settings-sync/settingsSyncService.js");
+    const service = createSettingsSyncService({ settingService: createSettingService() });
+    await expect(service.readGlobalAgentsInstructions()).rejects.toThrow();
+    await expect(service.writeGlobalAgentsInstructions("draft")).rejects.toThrow();
+    expect(lstatSync(join(home, ".zcode", "AGENTS.md")).isDirectory()).toBe(true);
+  });
+});

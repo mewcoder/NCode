@@ -2456,6 +2456,13 @@ const zhCN: Record<string, string> = {
     "除了 /workflow 命令，模型也会根据你的意图主动运行工作流。",
   "settings.dynamicWorkflow.defaultTag": "默认",
   "settings.dynamicWorkflow.saveError": "保存动态工作流设置失败",
+  "settings.personalizationTitle": "个性化",
+  "settings.customInstructions": "全局指令",
+  "settings.customInstructionsFilePath": "文件位置：{path}",
+  "settings.customInstructionsPlaceholder": "例如：不主动进入 Plan 模式，除非我明确要求。",
+  "settings.customInstructionsSaved": "全局指令已保存。",
+  "settings.customInstructionsLoadFailed": "读取全局指令失败。",
+  "settings.customInstructionsSaveFailed": "保存全局指令失败。",
   "settings.modelIoFullRetention": "完整保留模型 I/O",
   "settings.modelIoFullRetentionDescription":
     "保留完整的模型请求和响应，不自动压缩、限制大小或删除旧记录。",
@@ -2492,7 +2499,7 @@ const zhCN: Record<string, string> = {
   "sidebar.settings.theme.zai-light": "浅色主题",
   "sidebar.settings.theme.zai-dark": "深色主题",
   "sidebar.settings.theme.dark": "深色主题",
-  "settings.migration.title": "迁移",
+  "settings.migration.title": "数据导入",
   "settings.migration.sectionTitle": "Claude 历史迁移",
   "settings.migration.sectionDescription":
     "扫描本机 Claude Code 原生历史，可按 workspace 和时间范围筛选，再把选中的会话导入到对应的 NCode 任务列表。",

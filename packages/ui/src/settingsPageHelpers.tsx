@@ -108,7 +108,7 @@ export function GeneralSectionContent({
   onZCodeInteractionBehaviorChange,
   onAskUserQuestionAutoResolutionEnabledChange = async () => {},
   onModelIoFullRetentionEnabledChange = async () => {},
-  onOpenOnboardingDialog,
+  onOpenOnboardingDialog: _onOpenOnboardingDialog,
 }: {
   localePreference: LocalePreference;
   interfaceMode?: InterfaceMode;
@@ -859,19 +859,7 @@ export function GeneralSectionContent({
         />
       </SettingsGroupCard>
 
-      <SettingsGroupCard>
-        <SettingsRow
-          label={intl.formatMessage({ id: "settings.onboarding" })}
-          description={intl.formatMessage({
-            id: "settings.onboardingDescription",
-          })}
-          control={
-            <Button type="button" size="lg" variant="outline" onClick={onOpenOnboardingDialog}>
-              {intl.formatMessage({ id: "settings.onboardingOpen" })}
-            </Button>
-          }
-        />
-      </SettingsGroupCard>
+      {/* NCode 隐藏新手引导按钮。 */}
     </div>
   );
 }

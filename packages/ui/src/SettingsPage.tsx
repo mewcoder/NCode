@@ -1,6 +1,7 @@
 /* oxlint-disable eslint(max-lines) */
 import { NCODE_FEATURE_POLICY } from "@zcode/shared";
-import { ArrowLeft, Rocket, type LucideIcon } from "lucide-react";
+import { PersonalizationSection } from "@/settings/personalization/index.js";
+import { ArrowLeft, type LucideIcon } from "lucide-react";
 import { useStore } from "zustand";
 import {
   marketingNavigation,
@@ -1565,27 +1566,7 @@ export function SettingsPage({
                   })}
                 </div>
 
-                <SettingsSidebarButton
-                  icon={Rocket}
-                  label={intl.formatMessage({ id: "settings.onboarding" })}
-                  className="mt-4 border border-dashed border-border hover:border-border-hover"
-                  onClick={() => {
-                    runUserAction({
-                      input: {
-                        featureId: "settings.navigation",
-                        action: "open_onboarding",
-                        trigger: "button",
-                      },
-                      operation: requestOnboardingDialog,
-                      completed: { resultSource: "local_commit" },
-                      failureStage: "dialog_open",
-                    });
-                  }}
-                >
-                  <span className="text-ui-base text-foreground">
-                    {intl.formatMessage({ id: "settings.onboarding" })}
-                  </span>
-                </SettingsSidebarButton>
+                {/* NCode 隐藏新手引导入口，数据导入有独立设置分区。 */}
               </nav>
 
               <div className="max-lg:hidden">
@@ -1882,6 +1863,8 @@ export function SettingsPage({
                               }
                             />
                           </ServiceProvider>
+                        ) : activeSection === "personalization" ? (
+                          <PersonalizationSection />
                         ) : activeSection === "memory" ? (
                           <ServiceProvider services={localHostServices}>
                             {/* Memory catalog 始终使用本地 Host，避免远程 workspace 误读本机数据。 */}
