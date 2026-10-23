@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HostAgentProcessExceptionResponse } from "@zcode/shared";
 
 const { sendEvent, sendCustom } = vi.hoisted(() => ({ sendEvent: vi.fn(), sendCustom: vi.fn() }));
+// 仅为已有上报映射测试显式启用隔离的 SDK mock；NCode 默认关闭另由契约测试覆盖。
+vi.mock("@zcode/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@zcode/shared")>()),
+  ZCODE_ARMS_RUM_ENDPOINT: "https://example.test/rum-fixture",
+}));
+
 vi.mock("@arms/rum-electron", () => ({ default: { sendEvent, sendCustom, setConfig: vi.fn() } }));
 vi.mock("electron", () => ({ BrowserWindow: {} }));
 vi.mock("../src/main/desktopCrashCapture.js", () => ({ registerCrashEventMonitor: vi.fn() }));

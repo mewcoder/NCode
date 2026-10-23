@@ -1,6 +1,7 @@
-import armsRum from "@arms/rum-electron";
+import { desktopRum as armsRum } from "../telemetry/index.js";
 import {
   ZCODE_VERSION,
+  ZCODE_ARMS_RUM_ENDPOINT,
   type DatabaseStartupState,
   type ArmsCustomEventPayload,
 } from "@zcode/shared";
@@ -8,7 +9,6 @@ import { ensureDesktopDeviceMidSync } from "./desktopDeviceMid.js";
 import { buildFinalArmsCustomEventPayload } from "./desktopArmsCustomEvent.js";
 import { logger } from "./logger.js";
 
-const deviceMid = ensureDesktopDeviceMidSync();
 type Attempt = { lastStage: string; stageAt: number; databaseFinished: boolean; terminal: boolean };
 const attempts = new Map<string, Attempt>();
 
@@ -18,6 +18,8 @@ function send(
   value: number,
   properties: ArmsCustomEventPayload["properties"] = {},
 ) {
+  if (!ZCODE_ARMS_RUM_ENDPOINT) return;
+  const deviceMid = ensureDesktopDeviceMidSync();
   const eventId = `${state.attemptId}:${name}:${properties?.scope_id ?? properties?.database_id ?? state.sequence}`;
   try {
     const payload = buildFinalArmsCustomEventPayload({
@@ -39,11 +41,11 @@ function send(
         deviceMid,
         platform: process.platform,
         appVersion: ZCODE_VERSION,
-        armsEnv: armsRum.getConfig().env === "prod" ? "prod" : "local",
+        armsEnv: armsRum?.getConfig().env === "prod" ? "prod" : "local",
         rendererId: 0,
       },
     });
-    armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]);
+    armsRum?.sendCustom(payload as Parameters<NonNullable<typeof armsRum>["sendCustom"]>[0]);
   } catch {
     /* 上报入口失败不能阻断启动或失败提示。 */
   }
@@ -51,6 +53,7 @@ function send(
 
 /** 输入是 Host 聚合镜像；不访问数据库/故障磁盘、不写逐样本日志。 */
 export function reportDatabaseStartupState(state: DatabaseStartupState): void {
+  if (!ZCODE_ARMS_RUM_ENDPOINT) return;
   let attempt = attempts.get(state.attemptId);
   if (!attempt) {
     if (attempts.size >= 128) attempts.delete(attempts.keys().next().value!);

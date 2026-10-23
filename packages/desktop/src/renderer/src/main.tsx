@@ -1,5 +1,4 @@
 import { DatabaseStartupAdmission } from "./databaseStartupAdmission.js";
-import { initializeDesktopLocalTtft } from "./localTtftBootstrap.js";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import {
@@ -146,11 +145,7 @@ let baseServicesForRemoteSessions: IServiceAccessor | null = null;
 const pendingRemoteWorkspaceServicePorts: RemoteWorkspaceServicePortRegistration[] = [];
 
 const desktopPlatform = createDesktopPlatform({ isLocalDevelopmentRuntime });
-initializeDesktopLocalTtft(desktopPlatform);
-initializeDesktopUserActionTrace({
-  platform: desktopPlatform,
-  isLocalDevelopmentRuntime,
-});
+// NCode 不启动动作采集：关闭端口不能仅阻止上传后仍创建观察器和事件订阅。
 
 /**
  * 等待 preload 通过 window.postMessage 转发 MessagePort。

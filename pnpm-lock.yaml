@@ -799,9 +799,6 @@ importers:
 
   packages/desktop:
     dependencies:
-      '@arms/rum-electron':
-        specifier: ^0.0.3
-        version: 0.0.3(patch_hash=36855354851ea495bc47a03340b0484ff62836b739cad56904b8a69f18e2ae97)(@babel/runtime@7.29.7)(electron@41.0.3)
       '@babel/runtime':
         specifier: ^7.24.5
         version: 7.29.7
@@ -826,30 +823,9 @@ importers:
       '@modelcontextprotocol/ext-apps':
         specifier: 2.0.0
         version: 2.0.0(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/core@2.0.0)(@modelcontextprotocol/server@2.0.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(zod@4.6.5)
-      '@opentelemetry/api':
-        specifier: 1.9.1
-        version: 1.9.1
-      '@opentelemetry/exporter-metrics-otlp-proto':
-        specifier: 0.214.0
-        version: 0.214.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-trace-otlp-proto':
-        specifier: 0.214.0
-        version: 0.214.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources':
-        specifier: 2.6.1
-        version: 2.6.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-metrics':
-        specifier: 2.6.1
-        version: 2.6.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-base':
-        specifier: 2.6.1
-        version: 2.6.1(@opentelemetry/api@1.9.1)
       '@zcode/client':
         specifier: workspace:*
         version: link:../client
-      '@zcode/e2e-report':
-        specifier: workspace:*
-        version: link:../e2e-report
       '@zcode/provider':
         specifier: workspace:*
         version: link:../provider
@@ -868,9 +844,6 @@ importers:
       '@zcode/shared':
         specifier: workspace:*
         version: link:../shared
-      '@zcode/ui':
-        specifier: workspace:*
-        version: link:../ui
       '@zcode/zcode-cua':
         specifier: workspace:*
         version: link:../zcode-cua
@@ -917,12 +890,33 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
     devDependencies:
+      '@arms/rum-electron':
+        specifier: ^0.0.3
+        version: 0.0.3(patch_hash=36855354851ea495bc47a03340b0484ff62836b739cad56904b8a69f18e2ae97)(@babel/runtime@7.29.7)(electron@41.0.3)
       '@electron/asar':
         specifier: ^3.4.1
         version: 3.4.1
       '@electron/rebuild':
         specifier: ^4.0.3
         version: 4.0.3
+      '@opentelemetry/api':
+        specifier: 1.9.1
+        version: 1.9.1
+      '@opentelemetry/exporter-metrics-otlp-proto':
+        specifier: 0.214.0
+        version: 0.214.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-trace-otlp-proto':
+        specifier: 0.214.0
+        version: 0.214.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/resources':
+        specifier: 2.6.1
+        version: 2.6.1(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-metrics':
+        specifier: 2.6.1
+        version: 2.6.1(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-base':
+        specifier: 2.6.1
+        version: 2.6.1(@opentelemetry/api@1.9.1)
       '@tailwindcss/vite':
         specifier: ^4.2.2
         version: 4.2.2(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))
@@ -968,6 +962,12 @@ importers:
       '@wdio/spec-reporter':
         specifier: ^9.27.0
         version: 9.27.0
+      '@zcode/e2e-report':
+        specifier: workspace:*
+        version: link:../e2e-report
+      '@zcode/ui':
+        specifier: workspace:*
+        version: link:../ui
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

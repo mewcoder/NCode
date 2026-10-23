@@ -1,4 +1,4 @@
-import armsRum from "@arms/rum-electron";
+import { desktopRum as armsRum } from "../telemetry/index.js";
 import type { ZCodeMcpTelemetryEvent } from "@zcode/shared";
 
 interface DesktopMcpTelemetryContext {
@@ -21,7 +21,7 @@ export function reportMcpTelemetryToArms(
   if (!context || event.kind === "memory") return;
   const mapped = mapMcpTelemetryEvent(event);
   try {
-    armsRum.sendCustom({
+    armsRum?.sendCustom({
       group: mapped.group,
       name: mapped.name,
       properties: stringifyProperties({

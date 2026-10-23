@@ -23,6 +23,7 @@ vi.mock("@arms/rum-electron", () => ({
 }));
 
 vi.mock("@zcode/shared", () => ({
+  ZCODE_ARMS_RUM_ENDPOINT: "https://example.test/rum-fixture",
   mapZCodeEnvToArmsRumEnv: vi.fn(() => "local"),
 }));
 

@@ -46,6 +46,15 @@ modules:
   - id: web
     roots: [packages/web/src]
     managed: false
+  - id: desktop-telemetry
+    roots: [packages/desktop/src/telemetry]
+    managed: true
+    requires: [shared]
+    publicEntrypoints:
+      - packages/desktop/src/telemetry/index.ts
+      - packages/desktop/src/telemetry/contract.ts
+    layers: { adapters: . }
+    owner: desktop
   - id: desktop
     roots: [packages/desktop/src]
     managed: false

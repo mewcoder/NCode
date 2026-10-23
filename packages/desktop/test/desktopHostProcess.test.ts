@@ -392,12 +392,12 @@ describe("desktopHostProcess MCP 资源样本", () => {
   });
 });
 
-it("PRT-010: main 的真实 Host 消息分发即时报告 Bash 完成事实，拒绝非法属性", async () => {
+it("PRT-010: main 校验并转发 Bash 完成事实，关闭态不向 ARMS 上报", async () => {
   const { default: armsRum } = await import("@arms/rum-electron");
   const sendCustom = vi.spyOn(armsRum, "sendCustom").mockImplementation(() => {});
-  const { configureDesktopResourceTelemetry } =
-    await import("../src/main/desktopResourceTelemetry.js");
-  configureDesktopResourceTelemetry({
+  const resourceTelemetry = await import("../src/main/desktopResourceTelemetry.js");
+  const ingest = vi.spyOn(resourceTelemetry, "ingestToolExecResource");
+  resourceTelemetry.configureDesktopResourceTelemetry({
     deviceMid: "device",
     appVersion: "1.0",
     armsEnv: "prod",
@@ -433,21 +433,15 @@ it("PRT-010: main 的真实 Host 消息分发即时报告 Bash 完成事实，�
       runtimeSurface: "local",
       sample: { ...sample, command: "secret" },
     });
+    expect(ingest).not.toHaveBeenCalled();
     expect(sendCustom).not.toHaveBeenCalled();
     child.emit("message", { type: "tool-exec-resource", runtimeSurface: "local", sample });
-    expect(sendCustom).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        name: "perf_tool_exec_resource",
-        value: 40000,
-        properties: expect.objectContaining({
-          runtime_surface: "local",
-          platform: "windows",
-          tool_name: "bash",
-        }),
-      }),
-    );
+    // 保留协议校验和本地完成事实转发；上报映射由显式启用 SDK 的资源遥测夹具验证。
+    expect(ingest).toHaveBeenCalledExactlyOnceWith(sample, "local");
+    expect(sendCustom).not.toHaveBeenCalled();
   } finally {
     child.emit("exit", 0);
+    ingest.mockRestore();
     sendCustom.mockRestore();
   }
 });

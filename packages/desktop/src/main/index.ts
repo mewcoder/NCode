@@ -1,17 +1,16 @@
 import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import { installRequestSecurityDiagnostics } from "./request-security-edition/index.js";
-import { createLocalTtftExporter } from "./localTtftExporter.js";
 /* eslint-disable max-lines */
 import "./desktopEarlyDataBaseDirBootstrap.js";
 import "./desktopEarlyChromiumHardwareAccelerationBootstrap.js";
-import { powerMonitor, powerSaveBlocker } from "electron";
+import { powerSaveBlocker } from "electron";
 import { crashCapturePaths } from "./appCrashCaptureBootstrap.js";
+import { createDisabledTelemetrySink } from "../telemetry/index.js";
 import { armsInitPromise } from "./appARMSBootstrap.js";
 import {
   onLocalDatabaseStartupReady,
   configureDatabaseStartupQuit,
 } from "./databaseStartupRelay.js";
-import armsRum from "@arms/rum-electron";
 import { createArmsUserIdentitySync } from "./armsUserIdentity.js";
 import { ensureDesktopDeviceMidSync } from "./desktopDeviceMid.js";
 import {
@@ -47,7 +46,7 @@ import {
 } from "electron";
 import type { UtilityProcess as ElectronUtilityProcess } from "electron";
 import { spawn } from "node:child_process";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { homedir, hostname } from "node:os";
 import {
   createCredentialService,
@@ -59,8 +58,6 @@ import {
   buildRuntimeProcessEnvPatch,
   captureLoginShellEnvSnapshot,
   getConversationWorkspaceDir,
-  getDataBaseDir,
-  getZCodeDataRootDir,
   normalizeRuntimeProcessEnv,
   setDataBaseDir,
 } from "@zcode/services/node";
@@ -69,8 +66,10 @@ import {
   type Locale,
   type AppSettings,
   PlatformChannels,
+  ZCODE_ARMS_RUM_ENDPOINT,
   ZCODE_ENV,
   ZCODE_PRODUCT_FLAVOR,
+  ZCODE_TELEMETRY_REPORT_ENDPOINT,
   DEFAULT_ZCODE_ENDPOINT_ORIGIN,
   DEFAULT_LOCALE,
   TEST_ZCODE_ENDPOINT_ORIGIN,
@@ -104,8 +103,6 @@ import { TaskRealtimeBus } from "./taskRealtimeBus.js";
 import { createAppLaunchGate } from "./appLaunchGate.js";
 import { createAppLaunchCoordinator } from "./appLaunchCoordinator.js";
 import { createAppTelemetryRuntime } from "./appTelemetryRuntime.js";
-import { createRendererActionTraceBroker } from "./rendererActionTraceBroker.js";
-import { createRendererActionTraceExporter } from "./rendererActionTraceExporter.js";
 import { registerRendererActionTraceIpc } from "./rendererActionTraceIpc.js";
 import { createRendererActionTraceRollout } from "./rendererActionTraceRollout.js";
 import {
@@ -220,7 +217,6 @@ import {
 } from "./mcpUserDirectory/index.js";
 import { registerRemoteIpcHandlers } from "./desktopMainIpcRemote.js";
 import {
-  configureDesktopStabilityTelemetry,
   getStabilityLifecycleScene,
   notifyStabilityAppExit,
   notifyStabilityLifecycle,
@@ -231,25 +227,12 @@ import {
   reportAgentProcessExceptionToArms,
   registerDesktopStabilityMonitors,
   registerStabilityMainWindow,
-  scheduleReportPerfAppStartAfterMainViewReady,
 } from "./desktopStabilityTelemetry.js";
-import {
-  configureDesktopResourceTelemetry,
-  registerDesktopResourceTelemetry,
-  resolveResourceUsageScene,
-  stopDesktopResourceTelemetry,
-} from "./desktopResourceTelemetry.js";
+import { stopDesktopResourceTelemetry } from "./desktopResourceTelemetry.js";
 import { registerRendererHeapSampleIpc } from "./processResourceRendererHeapSource.js";
-import {
-  registerDesktopZCodeDataSizeTelemetry,
-  stopDesktopZCodeDataSizeTelemetry,
-} from "./desktopZCodeDataSizeTelemetry.js";
-import { configureDesktopMcpTelemetry, reportMcpTelemetryToArms } from "./desktopMcpTelemetry.js";
-import {
-  configureDesktopNetworkTelemetry,
-  registerDesktopNetworkTelemetry,
-  stopDesktopNetworkTelemetry,
-} from "./desktopNetworkTelemetry.js";
+import { stopDesktopZCodeDataSizeTelemetry } from "./desktopZCodeDataSizeTelemetry.js";
+import { reportMcpTelemetryToArms } from "./desktopMcpTelemetry.js";
+import { stopDesktopNetworkTelemetry } from "./desktopNetworkTelemetry.js";
 import { applyDesktopChromiumNetworkPolicies } from "./desktopNetworkPolicy.js";
 import { applyEmbeddedBrowserPermissionPolicy } from "./embeddedBrowserPermissionPolicy.js";
 import { createEmbeddedBrowserSitePermissionStore } from "./embeddedBrowserSitePermissionStore.js";
@@ -832,7 +815,11 @@ const webRemoteControlSharedHostAttachments = createWebRemoteControlSharedHostAt
   attachRemoteWorkspaceSessionHost: remoteSessionManager.attachRemoteWorkspaceSessionHost,
   logger,
 });
-const deviceMid = ensureDesktopDeviceMidSync();
+// NCode 关闭遥测与 ARMS 后没有上报消费方；此时生成 deviceMid 只会在用户目录落盘
+// telemetry-state.json，违反「无上报不创建设备身份」。只有构建期端点非空才读取或创建。
+const telemetryDeviceIdentityEnabled =
+  ZCODE_TELEMETRY_REPORT_ENDPOINT !== "" || ZCODE_ARMS_RUM_ENDPOINT !== "";
+const deviceMid = telemetryDeviceIdentityEnabled ? ensureDesktopDeviceMidSync() : "";
 // 帮助配置是公开读取，不能复用下面附带账号鉴权的灰度响应缓存。
 const readHelpConfig = createDesktopHelpConfigReader({
   appVersion: ZCODE_VERSION || app.getVersion(),
@@ -854,25 +841,17 @@ const rendererActionTraceRollout = createRendererActionTraceRollout({
   fetchConfig: electronClientConfigsFetcher,
   logger,
 });
-const localTtftExporter = createLocalTtftExporter({
-  env: { ...hostProcessLocalEnv, ...process.env },
-  version: ZCODE_VERSION || app.getVersion(),
-  logger,
-});
+// NCode 关闭遥测：保留批次 IPC 的兼容出口，不创建 OTel meter、队列或导出器。
+const localTtftExporter = createDisabledTelemetrySink();
 ipcMain.on(PlatformChannels.ReportLocalTtftBatch, (_event, batch: unknown) =>
   localTtftExporter.enqueue(batch),
 );
-const rendererActionTraceBroker = createRendererActionTraceBroker({
-  exporter: createRendererActionTraceExporter({
-    ...hostProcessLocalEnv,
-    ...process.env,
-  }),
-  logger,
-});
+const rendererActionTraceBroker = createDisabledTelemetrySink();
 let disposeRendererActionTraceIpc: (() => void) | undefined;
 const armsUserIdentitySync = createArmsUserIdentitySync({
   deviceMid,
-  setUser: (user) => armsRum.setConfig("user", user),
+  // NCode 不初始化 ARMS，身份同步也随之停用，避免访问未初始化的 SDK。
+  setUser: () => {},
 });
 const webRemoteControlAppVersion = ZCODE_VERSION || app.getVersion();
 const defaultZCodeEndpointUrls = buildZCodeEndpointUrls(DEFAULT_ZCODE_ENDPOINT_ORIGIN, {
@@ -2469,62 +2448,17 @@ app.whenReady().then(async () => {
   // ARMS init 完成后首次写入 user.name（落 device_mid）
   void armsUserIdentitySync.refresh();
 
-  configureDesktopStabilityTelemetry({
-    deviceMid,
-    platform: process.platform,
-    appVersion: ZCODE_VERSION,
-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-  });
-  configureDesktopResourceTelemetry({
-    deviceMid,
-    platform: process.platform,
-    appVersion: ZCODE_VERSION,
-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-  });
-  configureDesktopMcpTelemetry({
-    deviceMid,
-    appVersion: ZCODE_VERSION,
-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-  });
-  configureDesktopNetworkTelemetry({
-    deviceMid,
-    platform: process.platform,
-    appVersion: ZCODE_VERSION,
-    armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-  });
+  // NCode 不装配遥测上下文或启动性能上报。
   registerDesktopStabilityMonitors(logger, crashCapturePaths);
-  registerDesktopResourceTelemetry(logger);
   // 主窗口 renderer 的 60 秒 heap 样本入口；随 App 生命周期常驻，只注册一次。
+  // NCode 不启动资源占用、数据体积与网络三类专属遥测采样，heap 样本入口仍保留给本地排错。
   registerRendererHeapSampleIpc();
-  const defaultDataBaseDir = process.env.HOME?.trim() || homedir();
-  registerDesktopZCodeDataSizeTelemetry({
-    context: {
-      appVersion: ZCODE_VERSION,
-      armsEnv: mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv),
-      dataRootKind:
-        resolve(getDataBaseDir()) === resolve(defaultDataBaseDir) ? "default" : "custom",
-      deviceMid,
-      platform: process.platform,
-    },
-    getSystemIdleTimeSeconds: () => powerMonitor.getSystemIdleTime(),
-    isAppBackground: () => resolveResourceUsageScene() === "background",
-    isZCodeBusy: () => getRunningAgentSessionCount() > 0,
-    logger,
-    rootPath: getZCodeDataRootDir(),
-    stateFile: join(app.getPath("userData"), "zcode-data-size-telemetry.json"),
-  });
-  registerDesktopNetworkTelemetry(logger);
 
   // NCode 停用应用内升级，打包版与开发版都不再做远端强制升级检查。
   logger.info("[force-update] NCode 跳过远端强制升级检查");
 
   logger.info("[startup] 创建主窗口");
   await primaryWindowCoordinator.ensurePrimaryWindow("app-ready");
-
-  const primaryWindow = getApplicationWindowsExcludingCuaIndicator()[0];
-  if (primaryWindow) {
-    scheduleReportPerfAppStartAfterMainViewReady(primaryWindow.webContents, logger);
-  }
 
   // 启动后检测 CPU 架构是否匹配（如 Apple 芯片误装 x64 版本经 Rosetta 转译运行），
   // 命中后异步弹框提示安装原生架构版本，不阻塞主界面。
