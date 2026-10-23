@@ -129,9 +129,10 @@
 - **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。
 - **公开与社区**：解析官方市场源码目录时，为缺少 `publisherType` 的条目按直接目录 `plugins/<name>` / `external_plugins/<name>` 补齐公开/社区归属；接受可选 `./` 前缀与结尾 `/`。显式字段优先，已有缓存同样生效；其他市场、未知路径、嵌套或越级路径不推断。仅补充展示字段，不改变插件身份或权限。
 - **目录合并**：插件 adapter 继续拥有市场记录与目录；仓库刷新后保留应用生成的 bundled/remote 两个分片及合并目录，仓库同名文件不能替换本地分片。远端同名条目优先，重复刷新、应用重启及内置播种后目录不丢失，网络失败保留已有缓存。
+- **内置搜图插件**：不内置、不打包 `image-search`，默认启用集合不含 `image-search@zcode-plugins-official`；商店目录、已安装管理及可恢复内置插件中均不出现该条目。移除官方 definition 与默认启用 id，并同步桌面 staging、CLI SEA 和远端 Agent 产物清单；已有本地缓存不再播种，旧配置中的同名条目不影响启动。
 - **目标**：在商店浏览、搜索、分类及精选中隐藏金融（`finance`）分类插件。
 - **修改点**：在商店列表生成各类展示结果前统一过滤；已安装插件仍可从管理页停用或卸载。
-- **位置**：默认来源在 [plugin-marketplaces.ts](packages/shared/src/plugin-marketplaces.ts)；登记、迁移与条目解析在 [marketplace.ts](apps/zcode-cli/packages/adapters/src/plugins/marketplace.ts)，定位 `ensureDefaultPluginMarketplaces`、`fillOfficialPublisherType`；分片合并在 [official-marketplace.ts](apps/zcode-cli/packages/adapters/src/plugins/official-marketplace.ts)。商店投影在 [PluginStoreListView.tsx](packages/ui/src/settings/PluginStoreListView.tsx)、[pluginStoreListing.ts](packages/ui/src/settings/pluginStoreListing.ts)，定位 `resolvePluginStoreSegment`、`resolveStoreCategory`。
+- **位置**：默认来源在 [plugin-marketplaces.ts](packages/shared/src/plugin-marketplaces.ts)；登记、迁移与条目解析在 [marketplace.ts](apps/zcode-cli/packages/adapters/src/plugins/marketplace.ts)，定位 `ensureDefaultPluginMarketplaces`、`fillOfficialPublisherType`；分片合并在 [official-marketplace.ts](apps/zcode-cli/packages/adapters/src/plugins/official-marketplace.ts)。商店投影在 [PluginStoreListView.tsx](packages/ui/src/settings/PluginStoreListView.tsx)、[pluginStoreListing.ts](packages/ui/src/settings/pluginStoreListing.ts)，定位 `resolvePluginStoreSegment`、`resolveStoreCategory`。搜图移除在 [official-plugin-definitions.ts](apps/zcode-cli/packages/bootstrap/src/app/official-plugin-definitions.ts)、[prepare-agent-node-bundle.mjs](packages/desktop/scripts/prepare-agent-node-bundle.mjs)、[sea-official-plugin-assets.mjs](apps/zcode-cli/packages/cli/scripts/sea-official-plugin-assets.mjs)、[zcodeAgentOfficialPluginAssets.ts](packages/server/src/remote/zcodeAgentOfficialPluginAssets.ts)。
 
 ## 二、定制修改
 
@@ -416,6 +417,7 @@ sequenceDiagram
 - [ ] “公开”与“社区”正确分开：`plugins/` 条目在公开，`external_plugins/` 条目在社区；显式归属优先，旧缓存同样正确，个人来源不因该规则进入公开或社区。
 - [ ] 商店首页、分类、搜索和精选均无金融分类插件。
 - [ ] 普通官方插件可浏览、查看详情、安装及启停；已有插件可管理。
+- [ ] 插件市场、已安装列表和可恢复内置插件中均无“搜图 / Image Search”；默认启用集合不含 `image-search@zcode-plugins-official`。
 - [ ] 无登录购买、套餐升级或奖励入口；加载、无结果及失败状态有明确提示。
 - [ ] 商店筛选没有误关其他分类，安装管理没有因浏览筛选丢失已有插件。
 
