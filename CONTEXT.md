@@ -52,9 +52,8 @@ _Avoid_: 与 Featured 混用
 列表页顶部的一排已安装插件图标，点击图标进入详情页。
 _Avoid_: 已安装列表（那是 Manage Installed 视图的事）
 
-**Manage Installed View（管理已安装视图）**:
-已安装条右侧齿轮进入的管理界面，承载插件级启停开关、更新、卸载、启用状态筛选。
-_Avoid_: Installed tab（旧 IA 术语，已废弃）
+**Installed UI Panels（已安装界面面板）**:
+NCode Side Pane 的打开标签页和菜单从当前工作区已安装插件的实际清单 `uiSurfaces` 派生，包含个人来源、开发安装和孤立安装。暂停插件可先启用，启用后打开真实面板；未安装、缺包、待恢复条目不显示。客户端配置接口不再请求，市场内完整 UI 专区继续使用市场目录。
 
 ### 元数据
 
