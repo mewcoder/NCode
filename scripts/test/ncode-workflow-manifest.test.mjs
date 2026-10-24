@@ -34,6 +34,8 @@ test("仓库内 ncode 专属文件已全部登记（反向漂移检测）", () =
   const registered = new Set(NCODE_WORKFLOW_FILES);
   const unregistered = [];
   for (const { dir, pattern } of NCODE_WORKFLOW_DISCOVERY_GLOBS) {
+    // 目录不存在（如 3.14.3 无测试体系）时跳过，与 CLI --check 同守卫。
+    if (!existsSync(join(repoRoot, dir))) continue;
     for (const name of readdirSync(join(repoRoot, dir)).filter((entry) => pattern.test(entry))) {
       const relative = `${dir}/${name}`;
       if (!registered.has(relative)) unregistered.push(relative);
