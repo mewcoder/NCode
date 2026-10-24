@@ -18,8 +18,6 @@ import {
   WandSparkles,
   Keyboard,
   FileSearch,
-  UserRoundCog,
-  Import as ImportIcon,
 } from "lucide-react";
 import { isSettingsSectionEnabled, type SettingsSectionId } from "@/lib/settingsNavigation.js";
 import type { Theme } from "@/useTheme.js";
@@ -33,7 +31,7 @@ export const THEME_MODES: Array<{
   { mode: "zai-light", icon: Sun },
 ];
 
-export type SettingsSectionGroupId = "basics" | "agentCapabilities" | "dataAndStats";
+type SettingsSectionGroupId = "basics" | "agentCapabilities" | "dataAndStats";
 
 interface SettingsSectionDefinition {
   id: SettingsSectionId;
@@ -74,12 +72,6 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     icon: Package,
     titleId: "settings.modelProviderTitle",
     groupId: "basics",
-  },
-  {
-    id: "personalization",
-    icon: UserRoundCog,
-    titleId: "settings.personalizationTitle",
-    groupId: "agentCapabilities",
   },
   {
     id: "memory",
@@ -164,12 +156,6 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     titleId: "settings.usageTitle",
     groupId: "dataAndStats",
   },
-  {
-    id: "migration",
-    icon: ImportIcon,
-    titleId: "settings.migration.title",
-    groupId: "dataAndStats",
-  },
 ];
 
 // 兼容既有只读消费者：默认配置代表不带桌面平台能力的 Web 视图；
@@ -178,7 +164,7 @@ export const SETTINGS_SECTIONS = BASE_SETTINGS_SECTIONS.filter(
   (section) => section.id !== "computerUse" && isSettingsSectionEnabled(section.id),
 );
 
-export interface SettingsPageConfigOptions {
+interface SettingsPageConfigOptions {
   isDesktop?: boolean;
   isMacDesktop?: boolean;
   isWindowsDesktop?: boolean;

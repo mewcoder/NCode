@@ -1,13 +1,5 @@
 /* oxlint-disable eslint(max-lines) */
-import { NCODE_FEATURE_POLICY } from "@zcode/shared";
-import { PersonalizationSection } from "@/settings/personalization/index.js";
-import { ArrowLeft, type LucideIcon } from "lucide-react";
-import { useStore } from "zustand";
-import {
-  marketingNavigation,
-  finishMarketingNavigation,
-  marketingSettingsSections,
-} from "@/lib/marketingNavigation.js";
+import { ArrowLeft, Rocket, type LucideIcon } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -16,9 +8,9 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode,
 } from "react";
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import type {
   AppSettings,
-  DesktopCloseToTrayCapability,
   IntegratedTerminalShellOption,
   IntegratedTerminalShellSelection,
   Locale,
@@ -280,7 +272,6 @@ export function SettingsPage({
   isDesktop,
   isWindowsDesktop,
   isMacDesktop,
-  isWebRemoteControl = false,
   windowsWindowControlsRightPaddingPx: _windowsWindowControlsRightPaddingPx,
   captionWorkspacePath,
   onBack,
@@ -293,7 +284,6 @@ export function SettingsPage({
   isDesktop?: boolean;
   isWindowsDesktop?: boolean;
   isMacDesktop?: boolean;
-  isWebRemoteControl?: boolean;
   windowsWindowControlsRightPaddingPx?: number;
   captionWorkspacePath?: string | null;
   onBack?: () => void;
@@ -328,49 +318,6 @@ export function SettingsPage({
     return visibleInitialSection;
   });
   const [pluginTab, setPluginTab] = useState(() => consumePendingSettingsPluginTab());
-  // Linux 关闭驻留托盘能力查询（spec：docs/desktop/linux-close-to-tray.md）：打开设置页时
-  // 经 platform IPC 触发 main 侧探测（带 stale 缓存），用户装完 AppIndicator 扩展重开
-  // 设置页即可解除置灰；Web/远控无桥不查询。
-  const [linuxCloseToTrayCapability, setLinuxCloseToTrayCapability] =
-    useState<DesktopCloseToTrayCapability | null>(null);
-  useEffect(() => {
-    if (!isLinuxDesktop) {
-      return;
-    }
-    let cancelled = false;
-    platform
-      .getCloseToTrayCapability?.()
-      .then((capability) => {
-        if (!cancelled) {
-          setLinuxCloseToTrayCapability(capability);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isLinuxDesktop, platform]);
-  const linuxCloseToTray = isLinuxDesktop
-    ? {
-        // 探测中按不可用锁定，防止查询完成前误开导致关窗失联
-        disabled: linuxCloseToTrayCapability === null || !linuxCloseToTrayCapability.supported,
-        unavailable: linuxCloseToTrayCapability?.supported === false,
-        gnomeLikeHint:
-          linuxCloseToTrayCapability?.supported === false &&
-          linuxCloseToTrayCapability.gnomeLikeWithoutTray,
-      }
-    : undefined;
-  const marketingRequest = useStore(marketingNavigation, (state) => state.request);
-  useEffect(() => {
-    if (marketingRequest?.target.page !== "settings") return;
-    const target = marketingRequest.target;
-    const section = target.section ? marketingSettingsSections[target.section] : activeSection;
-    if (!settingsSections.some((item) => item.id === section)) {
-      finishMarketingNavigation(marketingRequest.id, new Error("marketing_navigation_unavailable"));
-    } else if (activeSection === section && !target.provider_id) {
-      finishMarketingNavigation(marketingRequest.id);
-    }
-  }, [activeSection, marketingRequest, settingsSections]);
   const [pluginNavigationOrigin, setPluginNavigationOrigin] = useState(() =>
     consumePendingSettingsPluginOrigin(),
   );
@@ -476,6 +423,7 @@ export function SettingsPage({
   // 商品门禁，导致仅有 Team Plan 的账号仍然没有 Usage 来源。企业商品只依赖对应的
   // Team Account Provider，个人额度继续依赖 Individual Provider，避免两个产品身份串线。
   const usageBigmodelEnterpriseProducts = useEnterpriseCodingPlanProducts({
+    // NCode 关闭官方账号查询：不发起企业商品请求。
     enabled:
       NCODE_FEATURE_POLICY.officialAccountQueries &&
       !usageProviderSettingsLoading &&
@@ -608,6 +556,7 @@ export function SettingsPage({
     usageBigmodelEnterpriseProducts.loading ||
     usageZaiEnterpriseProducts.loading;
   const [initialModelProviderTarget] = useState(() => consumePendingSettingsModelProviderTarget());
+  const { openCodingPlanUpgrade } = useCodingPlanUpgradeDialog();
   const [pendingModelProviderTarget, setPendingModelProviderTarget] = useState<
     SettingsModelProviderTarget | undefined
   >(() => initialModelProviderTarget);
@@ -648,8 +597,6 @@ export function SettingsPage({
   }, [selectedUsageCodingPlanSource, usageActiveTab, usageCodingPlanSources]);
   const setNewUserOnboardingOpen = useZCodeStore((state) => state.setNewUserOnboardingOpen);
   const requestOnboardingDialog = () => setNewUserOnboardingOpen(true);
-  // NCode 数据导入分区直接打开上游统一导入流程（OnboardingDialog 的 migration 入口）。
-  const requestOnboardingDialogEntry = useZCodeStore((state) => state.requestOnboardingDialog);
   const setActiveSettingsSection = useCallback(
     (section: SettingsSectionId, fallbackSection: SettingsSectionId = activeSection) => {
       const resolvedSection = resolveSettingsSection(section, fallbackSection);
@@ -745,7 +692,7 @@ export function SettingsPage({
     useState(false);
   const [taskAutoArchiveEnabled, setTaskAutoArchiveEnabled] = useState(false);
   const [taskAutoArchiveOlderThanDays, setTaskAutoArchiveOlderThanDays] = useState(7);
-  const [closeToTrayOnWindows, setCloseToTrayOnWindows] = useState(Boolean(isWindowsDesktop));
+  const [closeToTrayOnWindows, setCloseToTrayOnWindows] = useState(true);
   const [
     desktopChromiumHardwareAccelerationEnabled,
     setDesktopChromiumHardwareAccelerationEnabled,
@@ -830,7 +777,7 @@ export function SettingsPage({
         );
         setTaskAutoArchiveEnabled(settings.taskAutoArchiveEnabled ?? false);
         setTaskAutoArchiveOlderThanDays(settings.taskAutoArchiveOlderThanDays ?? 7);
-        setCloseToTrayOnWindows(settings.closeToTrayOnWindows ?? Boolean(isWindowsDesktop));
+        setCloseToTrayOnWindows(settings.closeToTrayOnWindows ?? true);
         setDesktopChromiumHardwareAccelerationEnabled(
           settings.desktopChromiumHardwareAccelerationEnabled ?? true,
         );
@@ -863,7 +810,7 @@ export function SettingsPage({
           });
       })
       .catch(() => {});
-  }, [localHostServices.systemService, services.settingService, isWindowsDesktop]);
+  }, [localHostServices.systemService, services.settingService]);
 
   useEffect(() => {
     if (!sharedSettings) {
@@ -1425,7 +1372,7 @@ export function SettingsPage({
 
           {usesInlineWindowControls ? (
             <div className="absolute right-1 top-1 z-30 mt-px mr-px flex h-12 items-center gap-0.5 px-2 pointer-events-auto [app-region:no-drag]">
-              {/* Bug 原因：Windows/Linux 设置页仍保留旧 caption 下箭头，与主界面和 macOS 的帮助入口不一致。
+              {/* Windows/Linux 设置页仍保留旧 caption 下箭头，与主界面和 macOS 的帮助入口不一致。
                   统一复用问号帮助按钮，并让它在普通 flex 流中紧邻自绘窗控。
                   Settings 的独立标题层还需计入 4px 外层留白和 1px 边框，才能与 Workspace 控制组对齐。 */}
               <WorkspaceHelpMenuButton isDesktop={Boolean(isDesktop)} />
@@ -1553,7 +1500,27 @@ export function SettingsPage({
                   })}
                 </div>
 
-                {/* NCode 隐藏新手引导入口，数据导入有独立设置分区。 */}
+                <SettingsSidebarButton
+                  icon={Rocket}
+                  label={intl.formatMessage({ id: "settings.onboarding" })}
+                  className="mt-4 border border-dashed border-border hover:border-border-hover"
+                  onClick={() => {
+                    runUserAction({
+                      input: {
+                        featureId: "settings.navigation",
+                        action: "open_onboarding",
+                        trigger: "button",
+                      },
+                      operation: requestOnboardingDialog,
+                      completed: { resultSource: "local_commit" },
+                      failureStage: "dialog_open",
+                    });
+                  }}
+                >
+                  <span className="text-ui-base text-foreground">
+                    {intl.formatMessage({ id: "settings.onboarding" })}
+                  </span>
+                </SettingsSidebarButton>
               </nav>
 
               <div className="max-lg:hidden">
@@ -1683,8 +1650,6 @@ export function SettingsPage({
                             setInterfaceMode={setInterfaceMode}
                             isDesktop={isDesktop}
                             isWindowsDesktop={isWindowsDesktop}
-                            isLinuxDesktop={isLinuxDesktop}
-                            linuxCloseToTray={linuxCloseToTray}
                             platform={platform}
                             notificationEnabled={notificationEnabled}
                             notificationSoundEnabled={notificationSoundEnabled}
@@ -1848,8 +1813,6 @@ export function SettingsPage({
                               }
                             />
                           </ServiceProvider>
-                        ) : activeSection === "personalization" ? (
-                          <PersonalizationSection />
                         ) : activeSection === "memory" ? (
                           <ServiceProvider services={localHostServices}>
                             {/* Memory catalog 始终使用本地 Host，避免远程 workspace 误读本机数据。 */}
@@ -1867,7 +1830,6 @@ export function SettingsPage({
                             isDesktop={Boolean(isDesktop)}
                             isMacDesktop={Boolean(isMacDesktop)}
                             isWindowsDesktop={Boolean(isWindowsDesktop)}
-                            isWebRemoteControl={isWebRemoteControl}
                             initialTab={pluginTab}
                             initialScopeKey={pluginScopeKey}
                             workspacePath={activeWorkspacePath}
@@ -1884,7 +1846,6 @@ export function SettingsPage({
                           <PluginsSection
                             key={`mcp:${settingsSectionNavigationVersion}`}
                             mode="mcp"
-                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}
@@ -1898,7 +1859,6 @@ export function SettingsPage({
                           <PluginsSection
                             key={`skill:${settingsSectionNavigationVersion}`}
                             mode="skill"
-                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}
@@ -1910,7 +1870,7 @@ export function SettingsPage({
                           />
                         ) : activeSection === "migration" ? (
                           <MigrationSection
-                            onOpenImport={() => requestOnboardingDialogEntry("migration")}
+                            onOpenImport={() => setNewUserOnboardingOpen(true)}
                             isDesktop={isDesktop}
                           />
                         ) : activeSection === "usage" ? (
@@ -1935,7 +1895,6 @@ export function SettingsPage({
                         ) : activeSection === "commands" ? (
                           <PluginsSection
                             mode="command"
-                            isWebRemoteControl={isWebRemoteControl}
                             workspacePath={activeWorkspacePath}
                             workspaceIdentity={activeWorkspaceIdentity}
                             onCreateTask={onCreateTask}

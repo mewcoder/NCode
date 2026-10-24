@@ -1,8 +1,5 @@
-import {
-  NCODE_FEATURE_POLICY,
-  createDynamicWorkflowClientConfig,
-  type ApiClient,
-} from "@zcode/shared";
+import { NCODE_FEATURE_POLICY, createDynamicWorkflowClientConfig } from "@zcode/shared";
+import type { ApiClient } from "@zcode/shared";
 import type { ICredentialService } from "../credential/credential.js";
 import type { ICodingPlanSubscriptionService } from "./codingPlanSubscription.js";
 import { BigModelCodingPlanSubscriptionProvider } from "./bigmodelCodingPlanSubscriptionProvider.js";
@@ -13,10 +10,6 @@ interface CodingPlanSubscriptionServiceDependencies {
   apiClient: ApiClient;
   credentialService: Pick<ICredentialService, "load">;
   resolveOffPeakModelSelectionView?: () => Promise<ModelSelectionView>;
-  /**
-   * 保留上游装配接口；NCode 固定使用 onDemand，不读取旧用户选择。
-   */
-  resolveDynamicWorkflowUserMode?: () => Promise<unknown>;
 }
 
 /**
@@ -50,8 +43,6 @@ export function createCodingPlanSubscriptionService(
     getStaticProducts: async () => ({}),
     getStaticTeamProducts: async () => ({}),
     getStartPlanPreview: async () => null,
-    getManualClaimPlanPreviews: async () => ({ plans: [] }),
-    claimManualPlan: async () => ({ success: false, code: 403, message: "" }),
     // 入口关闭后旧调用也不能访问官方灰度，模型视图不再加载。
     getOffPeakClientConfig: async (options) =>
       NCODE_FEATURE_POLICY.offPeakAvailability
@@ -61,9 +52,7 @@ export function createCodingPlanSubscriptionService(
     getDynamicWorkflowClientConfig: async () =>
       createDynamicWorkflowClientConfig(NCODE_FEATURE_POLICY.dynamicWorkflowMode, "default"),
     getModelContextBudgetStrategy: () => bigmodelProvider.getModelContextBudgetStrategy(),
-    getBillingDiscount: async () => undefined,
-    getRequestVerificationConfig: async () => null,
-    getForceUpdateConfig: async () => null,
+    getForceUpdateConfig: () => bigmodelProvider.getForceUpdateConfig(),
     productInfo: (request) => bigmodelProvider.productInfo(request),
     preview: (request) => bigmodelProvider.preview(request),
     createSign: (request) => bigmodelProvider.createSign(request),

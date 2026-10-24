@@ -528,3 +528,13 @@ sequenceDiagram
 - 补齐 NCode case-local fixture 与 manifest；现有 checker 和默认回放已识别 `ncode` 领域。`desktop-e2e-20261023-235951-930` 在未指定 fixture 路径的 strict 模式下 2/2 通过；两个 case 的 fixture check 通过，66 项相关根 UT 与 4 项工作流清单测试通过。该轮候选尚为 pending，不视为正式准入。
 - 后续用户以「你决定」委托审阅。Codex 核对上述截图、请求断言和 fixture 合同后，决定将 NHELP-01 / NWF-01 转入 `packages/desktop/test/e2e/ncode/` 正式目录；复用现有迁移事务，dry run 后 apply，两个正式 fixture check、默认正式集合发现与工作流清单检查通过。没有新增测试框架，也未加入 Docker 套件。最终正式回放及代码检查结果见补验记录。
 - 正式回放 `desktop-e2e-20261024-010650-751` 在未启用 manual-review、未指定 fixture 路径的 strict 模式下 **2/2 通过**；66 项相关根 UT、4 项工作流清单检查、根与 E2E 类型检查及架构检查通过。Lint 0 errors / 87 条既有 warnings。
+
+## 八、v3.14.3 全流程移植（2026-10-24，工作流第三轮实测）
+
+在官方 v3.14.3 树完成 14 提交序列移植（此前压测量化 127 冲突文件后停止，本轮收敛到全绿）：
+
+- **收敛判定**：锚点 37/37 + 策略值一致（registry 两处本版适配：动态工作流锚点落点改为 codingPlan 服务——三版通一；Highspeed/启动重连等 3.15+ 机制由 `requiresPattern`/`upstreamIntroducedIn` 自动跳过）；typecheck 0 错误；lint 0 错误（76 warnings）；architecture:check 0 违规；node:test 工具链 28/28。
+- **第 7 个工作流发现（重要）**：官方 3.14.3 **没有 vitest/wdio 测试体系**（仅 4 个孤立 .test.ts，无根 runner、无 CI 测试）——整套 1900+ 测试是 3.15 引入的。因此：① 移植时 217 个嫁接测试文件全部删除（处置表登记"3.14 无测试体系"）；② 验收门禁降为 CLI 形态（`--validate` 锚点 CLI + node:test 工具测试 + typecheck/lint/architecture），全量单测 N/A 属于当版事实而非缺漏；③ 锚点 vitest 文件（ncode-closure-anchors.test.ts 等）本版不适用，锚点验收走 CLI。
+- **结构差异**：无 desktop-telemetry 模块、无 Highspeed、无启动重连批次、无 plugin-ui 面板、无个人化分区（settings isolation 为 3.15 特性，本版不引入）、无 request-security-edition；分享/账号/Bot/内置 Provider 刷新等关闭按 3.15.1 语义以本版结构落地（五大关闭意图集中在 node.ts + codingPlan/setting/usageStats 服务 + UI 呼叫链）。
+- **port-plan 校准**：基线测试固定到校准 ref `fec06cb4`（15 提交），不再随分支 tip 漂移；三分支同步该修法。
+- **跨版本移植结论复验**：本轮 127 冲突 + 网状回退（三大件整文件回退官方 + 意图重放）证明"逐版本移植"硬约束正确；但"不可收敛"修正为"可收敛但成本约 2.5 倍且需整文件回退策略"——按需可用作应急路径（如必须支持旧版本）。

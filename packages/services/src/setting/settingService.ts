@@ -1,6 +1,7 @@
 import { access, readFile, mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import type {
   AppSettings,
   ProviderFamilyDomain,
@@ -8,7 +9,6 @@ import type {
 } from "@zcode/shared";
 import {
   appSettingsPatchSchema,
-  NCODE_FEATURE_POLICY,
   appSettingsSchema,
   formatLogPrefix,
   formatZodError,

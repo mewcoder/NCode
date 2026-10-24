@@ -9,9 +9,11 @@ export const NCODE_WORKFLOW_FILES = [
   ".agents/skills/ncode-upstream-update/SKILL.md",
   // 工具链
   "scripts/ncode-closure-impact.mjs",
+  "scripts/ncode-port-plan.mjs",
   "scripts/ncode-workflow-manifest.mjs",
   "scripts/test/ncode-workflow-manifest.test.mjs",
   "scripts/test/ncode-closure-impact.test.mjs",
+  "scripts/test/ncode-port-plan.test.mjs",
   "scripts/ncode-artifact-audit.mjs",
   "scripts/test/ncode-artifact-audit.test.mjs",
   "scripts/ncode-branding.mjs",
@@ -21,21 +23,19 @@ export const NCODE_WORKFLOW_FILES = [
   "packages/desktop/scripts/ncode-e2e-baseline.mjs",
   "packages/desktop/scripts/ncode-e2e-baseline.d.mts",
   // 测试
-  "packages/desktop/test/ncode-closure-anchors.test.ts",
-  "packages/desktop/test/ncode-e2e-baseline.test.ts",
   // 规则 spec 与基线记录
   "docs/ncode-closure-regression.spec.md",
   "docs/ncode-artifact-audit.spec.md",
   "docs/ncode-local-client-config.spec.md",
   "docs/ncode-runtime-footprint.md",
+  "docs/ncode-test-dispositions.md",
 ];
 
 /** NCode 专属 E2E 场景目录（含 manual-review 流程子目录），整体随新分支复制。 */
-export const NCODE_WORKFLOW_DIRS = [
-  "packages/desktop/test/e2e/ncode",
-  "packages/desktop/test/e2e/fixtures/upstream/ncode",
-  "packages/desktop/test/e2e/fixtures/cases/ncode",
-];
+// 3.14.3 官方无 vitest/wdio 测试体系（仅 4 个孤立 .test.ts）：
+// e2e 目录与锚点 vitest 文件不适用本版，锚点验收走
+// `node scripts/ncode-closure-impact.mjs --validate`（CLI，无 runner 依赖）。
+export const NCODE_WORKFLOW_DIRS = [];
 
 /** 根 package.json 必须提供的命令入口。 */
 export const NCODE_WORKFLOW_SCRIPTS = [

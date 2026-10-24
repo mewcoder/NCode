@@ -246,7 +246,9 @@ export const NCODE_CLOSURE_ANCHORS = [
   {
     section: "二、定制修改 · 2 动态工作流命令启用",
     kind: "require",
-    file: "packages/services/src/node.ts",
+    // 锚点落点=codingPlan 服务：三版通一（固定 onDemand 的唯一装配处；
+    // 3.15+ 的 node.ts 另有 resolveDynamicWorkflowUserMode 通道，此处不依赖）。
+    file: "packages/services/src/coding-plan-subscription/codingPlanSubscriptionService.ts",
     pattern: /NCODE_FEATURE_POLICY\.dynamicWorkflowMode/,
     note: "动态工作流固定 onDemand，由 /workflow 启用",
   },
