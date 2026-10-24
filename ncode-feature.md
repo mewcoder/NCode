@@ -16,6 +16,8 @@
 - 用户调整需求时，同步更新本文对应的功能规则、文案和验收项。
 - 路径和符号用于定位，文件移动后沿当前调用链查找。旧 `ncode` 分支用于参考需求和提取品牌资源，实施以当前上游结构为准。
 - 当前仍有控制入口的本地策略统一维护在 `packages/shared/src/ncode-feature-policy/policy.js`，接入位置与边界见 [spec](docs/ncode-local-client-config.spec.md)。已有开关优先复用；没有开关的请求在入口门禁，保留既有实现。已移除组件/依赖继续按本文维护，不以假开关代替实际装配控制。
+- 关闭项的可执行回归：静态锚点与 E2E 基线见 [closure spec](docs/ncode-closure-regression.spec.md)，打包产物审计见 [audit spec](docs/ncode-artifact-audit.spec.md)。上游更新后先运行 `pnpm ncode:closure:impact --base <基线 ref>` 输出受影响关闭项（或 `--validate [--ref <ref>]` 预检锚点与策略值），再按本文核对行为；锚点或基线清单随本文规则同步维护。
+- 定位补充（2026-10-24）：在关闭项之外，围绕网络请求、运行时进程、安装体积与官方残留持续做减法；基线数据、已执行优化与候选见 [footprint](docs/ncode-runtime-footprint.md)。
 
 ## 一、关闭功能
 
@@ -77,8 +79,23 @@
 ### 7. 会话分享
 
 - **界面**：隐藏会话发布、分享导入和分享链接入口，停止注册分享发布操作。
-- **后台**：检查分享服务是否会在启动时建立连接、订阅或上传；仅处理入口关闭后仍会自行运行的部分。
+- **后台**：本地服务装配复用既有 `createUnsupportedConversationShareService` 关闭态，不创建真实分享服务或 HTTP client；启动时不读取 `.zcode-share-imports.json`、不扫描或清理 `.zcode-share`，也不创建分享专属订阅、计时器或网络请求。发布、导入、预检、公开预览及继续分享接口均以 `feature_disabled` 拒绝，进度事件为空。
+- **历史内容**：不保留分享内容展示的兼容适配。所有宿主统一复用既有关闭态，`getImportedConversation` 返回 null，不读取旧副本；普通会话不受影响，不清理或删除磁盘上的旧分享文件。通用服务接口和原版分享实现保留，但 NCode 不装配真实实现。
+- **回归**：实际装配本地 Host 服务后断言分享索引读取、目录扫描与网络请求为零，关闭接口全部拒绝；即使存在历史副本，显式读取仍返回 null 且不访问分享目录、不删除用户数据。静态锚点同时拦截真实服务的工厂调用和构造器调用，不能仅按旧工厂名判断关闭。
 - **位置**：[WorkspaceHeaderActionSection.tsx](packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx)、[conversation-share](packages/services/src/conversation-share/)、[host/index.ts](packages/desktop/src/host/index.ts)、[node.ts](packages/services/src/node.ts)。
+
+```mermaid
+sequenceDiagram
+  participant Host as 本地 Host
+  participant Services as createLocalServices
+  participant Closed as 分享关闭态接口
+  Host->>Services: 初始化服务
+  Services->>Closed: 注册关闭态（不访问分享目录）
+  Host->>Closed: 发布 / 导入 / 预检
+  Closed-->>Host: feature_disabled
+  Host->>Closed: 显式读取历史内容
+  Closed-->>Host: null（不访问磁盘）
+```
 
 ### 8. 手机远控
 
@@ -99,6 +116,7 @@
 
 - **界面**：隐藏 Bot 配置、群绑定、群任务和投递入口。
 - **后台**：在服务装配处停止 Bot 服务、Repo、远程桥、消息订阅和后台任务的初始化。普通会话、原生子智能体和 Cron 使用各自的原有链路。
+- **依赖边界**（2026-10-24）：`node.ts` 不导出 `createBotsService`，宿主打包图因此不含飞书 provider；`@larksuiteoapi/node-sdk` 不作为生产依赖（Desktop 声明移至 devDependencies 供 E2E 类型解析、services 为 devDependencies 仅供编译期类型），不进入 app.asar（1.64.0 含 15.1MB 单文件 d.ts，合计约 24.6MB），bundle 必需依赖清单与产物审计同步移除/禁止。宿主对 `IBotsService` 的 `getOptional` 防御性查找保留；上游 Bot E2E harness 经 services `./bots` 公开入口消费装配与 `IModelSelectionService` 类型，仅测试可达。
 - **会话挂载**：核对 [SessionPane.tsx](packages/ui/src/v4/SessionPane.tsx) 的 `BotGroupDeliveryProvider` 及 App 的 Bot hook/操作注册；普通会话打开、切换及恢复时不查询 Bot 通道或轮询群成员。服务停用与消费者停止挂载一起完成。
 - **位置**：[BotsDialog.tsx](packages/ui/src/BotsDialog.tsx)、[bots](packages/services/src/bots/)、[node.ts](packages/services/src/node.ts)、[zcodeAgentService.ts](packages/services/src/zcode-agent/zcodeAgentService.ts)、[zcodeTaskServiceAdapter.ts](packages/services/src/zcode-agent/zcodeTaskServiceAdapter.ts)。定位 `IBotsService`、`createBotsService`、`BotsRepo` 及群投递上下文。
 
@@ -126,7 +144,7 @@
 ### 14. 插件商店来源与分类
 
 - **市场来源**：默认 `zcode-plugins-official` 使用 `zai-org/zcode-plugins` GitHub 仓库源，沿用现有 Archive/Git 获取链路；不能只换成 raw JSON，因为目录里的插件 source 是相对路径。只自动迁移该市场已保存的旧默认 CDN 地址，清除旧刷新状态，自定义来源保持原样；保留市场 id、内置插件、安装身份和用户配置。源码源不包含 UI 插件编译产物，图标仍遵循上游目录地址。
-- **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。
+- **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。Claude 插件市场（`claude-plugins-official`）按个人市场对待：市场源管理中可删除——它不在 `ensureDefaultPluginMarketplaces` 自动补种名单内（补种仅 `zcode-plugins-official`），删除后不会回流；上游以"默认个人市场 id"为由的不可删保护在 NCode 放开（[PluginStoreSourcesDialog.tsx](packages/ui/src/settings/PluginStoreSourcesDialog.tsx) 定位 `isRemovableMarketplace`），ZCode 官方市场仍不可删。已装 Claude 插件的来源标签与刷新失败静默逻辑不受影响。
 - **公开与社区**：解析官方市场源码目录时，为缺少 `publisherType` 的条目按直接目录 `plugins/<name>` / `external_plugins/<name>` 补齐公开/社区归属；接受可选 `./` 前缀与结尾 `/`。显式字段优先，已有缓存同样生效；其他市场、未知路径、嵌套或越级路径不推断。仅补充展示字段，不改变插件身份或权限。
 - **目录合并**：插件 adapter 继续拥有市场记录与目录；仓库刷新后保留应用生成的 bundled/remote 两个分片及合并目录，仓库同名文件不能替换本地分片。远端同名条目优先，重复刷新、应用重启及内置播种后目录不丢失，网络失败保留已有缓存。
 - **内置搜图插件**：不内置、不打包 `image-search`，默认启用集合不含 `image-search@zcode-plugins-official`；商店目录、已安装管理及可恢复内置插件中均不出现该条目。移除官方 definition 与默认启用 id，并同步桌面 staging、CLI SEA 和远端 Agent 产物清单；已有本地缓存不再播种，旧配置中的同名条目不影响启动。
@@ -363,7 +381,7 @@ sequenceDiagram
 - [ ] 打开偏好菜单后，语言、主题、界面模式及缩放仍可操作；关闭和重新打开菜单正常。
 - [ ] 新建任务、自动化、插件市场及本地项目入口可用；无 Bot、手机远控入口。
 - [ ] 任务右键菜单无反馈、发布分享入口，其余任务操作正常。
-- [ ] 帮助菜单首项为“导出日志”，其上方无孤立分隔线；菜单内无反馈、社群、产品文档、漏洞提交入口。
+- [x] 帮助菜单首项为“导出日志”，其上方无孤立分隔线；菜单内无反馈、社群、产品文档、漏洞提交入口。
 
 ### 4. 会话详情与输入区
 
@@ -462,7 +480,8 @@ sequenceDiagram
 ### 15. 构建产物补查
 
 - [ ] 桌面构建后检查安装图标、应用图标、macOS DMG 背景及关于窗口资源。
-- [ ] Web 启动后检查标题和 favicon；当前平台无法验证的项目记录为未验证。
+- [x] 打包后运行 `pnpm ncode:artifact:audit -- --app <产物路径>`，遥测依赖、上报端点、升级 feed、image-search、品牌标记与关键运行时依赖逐项通过；规则与发布 runbook 见 [spec](docs/ncode-artifact-audit.spec.md)。（2026-10-24 macOS arm64 实测 19/19 通过，见第六节）
+- [x] Web 启动后检查标题和 favicon；当前平台无法验证的项目记录为未验证。
 
 配套执行 `pnpm typecheck`、`pnpm lint` 和 `pnpm architecture:check --changed`，按修改范围运行相关测试。静态检查通过与页面实测结果分别记录。
 
@@ -481,12 +500,52 @@ sequenceDiagram
 - **5.2/5.3**：隔离数据下已看到“暂无供应商”水平居中与添加供应商页，英文 key `settings.modelProvider.providersEmpty` 为 “No providers yet”；英文界面与加载瞬时态未实跑。
 - **5.5/5.6/5.7**：旧套餐回落组合、API Key 新建保存后删除至空态、帮助说明未执行。
 - **6.1**：有任务时中英文副标题与目标值一致；无任务空态只核对了 `automations.description` 源码与文案，真实实例存在一个失败任务，未构造空态。
-- **6.6**：`node.ts` 已把用户模式固定为 `onDemand`，旧设置不参与；无模式值已实测“普通消息不激活、`/workflow` 激活”。disabled/alwaysOn 的重启矩阵与旧工作流历史未执行。
+- **6.6**：`node.ts` 已把用户模式固定为 `onDemand`，旧设置不参与；无模式值已实测“普通消息不激活、`/workflow` 激活”。disabled/alwaysOn 的重启矩阵与旧工作流历史未执行。（补充：旧 offer disabled/alwaysOn/无值 × 固定 onDemand 的纯函数矩阵已由 `packages/shared/test/dynamicWorkflowFeature.test.ts` 覆盖；重启级验证仍未执行。）
 - **14.5**：自定义供应商、普通 Cron、本地会话链路正常；API Key 新建保存与通用 MCP OAuth 未执行。
 - **第 15 节**：未构建安装包，安装图标、DMG 背景、关于窗口和 Web favicon 未查。
 
 补充证据与遗留：
 
-- 启动时对 6 个不存在 `.zcode/workflows` 的工作区各出现一次 `file-watcher.watch FAIL`（日志 12 行含 host 镜像），仅 10:53:00 一瞬间，之后无重试；属上游文件监听行为，与关闭项无关。
-- 静态盘点显示 27 个默认全量桌面 E2E spec 仍引用已关闭功能（闲时任务、高速卡、套餐升级等），需在后续上游适配中统一处置。
+- 启动时对 6 个不存在 `.zcode/workflows` 的工作区各出现一次 `file-watcher.watch FAIL`（日志 12 行含 host 镜像），仅 10:53:00 一瞬间，之后无重试；属上游文件监听行为，与关闭项无关。（2026-10-23 已修复：`fileWatcherService` 对 ENOENT 返回不产生事件的占位 watcher、其余错误照抛，`fileWatcherService.test.ts` 覆盖；通用修复列入 closure spec 的上游回提候选。）
+- 静态盘点显示 27 个默认全量桌面 E2E spec 仍引用已关闭功能（闲时任务、高速卡、套餐升级等），需在后续上游适配中统一处置。（2026-10-23 已处置：内容级核实共 43 个正式 spec 登记进 NCode E2E 基线并从默认全量排除，锚点回归与漂移检测见 [spec](docs/ncode-closure-regression.spec.md)；`help-menu-about` 为部分引用，导出日志与关于窗口等保留行为的替代 spec 待后续补充。）
 - 本轮测试数据已清理：测试定时任务、3 个测试会话、工作流草稿；语言恢复为中文。
+
+## 六、产物与回归补充（2026-10-24）
+
+- **真实产物审计（第 15 节）**：macOS arm64 完整打包产出 `NCode-3.16.2-mac-arm64.dmg`/`.zip`（zip 139.5 MiB），`pnpm ncode:artifact:audit -- --app packages/desktop/dist/mac-arm64/NCode.app` 19/19 通过：无 @arms/@opentelemetry 运行时包、应用 bundle 无 `/api/v1/event/report` 端点、`app-update.yml` 仅本地占位、asar 与 `Resources/glm/packages`（15 个包）均无 image-search、Renderer/主进程 N 形 SVG 与 Info.plist 产品名正确、10 个关键外置运行时依赖在包内。`icon.icns` 与 `build/icon.icns` 字节一致。首跑曾命中 renderer 图标注册表资产 `image-search-*.png`（`pluginIconSource.ts` 通用图标，非插件关闭面），已将规则收敛到插件包/定义与 glm staging 并在 spec 记录边界。
+- **仍未验证**：安装图标/DMG 背景的视觉核对、关于窗口视觉、Web favicon、5.2/5.3 英文界面实跑、14.5 API Key 新建保存与通用 MCP OAuth、6.6 重启级矩阵。
+- **回归工具**（见 [closure spec](docs/ncode-closure-regression.spec.md)）：关闭项锚点（37 项 + 策略值）与 E2E 基线（43 spec）纳入 vitest；`pnpm ncode:closure:impact --base <ref>` 输出上游 diff 命中的关闭项，`--validate [--ref <ref>]` 可对任意 git ref 预检（v3.15.1 演练：4/37 通过即差距清单，diff 模式与 18 笔实际适配提交一一对应）；关闭方式分类盘点与上游回提候选清单同文维护。
+- **飞书 SDK 移除与体积复测**：app.asar 100MB→88.8MB（larksuite 条目 0）、NCode.app 424MB→408MB、zip 138.6MiB，审计 19/19 通过（含新增的关闭项依赖禁止规则）。体积/进程/网络/官方残留基线与候选见 [footprint](docs/ncode-runtime-footprint.md)。
+- **分支策略落地**：仓库收敛为 `main` / `ncode`（最新已验收快照，验收后**覆盖式**指向当版 tip，不合并不留旧提交）/ `ncode-v<版本号>`（含演练用 `ncode-v3.15.1`）；临时与备份分支已清理（含远端 `origin/dev`）。
+
+## 七、NCode 定向补验（2026-10-24）
+
+- 按用户明确范围，只验证 NCode 定制改动面，不把通用供应商/MCP 全链路作为本轮门槛；执行细节与早期失败记录见 [补验记录](docs/analysis/ncode-acceptance-2026-10-24.md)。
+- `desktop-e2e-20261023-231902-932`：NHELP-01 与 NWF-01 两条 E2E 均通过。帮助菜单只有导出日志、资源管理器、关于 NCode，无分隔线；关于窗口显示 NCode 3.16.2，深色底 N 标识清晰，已保存截图。普通消息不暴露 CreateWorkflow，`/workflow` 后暴露；回放只返回文本，不调用 CreateWorkflow。
+- Web 实际标题与 favicon 已核对；未连接远控后端，不扩大为 Web 全链路验收。
+- 首轮候选保留 `manual-review/pending`，当时尚未获得审阅委托，未执行转正、Docker 准入或全量 E2E。旧工作流模式的重启矩阵仍未验证。
+- 正式 production 身份 macOS arm64 DMG/ZIP 已重新生成，ZIP 138.6 MiB。正式 `.app` 审计 19/19 通过，包内 buildCommitId 为 `d1c4644d`，确认包含最新分享关闭代码；包内图标与源文件一致。本地包未签名，未实际安装；没有把安装后视觉项全勾选。
+- 补齐 NCode case-local fixture 与 manifest；现有 checker 和默认回放已识别 `ncode` 领域。`desktop-e2e-20261023-235951-930` 在未指定 fixture 路径的 strict 模式下 2/2 通过；两个 case 的 fixture check 通过，66 项相关根 UT 与 4 项工作流清单测试通过。该轮候选尚为 pending，不视为正式准入。
+- 后续用户以「你决定」委托审阅。Codex 核对上述截图、请求断言和 fixture 合同后，决定将 NHELP-01 / NWF-01 转入 `packages/desktop/test/e2e/ncode/` 正式目录；复用现有迁移事务，dry run 后 apply，两个正式 fixture check、默认正式集合发现与工作流清单检查通过。没有新增测试框架，也未加入 Docker 套件。最终正式回放及代码检查结果见补验记录。
+- 正式回放 `desktop-e2e-20261024-010650-751` 在未启用 manual-review、未指定 fixture 路径的 strict 模式下 **2/2 通过**；66 项相关根 UT、4 项工作流清单检查、根与 E2E 类型检查及架构检查通过。Lint 0 errors / 87 条既有 warnings。
+## 八、更新工作流三轮实测与工具化（2026-10-24，3.15.1 全程移植 + 3.14.3 跨版本压测）
+
+以 3.15.1（逐版本完整移植，26→15 提交收敛、typecheck 0 错误、全量单测 18060/18060）与 3.14.3（跨版本压测：14 提交 127 冲突文件落地、平移产生 814 个 typecheck 错误，后经"三大件回退官方 + 意图重放"完整收敛，见该分支记录）为样本，累计发现并修复 **7 个工作流缺陷**（第 7 项：官方 3.14.3 无 vitest/wdio 测试体系，验收门禁按版本降为 CLI 形态，详见该分支记录）：
+
+1. manifest 漏登记 package.json script 条目 → `NCODE_WORKFLOW_SCRIPTS` 双向校验。
+2. impact 工具对无 policy.js 的老树直接崩溃 → 报差距项 + 回归测试。
+3. registry 锚点钉新版布局，老树假差距 → `upstreamIntroducedIn`（文件级）/`requiresPattern`（机制级前置条件）版本化条件。
+4. CLI `--check` 不检查 script 条目（检查只在 vitest 里）。
+5. `manifest --check` 此前**无 CLI 实现是假阳性**（纯数据模块 node 执行即 exit 0）→ 实现与 vitest 同检查面的真 CLI（失败 exit 1），上线即在 3.15.1 抓到目录清单不符。
+6. 工具同步整拷根 package.json 导致目标分支 install ENOENT（版本专属依赖/patch 引用）；pnpm 裸 `--` 透传使 usage 守卫误判 → 只同步 `ncode:*` script 条目 + 解析器兼容 `--`。
+
+**核心结论（硬约束）**：跳版本移植成本约为逐版本的 2.5 倍且需「整文件回退官方 + 意图重放」策略（127 冲突 + 网状回退，2026-10-24 v3.14.3 已完整收敛实证，见该分支 §八记录）；常规更新必须从**上一个已验收版本分支**的序列移植，跨版本仅作应急路径。移植用 cherry-pick（真 3-way），不用 `git apply -3`（缺 blob/pathspec/zsh 分词坑）。
+
+**新工具与文档**（登记于 manifest，26 文件 + 3 目录 + 7 script 条目）：
+- `pnpm ncode:upstream:check`：上游新鲜度检查，三态结论（CURRENT/TAGGED/DRIFTED），回答"该不该触发更新"。
+- `pnpm ncode:port:plan -- --from <上一版分支> --target <官方 ref>`：merge-tree 无副作用模拟逐提交 cherry-pick，输出冲突预判/漂移文件/新增文件三类核对表；回归测试锁定两轮实测基线（逐版本 ~63 文件次、跨版本 ~162，骤降即模拟失效警报）。
+- `pnpm ncode:locale:check`：国际化键对称检查（NCode 相对基线新增/删除键必须 en/zh 对称）。
+- [docs/ncode-test-dispositions.md](docs/ncode-test-dispositions.md)：官方测试 ↔ 关闭项 ↔ 处置（删除 10 / 改写 16）登记表，移植机械执行、未登记决策回填。
+- SKILL 沉淀冲突处置模板（locale 取 ours+品牌替换、Provider 包裹正则摘除、登录 handler 删除但 props 契约保留）与平移判定（官方两版 diff ≤110 行取上一版 NCode 文件）。
+
+下次更新路径：`ncode:port:plan` 出计划 → 逐提交 cherry-pick + 处置表 → 差距清单适配 → 门禁（锚点/manifest/typecheck/单测）→ 收敛判定 → 覆盖式推 `ncode`。
