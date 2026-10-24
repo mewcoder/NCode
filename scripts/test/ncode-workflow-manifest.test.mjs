@@ -20,6 +20,7 @@ test("清单目录存在且 NCode 专属 E2E 场景落在其中", () => {
   for (const dir of NCODE_WORKFLOW_DIRS) {
     assert.ok(existsSync(join(repoRoot, dir)), `缺少目录 ${dir}`);
   }
+  // 3.15.1 的专属 spec 保留在 manual-review/pending（正式转正在 3.16.2 完成）。
   const pending = join(
     repoRoot,
     "packages/desktop/test/e2e/ncode/manual-review/pending/ncode-help-menu-retained.test.ts",
@@ -37,6 +38,8 @@ test("仓库内 ncode 专属文件已全部登记（反向漂移检测）", () =
   const registered = new Set(NCODE_WORKFLOW_FILES);
   const unregistered = [];
   for (const { dir, pattern } of NCODE_WORKFLOW_DISCOVERY_GLOBS) {
+    // 目录不存在（如 3.14.3 无测试体系）时跳过，与 CLI --check 同守卫。
+    if (!existsSync(join(repoRoot, dir))) continue;
     for (const name of readdirSync(join(repoRoot, dir)).filter((entry) => pattern.test(entry))) {
       const relative = `${dir}/${name}`;
       if (!registered.has(relative)) unregistered.push(relative);
