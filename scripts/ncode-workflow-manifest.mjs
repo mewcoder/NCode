@@ -20,9 +20,11 @@ export const NCODE_WORKFLOW_FILES = [
   "scripts/ncode-artifact-audit.mjs",
   "scripts/test/ncode-artifact-audit.test.mjs",
   "scripts/ncode-port-plan.mjs",
+  "scripts/ncode-upstream-check.mjs",
   "scripts/ncode-branding.mjs",
   "scripts/test/ncode-branding.test.mjs",
   "scripts/test/ncode-port-plan.test.mjs",
+  "scripts/test/ncode-upstream-check.test.mjs",
   "packages/desktop/scripts/ncode-closure-registry.mjs",
   "packages/desktop/scripts/ncode-closure-registry.d.mts",
   "packages/desktop/scripts/ncode-e2e-baseline.mjs",
@@ -52,6 +54,7 @@ export const NCODE_WORKFLOW_SCRIPTS = [
   "ncode:artifact:audit",
   "ncode:closure:impact",
   "ncode:port:plan",
+  "ncode:upstream:check",
 ];
 
 /** 发现规则：仓库内这些模式的 ncode 专属文件必须已登记，防止清单漂移。 */
