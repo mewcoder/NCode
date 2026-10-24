@@ -237,6 +237,13 @@ export const NCODE_CLOSURE_ANCHORS = [
   },
   {
     section: "一、关闭功能 · 14 插件商店来源与分类",
+    kind: "forbid",
+    file: "packages/ui/src/settings/PluginStoreSourcesDialog.tsx",
+    pattern: /DEFAULT_MARKETPLACE_ID\) return false/,
+    note: "Claude 插件市场可删除：上游对默认个人市场的不可删保护不回流（补种名单不含它，删除即消失）",
+  },
+  {
+    section: "一、关闭功能 · 14 插件商店来源与分类",
     kind: "require",
     file: "packages/ui/src/settings/PluginStoreListView.tsx",
     pattern: /!== "finance"/,
