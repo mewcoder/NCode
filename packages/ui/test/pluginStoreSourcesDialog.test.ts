@@ -165,4 +165,41 @@ describe("PluginStoreSourcesDialog", () => {
       "never-refreshed",
     ]);
   });
+
+  // NCode：Claude 插件市场按个人市场对待，市场源管理提供删除入口；
+  // ZCode 官方市场仍在补种名单内，保持不可删。
+  it("NCode allows removing claude-plugins-official but keeps zcode official fixed", () => {
+    render(
+      createElement(
+        ZCodeIntlProvider,
+        { initialLocale: "en-US" },
+        createElement(PluginStoreSourcesDialog, {
+          open: true,
+          onOpenChange: () => {},
+          marketplaces: [
+            {
+              id: "zcode-plugins-official",
+              name: "zcode-plugins-official",
+              source: {},
+              pluginCount: 0,
+            },
+            {
+              id: "claude-plugins-official",
+              name: "claude-plugins-official",
+              source: {},
+              pluginCount: 0,
+            },
+          ],
+          onUpdateMarketplace: () => {},
+          onRemoveMarketplace: () => {},
+          activeOperations: [],
+        }),
+      ),
+    );
+
+    const removeButtons = screen
+      .getAllByTestId("plugin-store-source-remove")
+      .map((button) => button.getAttribute("data-marketplace-id"));
+    expect(removeButtons).toEqual(["claude-plugins-official"]);
+  });
 });

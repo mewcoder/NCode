@@ -144,7 +144,7 @@ sequenceDiagram
 ### 14. 插件商店来源与分类
 
 - **市场来源**：默认 `zcode-plugins-official` 使用 `zai-org/zcode-plugins` GitHub 仓库源，沿用现有 Archive/Git 获取链路；不能只换成 raw JSON，因为目录里的插件 source 是相对路径。只自动迁移该市场已保存的旧默认 CDN 地址，清除旧刷新状态，自定义来源保持原样；保留市场 id、内置插件、安装身份和用户配置。源码源不包含 UI 插件编译产物，图标仍遵循上游目录地址。
-- **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。
+- **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。Claude 插件市场（`claude-plugins-official`）按个人市场对待：市场源管理中可删除——它不在 `ensureDefaultPluginMarketplaces` 自动补种名单内（补种仅 `zcode-plugins-official`），删除后不会回流；上游以"默认个人市场 id"为由的不可删保护在 NCode 放开（[PluginStoreSourcesDialog.tsx](packages/ui/src/settings/PluginStoreSourcesDialog.tsx) 定位 `isRemovableMarketplace`），ZCode 官方市场仍不可删。已装 Claude 插件的来源标签与刷新失败静默逻辑不受影响。
 - **公开与社区**：解析官方市场源码目录时，为缺少 `publisherType` 的条目按直接目录 `plugins/<name>` / `external_plugins/<name>` 补齐公开/社区归属；接受可选 `./` 前缀与结尾 `/`。显式字段优先，已有缓存同样生效；其他市场、未知路径、嵌套或越级路径不推断。仅补充展示字段，不改变插件身份或权限。
 - **目录合并**：插件 adapter 继续拥有市场记录与目录；仓库刷新后保留应用生成的 bundled/remote 两个分片及合并目录，仓库同名文件不能替换本地分片。远端同名条目优先，重复刷新、应用重启及内置播种后目录不丢失，网络失败保留已有缓存。
 - **内置搜图插件**：不内置、不打包 `image-search`，默认启用集合不含 `image-search@zcode-plugins-official`；商店目录、已安装管理及可恢复内置插件中均不出现该条目。移除官方 definition 与默认启用 id，并同步桌面 staging、CLI SEA 和远端 Agent 产物清单；已有本地缓存不再播种，旧配置中的同名条目不影响启动。
