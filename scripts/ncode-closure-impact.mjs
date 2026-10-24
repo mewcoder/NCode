@@ -123,6 +123,16 @@ export async function validateClosureRegistry(root = repoRoot, options = {}) {
         missing = true;
       }
     }
+    // 上游新增文件的锚点：被校验树没有该文件说明该版本尚无此功能面，无需关闭接线，跳过；
+    // 文件存在（含 ref 模式）则照常校验，防止老版本以后回移该功能时漏掉关闭要求。
+    if (missing && anchor.upstreamIntroducedIn) {
+      continue;
+    }
+    // 机制级前置条件：文件存在但被关闭的机制尚未引入（如旧版本无启动重连批次），
+    // 关闭承诺天然满足，跳过；机制引入后主 pattern 照常校验。
+    if (!missing && anchor.requiresPattern && !anchor.requiresPattern.test(content ?? "")) {
+      continue;
+    }
     const matched = missing ? false : anchor.pattern.test(content ?? "");
     const ok = missing ? false : anchor.kind === "require" ? matched : !matched;
     if (!ok) {

@@ -5,6 +5,7 @@ export type SettingsSectionId =
   | "general"
   | "personalization"
   | "appearance"
+  | "remoteDevices"
   | "migration"
   | "browser"
   | "modelProvider"

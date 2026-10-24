@@ -16,7 +16,6 @@ import {
   IZCodeSessionService,
   IConversationShareService,
   createUnsupportedConversationShareService,
-  IBotsService,
   IFileWatcherService,
   IOAuthService,
   IModelSelectionService,
@@ -60,7 +59,6 @@ import {
   resolveCurrentAccountAccess,
   resolveAccountTeamPlanRuntimeMaterial,
   createSettingsSyncService,
-  createBotsService,
   createUsageStatsService,
   createMediaPreviewService,
   createCodingPlanSubscriptionService,
@@ -385,19 +383,8 @@ export function createRemoteWorkspaceServiceCollection(params: {
     .register(IZCodeAgentService, params.connectionServices.zcodeAgentService)
     .register(IZCodeSessionService, remoteZCodeSessionService)
     .register(IConversationShareService, conversationShareService)
-    .register(
-      IBotsService,
-      createBotsService({
-        credentialService: localCredentialService,
-        zcodeTaskService: remoteZCodeTaskService,
-        broadcastService: localBroadcastService,
-        settingService: localSettingService,
-        modelSelectionService: params.connectionServices.modelSelectionService,
-        // 修复原因：remote workspace host 首屏只需要远端文件/agent 能力；
-        // bot 启动后台任务如果立即轮询或 getAll，会重复拉本机 preset 并放大 SSH/Docker 连接耗时。
-        runStartupBackgroundTasks: false,
-      }),
-    )
+    // NCode 关闭 Bot/群聊：remote Host 不装配 Bot 服务（node.ts 已不导出装配，
+    // 打包图因此不含 feishu provider）；宿主 getOptional(IBotsService) 查不到即视为停用。
     .register(IFileWatcherService, params.connectionServices.fileWatcherService)
     .register(
       IOAuthService,
@@ -474,7 +461,6 @@ export function createServerRemoteWorkspaceServiceCollection(params: {
     .register(IZCodeAgentService, params.connectionServices.zcodeAgentService)
     .register(IZCodeSessionService, params.connectionServices.zcodeSessionService)
     .register(IConversationShareService, createUnsupportedRemoteConversationShareService())
-    .register(IBotsService, params.connectionServices.botsService)
     .register(IFileWatcherService, params.connectionServices.fileWatcherService)
     .register(IOAuthService, params.connectionServices.oauthService)
     .register(IModelSelectionService, params.connectionServices.modelSelectionService)

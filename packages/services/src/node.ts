@@ -138,7 +138,6 @@ export type {
   CuaHelperInstaller,
   CuaHelperInstallerOptions,
 } from "./cua-permission-broker/index.js";
-export { createProjectWorkspaceNavigation } from "#src/project-workspace-navigation/index.js";
 // NCode 关闭 Bot/群聊：不导出 Bot 服务装配，宿主打包图因此不含 feishu provider，
 // @larksuiteoapi/node-sdk（约 9.2MB 双份）不再进入生产 app.asar。宿主对
 // IBotsService 的 getOptional 防御性查找保留，上游实现仍在源码内。
@@ -375,9 +374,6 @@ import { createZCodeSessionService } from "./zcode-session/zcodeSessionService.j
 import { createZCodeTaskIndexSyncer } from "./zcode-agent/zcodeTaskIndexSyncer.js";
 import { TaskIndexRepo } from "./session/taskIndexRepo.js";
 import { AutomationRepo } from "#src/session/automationRepo.js";
-import type { AppSettings } from "@zcode/shared";
-import type { BotProjectConnection } from "#src/bot-project-runtime/contract.js";
-export type { BotProjectConnection } from "#src/bot-project-runtime/contract.js";
 import type { SessionMessageSendRequested } from "#src/session/sessionMailbox.js";
 import { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 import { createOAuthService } from "./oauth/oauthService.js";
@@ -1931,17 +1927,6 @@ export function createLocalServices(options: {
       return buildOffPeakModelSelectionView(providerRuntime.registryService.getView());
     },
   });
-  // OffPeakTaskService 单例在下方 DI register IIFE 中创建（晚于 agent service）；
-  // 用前向引用 holder 惰性绑定——offPeak/create 协议请求只会发生在服务集合装配完成后。
-
-  // desktop-attached-remote 装配不暴露 Off-Peak 工具面（远程不在支持范围）。
-  const offPeakToolWiring =
-    options?.serviceAuthorityMode === "desktop-attached-remote"
-      ? {}
-      : {
-          resolveOffPeakClientConfig: () => codingPlanSubscriptionService.getOffPeakClientConfig(),
-          resolveOffPeakTaskService: () => offPeakTaskServiceForAgent,
-        };
   const zcodeAgentService = createZCodeAgentService({
     ...(agentAccountProviderConfigSource
       ? { accountProviderConfigSource: agentAccountProviderConfigSource }
@@ -2328,11 +2313,11 @@ export function createLocalServices(options: {
     .register(IHighspeedCardService, {
       prepareTurn: async () => ({ kind: "fallback", reason: "unavailable", nextDrawAt: null }),
       getSnapshot: async () => ({ card: null, nextDrawAt: null, drawing: false }),
-      invalidateCard: async () => false,
       healthy: async () => {
         throw new Error("NCode Highspeed is disabled");
       },
-    })    .register(ISkillsService, skillsService)
+    })
+    .register(ISkillsService, skillsService)
     .register(ISkillSyncService, createSkillSyncService())
     .register(IMcpSyncService, mcpSyncService)
     .register(

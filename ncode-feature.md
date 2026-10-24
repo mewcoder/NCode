@@ -517,3 +517,15 @@ sequenceDiagram
 - **回归工具**（见 [closure spec](docs/ncode-closure-regression.spec.md)）：关闭项锚点（37 项 + 策略值）与 E2E 基线（43 spec）纳入 vitest；`pnpm ncode:closure:impact --base <ref>` 输出上游 diff 命中的关闭项，`--validate [--ref <ref>]` 可对任意 git ref 预检（v3.15.1 演练：4/37 通过即差距清单，diff 模式与 18 笔实际适配提交一一对应）；关闭方式分类盘点与上游回提候选清单同文维护。
 - **飞书 SDK 移除与体积复测**：app.asar 100MB→88.8MB（larksuite 条目 0）、NCode.app 424MB→408MB、zip 138.6MiB，审计 19/19 通过（含新增的关闭项依赖禁止规则）。体积/进程/网络/官方残留基线与候选见 [footprint](docs/ncode-runtime-footprint.md)。
 - **分支策略落地**：仓库收敛为 `main` / `ncode`（最新已验收快照，验收后**覆盖式**指向当版 tip，不合并不留旧提交）/ `ncode-v<版本号>`（含演练用 `ncode-v3.15.1`）；临时与备份分支已清理（含远端 `origin/dev`）。
+
+## 七、v3.15.1 全流程演练（2026-10-24，工作流首次端到端实证）
+
+在 `ncode-v3.15.1`（原封官方 tag 快照）上按 [.agents/skills/ncode-upstream-update/SKILL.md](.agents/skills/ncode-upstream-update/SKILL.md) 完整重放 3.16.2 的 24 笔 feature 提交（6 基础 docs/policy/branding/account/marketing/updater + 18 加强），全部按 feature 分提交落地：
+
+- **锚点收敛**：官方 v3.15.1 树 ref-validate 3/37 → 适配树 37/37 + 策略值全一致；manifest 自检通过；`pnpm typecheck` 0 错误、lint 0 错误（警告数 66 低于官方基线 69）、全量单测 18060/18060 通过。
+- **演练抓到的 3 个工作流缺陷（均已修复并随本分支落地）**：
+  1. 工作流文件清单漏登记 package.json script 条目 → manifest 增加 `NCODE_WORKFLOW_SCRIPTS` 双向校验；
+  2. impact 工具对无 policy.js 的老树直接崩溃 → 改为报差距项并固化回归测试；
+  3. registry 锚点钉 3.16.2 布局：上游 3.16 新增文件/机制（插件面板适配器、启动重连批次）在旧树产生假差距 → 锚点新增 `upstreamIntroducedIn`（文件级）与 `requiresPattern`（机制级前置条件）两个版本化条件，旧树自动跳过、机制回移后恢复校验。
+- **语义差异结论**：上游 3.16 的 dynamicWorkflow DWG-18（"disabled 也是合法默认值"）与插件面板适配器、启动重连、desktop-telemetry 模块均为版本性新增；3.15.1 按本地语义适配（NCode 固定 onDemand 在 node.ts 装配层），不回移上游新语义。
+- **测试取舍**：官方行为测试（套餐 UI、反馈草稿、引导文案、闲时布局、远程入口可见性、账号用量 Token）随对应关闭项移除，与 3.16.2 NCode 处理一致；`feedbackBaseServiceBoundary` 在 3.16.2 主仓库同样过期（FeedbackHost 已随营销关闭移除），待主仓库同步清理。

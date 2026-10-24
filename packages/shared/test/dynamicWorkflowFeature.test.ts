@@ -95,6 +95,31 @@ describe("resolveDynamicWorkflowClientConfig（DWG-01）", () => {
   });
 });
 
+// NCode 固定 onDemand × 旧 offer 矩阵：策略值固定 onDemand（见 NCODE_FEATURE_POLICY），
+// node.ts 装配由关闭项锚点登记保证；这里覆盖纯函数层与 3.15.1 语义一致的行为。
+describe("NCode 固定 onDemand × 旧 offer 矩阵", () => {
+  const offer = (mode: "disabled" | "onDemand" | "alwaysOn") =>
+    createDynamicWorkflowClientConfig(mode, "remote");
+
+  it.each(["onDemand", "alwaysOn"] as const)(
+    "旧 offer 为 %s（已提供）时用户选择 onDemand 生效",
+    (offered) => {
+      expect(applyDynamicWorkflowUserMode(offer(offered), "onDemand")).toMatchObject({
+        mode: "onDemand",
+        enabled: true,
+        offeredMode: offered,
+        userMode: "onDemand",
+      });
+    },
+  );
+
+  it("远端未下发时按本版本语义视为未提供，用户选择不复活", () => {
+    expect(
+      resolveDynamicWorkflowClientConfig({ remote: undefined, userMode: "onDemand" }),
+    ).toMatchObject({ mode: "disabled", enabled: false });
+  });
+});
+
 describe("normalizeDynamicWorkflowMode / isDynamicWorkflowModeEnabled", () => {
   it("只认三个取值，其余一律 undefined", () => {
     expect(normalizeDynamicWorkflowMode("disabled")).toBe("disabled");
@@ -178,7 +203,8 @@ describe("applyDynamicWorkflowUserMode（DWG-18）", () => {
     ).toBe(true);
     expect(isDynamicWorkflowOffered(offer("disabled"))).toBe(false);
   });
-  it("readDynamicWorkflowOfferedMode：没有 offeredMode 的快照（旧 Host）或读不懂的值返回 undefined", () => {
+
+  it("isDynamicWorkflowOffered：没有 offeredMode 的快照（旧 Host）或读不懂的值按未提供", () => {
     // 新 UI（例如手机远控 bundle）连旧 Host 时，快照只有生效的 mode / enabled，没有 offeredMode；
     // 旧 Host 不认用户选择，所以不能把设置行摆出来。
     const legacy = { mode: "alwaysOn", enabled: true, source: "remote" } as unknown as Parameters<
@@ -191,31 +217,5 @@ describe("applyDynamicWorkflowUserMode（DWG-18）", () => {
         offeredMode: "sometimes",
       } as unknown as Parameters<typeof isDynamicWorkflowOffered>[0]),
     ).toBe(false);
-  });
-});
-
-// NCode（ncode-feature.md 6.6）：用户模式由装配固定为 onDemand（/workflow 命令启用），
-// 旧配置存了 disabled、alwaysOn 或根本没有模式值时，生效模式都必须是 onDemand。
-// node.ts 的固定装配由关闭项锚点登记保证，这里覆盖纯函数层的旧配置矩阵。
-describe("NCode 固定 onDemand × 旧 offer 矩阵", () => {
-  const offer = (mode: "disabled" | "onDemand" | "alwaysOn") =>
-    createDynamicWorkflowClientConfig(mode, "remote");
-
-  it.each(["disabled", "alwaysOn", "onDemand"] as const)(
-    "旧 offer 为 %s 时固定选择 onDemand 生效",
-    (offered) => {
-      expect(applyDynamicWorkflowUserMode(offer(offered), "onDemand")).toMatchObject({
-        mode: "onDemand",
-        enabled: true,
-        offeredMode: offered,
-        userMode: "onDemand",
-      });
-    },
-  );
-
-  it("远端未下发（无模式值）时固定选择 onDemand 同样生效", () => {
-    expect(
-      resolveDynamicWorkflowClientConfig({ remote: undefined, userMode: "onDemand" }),
-    ).toMatchObject({ mode: "onDemand", enabled: true, userMode: "onDemand" });
   });
 });

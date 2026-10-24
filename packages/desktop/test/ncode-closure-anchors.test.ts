@@ -28,9 +28,18 @@ describe("NCode 关闭项静态锚点", () => {
       try {
         content = readRepoFile(anchor.file);
       } catch {
+        if (anchor.upstreamIntroducedIn) {
+          // 上游新增文件的锚点：当前版本树没有该文件说明功能面尚未引入，跳过
+          // （与 scripts/ncode-closure-impact.mjs 的 validate 语义一致）。
+          return;
+        }
         throw new Error(
           `锚点文件不存在：${anchor.file}（${anchor.section}）。上游移动或改名后沿当前调用链更新锚点登记，不得删除锚点。`,
         );
+      }
+      if (anchor.requiresPattern && !anchor.requiresPattern.test(content)) {
+        // 机制尚未引入时主 pattern 不适用（与 impact 工具同语义）。
+        return;
       }
       const matched = anchor.pattern.test(content);
       const expectation = anchor.kind === "require" ? matched : !matched;

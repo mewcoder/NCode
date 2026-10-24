@@ -165,12 +165,6 @@ const BASE_SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     groupId: "dataAndStats",
   },
   {
-    id: "archives",
-    icon: Archive,
-    titleId: "archives.nav",
-    groupId: "dataAndStats",
-  },
-  {
     id: "migration",
     icon: ImportIcon,
     titleId: "settings.migration.title",

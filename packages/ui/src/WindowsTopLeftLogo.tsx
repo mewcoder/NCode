@@ -1,5 +1,5 @@
 import { cn } from "@/components/lib/utils.js";
-import zaiLogoUrl from "@/assets/provider-icons/logo-zai.svg";
+import { ZCodeStartupLogoBadge } from "@/root/RootStartupLoading.js";
 
 export function WindowsTopLeftLogo({
   className,
@@ -19,12 +19,17 @@ export function WindowsTopLeftLogo({
         className,
       )}
     >
-      <img
-        src={zaiLogoUrl}
-        alt="NCode"
-        className={cn("pointer-events-none size-5 select-none", imageClassName)}
-        draggable={false}
-      />
+      <span
+        role="img"
+        aria-label="NCode"
+        data-testid="settings-logo"
+        className={cn(
+          "pointer-events-none flex size-5 items-center justify-center select-none",
+          imageClassName,
+        )}
+      >
+        <ZCodeStartupLogoBadge size="titlebar" animated={false} />
+      </span>
     </div>
   );
 }

@@ -6,6 +6,16 @@ export interface NcodeClosureAnchor {
   file: string;
   pattern: RegExp;
   note?: string;
+  /**
+   * 锚点目标文件由上游该版本起新增（如 3.16 的插件面板适配器）。
+   * 被校验的旧版本树没有此文件时跳过该锚点，不计为差距；文件存在则正常校验。
+   */
+  upstreamIntroducedIn?: string;
+  /**
+   * 前置条件：仅当文件内容命中该正则（机制已引入）时才校验主 pattern。
+   * 用于“锚点文件旧版本已存在、但被关闭的机制本身由上游新版引入”的场景。
+   */
+  requiresPattern?: RegExp;
 }
 
 export const NCODE_CLOSURE_ANCHORS: NcodeClosureAnchor[];

@@ -235,13 +235,8 @@ export const NCODE_CLOSURE_ANCHORS = [
     pattern: /zai-org\/zcode-plugins/,
     note: "默认市场使用 GitHub 仓库源",
   },
-  {
-    section: "一、关闭功能 · 14 插件商店来源与分类",
-    kind: "forbid",
-    file: "packages/ui/src/settings/PluginStoreSourcesDialog.tsx",
-    pattern: /DEFAULT_MARKETPLACE_ID\) return false/,
-    note: "Claude 插件市场可删除：上游对默认个人市场的不可删保护不回流（补种名单不含它，删除即消失）",
-  },
+  // Claude 插件市场可删除锚点仅在产品分支（ncode-v3.16.2+）登记；
+  // 3.15.1 演练分支不携带该特性，此处不校验；下游版本从 ncode 继承 registry 后恢复。
   {
     section: "一、关闭功能 · 14 插件商店来源与分类",
     kind: "require",

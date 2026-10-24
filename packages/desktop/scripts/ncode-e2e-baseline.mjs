@@ -65,11 +65,8 @@ export const NCODE_CLOSED_E2E_SPECS = [
   { spec: "./test/e2e/help-menu-about.test.ts", feature: "update-feedback", partial: true },
   // 一、6 遥测（断言 ARMS 遥测 payload 落盘）
   { spec: "./test/e2e/process-resource-telemetry-roles.test.ts", feature: "telemetry" },
-  // 一、7 会话分享
-  {
-    spec: "./test/e2e/conversation-session/conversation-session-share-popover.test.ts",
-    feature: "share",
-  },
+  // 一、7 会话分享（share-popover spec 为上游 3.16 新增，本版本无该文件；
+  // 文件名特征模式仍在 NCODE_CLOSED_E2E_NAME_PATTERNS 中拦截）
   // 一、10 Bot / 群聊
   { spec: "./test/e2e/bots/bot-automation-result-delivery.test.ts", feature: "bots" },
   { spec: "./test/e2e/bots/bot-remote-disconnected.test.ts", feature: "bots" },
@@ -93,10 +90,8 @@ export const NCODE_CLOSED_E2E_SPECS = [
   },
   // 客户端远程配置：断言 client/configs 请求与灰度预热
   { spec: "./test/e2e/help-client-config.test.ts", feature: "remote-client-config" },
-  {
-    spec: "./test/e2e/settings/settings-client-language-header.test.ts",
-    feature: "remote-client-config",
-  },
+  // （settings-client-language-header spec 为上游 3.16 新增，本版本无该文件；
+  // 文件名特征模式仍拦截）
   // 一、11 远程设备与远程工作区（SSH P0；上游仅按环境门禁，NCode 无条件关闭）
   {
     spec: "./test/e2e/conversation-session/conversation-session-ssh-remote-connection-p0.test.ts",

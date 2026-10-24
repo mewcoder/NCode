@@ -22,12 +22,7 @@ afterEach(() => {
 });
 
 describe("settingsPageConfig", () => {
-  it("NCode 隐藏远程设备分区，其它分区仍按平台判定", () => {
-    expect(isSettingsSectionAvailable("remoteDevices", true)).toBe(false);
-    expect(isSettingsSectionAvailable("remoteDevices", false)).toBe(false);
-    expect(isSettingsSectionAvailable("general", false)).toBe(true);
-  });
-  it("按设置页分组与顺序展示公开分区", async () => {
+  it("按设置页心智顺序展示 test 分区", async () => {
     const { createSettingsPageConfig } = await loadSettingsPageConfig("test");
     const { settingsSectionGroups, settingsSections } = createSettingsPageConfig({});
 
@@ -39,25 +34,16 @@ describe("settingsPageConfig", () => {
     ).toEqual([
       {
         id: "basics",
-        // NCode 隐藏 remoteDevices。
         sections: ["general", "appearance", "modelProvider", "browser", "shortcuts"],
       },
       {
         id: "agentCapabilities",
-        // NCode 新增「个性化」分区。
-        sections: [
-          "personalization",
-          "memory",
-          "subagents",
-          "plugin",
-          "mcp",
-          "skill",
-          "commands",
-          "hooks",
-        ],
+        sections: ["personalization", "memory", "subagents", "plugin", "mcp", "skill", "commands", "hooks"],
       },
-      // NCode 恢复「数据导入」分区。
-      { id: "dataAndStats", sections: ["usage", "archives", "migration"] },
+      {
+        id: "dataAndStats",
+        sections: ["usage", "migration"],
+      },
     ]);
 
     expect(settingsSections.map((section) => section.id)).toEqual([
@@ -75,7 +61,6 @@ describe("settingsPageConfig", () => {
       "browser",
       "shortcuts",
       "usage",
-      "archives",
       "migration",
     ]);
   });
@@ -88,6 +73,7 @@ describe("settingsPageConfig", () => {
       "general",
       "appearance",
       "modelProvider",
+      "personalization",
       "memory",
       "subagents",
       "plugin",
@@ -98,6 +84,7 @@ describe("settingsPageConfig", () => {
       "browser",
       "shortcuts",
       "usage",
+      "migration",
     ]);
   });
 

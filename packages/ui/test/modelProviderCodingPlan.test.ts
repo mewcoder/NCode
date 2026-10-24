@@ -12,7 +12,7 @@ import {
 import {
   TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
   TID_MODEL_PROVIDER_MODEL_DELETE_BUTTON,
-} from "@zcode/shared/test-ids";
+} from "@zcode/shared";
 import {
   resolveCodingPlanProviderSyncAttemptKey,
   shouldRetryUnchangedCodingPlanProviderSync,
