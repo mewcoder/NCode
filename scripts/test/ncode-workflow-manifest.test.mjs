@@ -20,11 +20,8 @@ test("清单目录存在且 NCode 专属 E2E 场景落在其中", () => {
   for (const dir of NCODE_WORKFLOW_DIRS) {
     assert.ok(existsSync(join(repoRoot, dir)), `缺少目录 ${dir}`);
   }
-  const pending = join(
-    repoRoot,
-    "packages/desktop/test/e2e/ncode/manual-review/pending/ncode-help-menu-retained.test.ts",
-  );
-  assert.ok(existsSync(pending), "首个 NCode 专属 E2E 候选 spec 应在 ncode 目录");
+  const formal = join(repoRoot, "packages/desktop/test/e2e/ncode/ncode-help-menu-retained.test.ts");
+  assert.ok(existsSync(formal), "NCode 专属正式 E2E spec 应在 ncode 目录");
 });
 
 test("根 package.json 提供全部工作流命令入口", () => {

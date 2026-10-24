@@ -80,8 +80,8 @@
 
 - **界面**：隐藏会话发布、分享导入和分享链接入口，停止注册分享发布操作。
 - **后台**：本地服务装配复用既有 `createUnsupportedConversationShareService` 关闭态，不创建真实分享服务或 HTTP client；启动时不读取 `.zcode-share-imports.json`、不扫描或清理 `.zcode-share`，也不创建分享专属订阅、计时器或网络请求。发布、导入、预检、公开预览及继续分享接口均以 `feature_disabled` 拒绝，进度事件为空。
-- **历史内容**：不保留分享内容展示的兼容适配。所有宿主统一复用既有关闭态，`getImportedConversation` 返回 null，不读取旧副本；普通会话不受影响，不清理或删除磁盘上的旧分享文件。通用服务接口和原版分享实现保留，但 NCode 不装配真实实现。
-- **回归**：实际装配本地 Host 服务后断言分享索引读取、目录扫描与网络请求为零，关闭接口全部拒绝；即使存在历史副本，显式读取仍返回 null 且不访问分享目录、不删除用户数据。静态锚点同时拦截真实服务的工厂调用和构造器调用，不能仅按旧工厂名判断关闭。
+- **历史内容**：本地已落盘的 `shared-conversation.json` 继续通过既有 `getImportedConversation` 接口按需离线读取；只在打开对应历史内容时访问该工作区副本，不初始化完整分享服务、不读取全局导入索引、不清理或删除已有数据。远程 attachment 沿用关闭态空读取，通用服务接口和原版分享实现保留。
+- **回归**：实际装配本地 Host 服务后断言分享索引读取、目录扫描与网络请求为零，关闭接口全部拒绝；显式读取历史副本仍能返回原内容，缺失时返回 null。静态锚点同时拦截真实服务的工厂调用和构造器调用，不能仅按旧工厂名判断关闭。
 - **位置**：[WorkspaceHeaderActionSection.tsx](packages/ui/src/WorkspaceHeaderSections/WorkspaceHeaderActionSection.tsx)、[conversation-share](packages/services/src/conversation-share/)、[host/index.ts](packages/desktop/src/host/index.ts)、[node.ts](packages/services/src/node.ts)。
 
 ```mermaid
@@ -89,12 +89,14 @@ sequenceDiagram
   participant Host as 本地 Host
   participant Services as createLocalServices
   participant Closed as 分享关闭态接口
+  participant Disk as 历史只读副本
   Host->>Services: 初始化服务
   Services->>Closed: 注册关闭态（不访问分享目录）
   Host->>Closed: 发布 / 导入 / 预检
   Closed-->>Host: feature_disabled
   Host->>Closed: 显式读取历史内容
-  Closed-->>Host: null（不访问磁盘）
+  Closed->>Disk: 按 workspacePath 与 contextId 读取副本
+  Disk-->>Host: 已有内容或 null（不写入）
 ```
 
 ### 8. 手机远控
@@ -144,7 +146,7 @@ sequenceDiagram
 ### 14. 插件商店来源与分类
 
 - **市场来源**：默认 `zcode-plugins-official` 使用 `zai-org/zcode-plugins` GitHub 仓库源，沿用现有 Archive/Git 获取链路；不能只换成 raw JSON，因为目录里的插件 source 是相对路径。只自动迁移该市场已保存的旧默认 CDN 地址，清除旧刷新状态，自定义来源保持原样；保留市场 id、内置插件、安装身份和用户配置。源码源不包含 UI 插件编译产物，图标仍遵循上游目录地址。
-- **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。Claude 插件市场（`claude-plugins-official`）按个人市场对待：市场源管理中可删除——它不在 `ensureDefaultPluginMarketplaces` 自动补种名单内（补种仅 `zcode-plugins-official`），删除后不会回流；上游以"默认个人市场 id"为由的不可删保护在 NCode 放开（[PluginStoreSourcesDialog.tsx](packages/ui/src/settings/PluginStoreSourcesDialog.tsx) 定位 `isRemovableMarketplace`），ZCode 官方市场仍不可删。已装 Claude 插件的来源标签与刷新失败静默逻辑不受影响。
+- **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。
 - **公开与社区**：解析官方市场源码目录时，为缺少 `publisherType` 的条目按直接目录 `plugins/<name>` / `external_plugins/<name>` 补齐公开/社区归属；接受可选 `./` 前缀与结尾 `/`。显式字段优先，已有缓存同样生效；其他市场、未知路径、嵌套或越级路径不推断。仅补充展示字段，不改变插件身份或权限。
 - **目录合并**：插件 adapter 继续拥有市场记录与目录；仓库刷新后保留应用生成的 bundled/remote 两个分片及合并目录，仓库同名文件不能替换本地分片。远端同名条目优先，重复刷新、应用重启及内置播种后目录不丢失，网络失败保留已有缓存。
 - **内置搜图插件**：不内置、不打包 `image-search`，默认启用集合不含 `image-search@zcode-plugins-official`；商店目录、已安装管理及可恢复内置插件中均不出现该条目。移除官方 definition 与默认启用 id，并同步桌面 staging、CLI SEA 和远端 Agent 产物清单；已有本地缓存不再播种，旧配置中的同名条目不影响启动。

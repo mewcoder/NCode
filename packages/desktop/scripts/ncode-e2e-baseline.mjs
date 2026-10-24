@@ -61,7 +61,7 @@ export const NCODE_CLOSED_E2E_SPECS = [
   { spec: "./test/e2e/ui-shell/marketing-touch-entitlement.test.ts", feature: "marketing" },
   { spec: "./test/e2e/ui-shell/marketing-touch-rewards.test.ts", feature: "marketing" },
   // 一、5 应用内升级 + 一、9 反馈与社群（部分引用：帮助菜单标签断言官方社群/反馈/检查更新；
-  // 导出日志与关于窗口为保留行为，替代 spec 属后续独立工作）
+  // 导出日志与关于窗口由 ncode/ncode-help-menu-retained.test.ts 覆盖）
   { spec: "./test/e2e/help-menu-about.test.ts", feature: "update-feedback", partial: true },
   // 一、6 遥测（断言 ARMS 遥测 payload 落盘）
   { spec: "./test/e2e/process-resource-telemetry-roles.test.ts", feature: "telemetry" },

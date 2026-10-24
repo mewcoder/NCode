@@ -47,8 +47,7 @@ export function resolveUpstreamE2EHttpModeForWorker({
     specs.map((spec) => {
       const normalized = spec.replaceAll("\\", "/");
       return (
-        (normalized.includes("/manual-review/") &&
-          !caseLocalReplayFixtureAvailable) ||
+        (normalized.includes("/manual-review/") && !caseLocalReplayFixtureAvailable) ||
         normalized.endsWith("/upstream-provider.test.ts")
       );
     }),
@@ -76,13 +75,17 @@ export function hasUpstreamCaseLocalReplayFixtureForWorker({
   pathExists?: (path: string) => boolean;
   specs: readonly string[];
 }): boolean {
-  const caseNames = specs
-    .map(resolveConversationSessionCaseName)
-    .filter((caseName): caseName is string => Boolean(caseName));
   return (
-    caseNames.length > 0 &&
-    caseNames.length === specs.length &&
-    caseNames.every((caseName) => pathExists(join(caseFixtureDir, `${caseName}.json`)))
+    specs.length > 0 &&
+    specs.every((spec) => {
+      const entry = resolveReplayCase(spec);
+      return Boolean(
+        entry &&
+        pathExists(
+          join(resolveReplayCaseDir(caseFixtureDir, entry.domain), `${entry.caseName}.json`),
+        ),
+      );
+    })
   );
 }
 
@@ -119,19 +122,27 @@ export function resolveUpstreamReplayFixturePaths({
     return uniquePaths(configuredFixturePaths);
   }
 
-  const caseNames = uniquePaths(
-    specs
-      .map(resolveConversationSessionCaseName)
-      .filter((caseName): caseName is string => Boolean(caseName)),
+  const cases = [
+    ...new Map(
+      specs
+        .map(resolveReplayCase)
+        .filter((entry): entry is ReplayCase => entry !== null)
+        .map((entry) => [`${entry.domain}/${entry.caseName}`, entry] as const),
+    ).values(),
+  ];
+  const caseFixturePaths = cases.map(({ domain, caseName }) =>
+    join(resolveReplayCaseDir(caseFixtureDir, domain), `${caseName}.json`),
   );
-  const caseFixturePaths = caseNames.map((caseName) => join(caseFixtureDir, `${caseName}.json`));
 
   if (mode === "strict-case-local") {
     const missingPaths = [
       ...(pathExists(commonFixturePath) ? [] : [`common fixture: ${commonFixturePath}`]),
-      ...caseNames.flatMap((caseName) => {
-        const manifestPath = join(caseManifestDir, `${caseName}.json`);
-        const fixturePath = join(caseFixtureDir, `${caseName}.json`);
+      ...cases.flatMap(({ domain, caseName }) => {
+        const manifestPath = join(
+          resolveReplayCaseDir(caseManifestDir, domain),
+          `${caseName}.json`,
+        );
+        const fixturePath = join(resolveReplayCaseDir(caseFixtureDir, domain), `${caseName}.json`);
         return [
           ...(pathExists(manifestPath) ? [] : [`case manifest: ${manifestPath}`]),
           ...(pathExists(fixturePath) ? [] : [`case fixture: ${fixturePath}`]),
@@ -156,16 +167,30 @@ export function resolveUpstreamReplayFixturePaths({
   ]);
 }
 
-function resolveConversationSessionCaseName(spec: string): string | null {
+interface ReplayCase {
+  domain: "conversation-session" | "ncode";
+  caseName: string;
+}
+
+function resolveReplayCaseDir(conversationDir: string, domain: ReplayCase["domain"]): string {
+  return domain === "ncode" ? join(conversationDir, "..", "ncode") : conversationDir;
+}
+
+function resolveReplayCase(spec: string): ReplayCase | null {
   const normalized = spec.replaceAll("\\", "/");
-  if (!normalized.includes("/test/e2e/conversation-session/")) {
-    return null;
-  }
+  // NCode 用例此前被当作无夹具候选而进入 capture；复用标准 sibling 目录，
+  // 让默认发现与 strict 缺失校验使用同一份领域身份，不依赖手动环境变量。
+  const domain = normalized.includes("/test/e2e/conversation-session/")
+    ? "conversation-session"
+    : normalized.includes("/test/e2e/ncode/")
+      ? "ncode"
+      : null;
+  if (!domain) return null;
   const fileName = normalized.split("/").at(-1) ?? "";
   if (!fileName.endsWith(".test.ts") || fileName.includes("*")) {
     return null;
   }
-  return fileName.slice(0, -".test.ts".length);
+  return { domain, caseName: fileName.slice(0, -".test.ts".length) };
 }
 
 function uniquePaths(paths: string[]): string[] {

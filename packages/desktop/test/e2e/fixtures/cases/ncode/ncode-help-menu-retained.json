@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "caseName": "ncode-help-menu-retained",
+  "spec": "./test/e2e/ncode/ncode-help-menu-retained.test.ts",
+  "providerFixtures": [
+    "./test/e2e/fixtures/upstream/common.json",
+    "./test/e2e/fixtures/upstream/ncode/ncode-help-menu-retained.json"
+  ],
+  "fileFixtures": [],
+  "requests": [],
+  "providerRequestPolicy": "none",
+  "noProviderRequests": true
+}
