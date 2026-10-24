@@ -36,7 +36,7 @@ if (!existsSync(specPath)) {
 }
 if (!specContract) {
   errors.push(
-    "Fixture check supports formal/pending conversation-session and plugin specs outside recursive globs.",
+    "Fixture check supports formal/pending conversation-session, plugin and ncode specs outside recursive globs.",
   );
 }
 
@@ -156,13 +156,21 @@ function printUsage() {
       "  pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/conversation-session/<case>.test.ts\n" +
       "  pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/conversation-session/manual-review/pending/<case>.test.ts\n" +
       "  pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/plugins/<case>.test.ts\n" +
-      "  pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/plugins/manual-review/pending/<case>.test.ts\n",
+      "  pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/plugins/manual-review/pending/<case>.test.ts\n" +
+      "  pnpm --filter @zcode/desktop e2e:fixture:check -- --spec ./test/e2e/ncode/manual-review/pending/<case>.test.ts\n",
   );
 }
 
 function resolveE2ESpecContract(specPath) {
   const normalized = specPath.replaceAll("\\", "/");
   const candidates = [
+    // NCode 候选原先无法通过标准 checker，补上同一目录合同，沿用全部校验。
+    {
+      marker: "/test/e2e/ncode/",
+      fixtureDir: resolve(upstreamFixtureRoot, "ncode"),
+      manifestRoot: resolve(desktopDir, "test/e2e/fixtures/cases/ncode"),
+      formalDir: resolve(desktopDir, "test/e2e/ncode"),
+    },
     {
       marker: "/test/e2e/conversation-session/",
       fixtureDir: conversationFixtureDir,
