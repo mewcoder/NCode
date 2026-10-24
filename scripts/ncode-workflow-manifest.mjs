@@ -10,10 +10,12 @@ export const NCODE_WORKFLOW_FILES = [
   // 工具链
   "scripts/ncode-closure-impact.mjs",
   "scripts/ncode-port-plan.mjs",
+  "scripts/ncode-upstream-check.mjs",
   "scripts/ncode-workflow-manifest.mjs",
   "scripts/test/ncode-workflow-manifest.test.mjs",
   "scripts/test/ncode-closure-impact.test.mjs",
   "scripts/test/ncode-port-plan.test.mjs",
+  "scripts/test/ncode-upstream-check.test.mjs",
   "scripts/ncode-artifact-audit.mjs",
   "scripts/test/ncode-artifact-audit.test.mjs",
   "scripts/ncode-branding.mjs",

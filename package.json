@@ -48,7 +48,8 @@
     "ncode:branding:check": "node scripts/ncode-branding.mjs --check",
     "ncode:branding:sync": "node scripts/ncode-branding.mjs --sync",
     "ncode:artifact:audit": "node scripts/ncode-artifact-audit.mjs",
-    "ncode:closure:impact": "node scripts/ncode-closure-impact.mjs"
+    "ncode:closure:impact": "node scripts/ncode-closure-impact.mjs",
+    "ncode:upstream:check": "node scripts/ncode-upstream-check.mjs"
   },
   "dependencies": {
     "border-beam": "^1.0.1",
