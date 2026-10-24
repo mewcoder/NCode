@@ -27,6 +27,7 @@ app.asar 内部：renderer assets 44.1MB（最大单件 styles 6.1MB、xlsx wasm
 | Cron scheduler 懒启动                                                                                          | 空闲时 -1 进程（utilityProcess） | 无自动化任务时不 spawn，创建首个任务时再启动；需处理创建路径的唤醒（见进程基线）     |
 | zcode-guide-plugin 移除                                                                                        | 76KB + 官方内容残留              | 官方内置插件，移除影响内置指南能力，需产品决策                                       |
 | 渲染器大资产治理（styles 6.1MB、shiki 语言包、mermaid 图表包）                                                 | 数 MB 级                         | 上游共享能力（代码高亮/图表），按需加载属上游优化，NCode 不单独分叉                  |
+| mock-cdn 本地磁盘占用（releases 历史版本 + components，2026-10-25 实测 1.23GB，git-ignored）                    | 释放本地磁盘（不进安装包）        | 已提供 `pnpm ncode:mock-cdn:clean`（默认 dry-run，--apply 真删，默认保留当前版本）  |
 
 ## 进程基线
 

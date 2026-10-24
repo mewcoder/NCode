@@ -22,6 +22,7 @@ export const NCODE_WORKFLOW_FILES = [
   "scripts/ncode-port-plan.mjs",
   "scripts/ncode-upstream-check.mjs",
   "scripts/ncode-locale-check.mjs",
+  "scripts/ncode-mock-cdn-clean.mjs",
   "scripts/ncode-branding.mjs",
   "scripts/test/ncode-branding.test.mjs",
   "scripts/test/ncode-port-plan.test.mjs",
@@ -57,6 +58,7 @@ export const NCODE_WORKFLOW_SCRIPTS = [
   "ncode:port:plan",
   "ncode:upstream:check",
   "ncode:locale:check",
+  "ncode:mock-cdn:clean",
 ];
 
 /** 发现规则：仓库内这些模式的 ncode 专属文件必须已登记，防止清单漂移。 */

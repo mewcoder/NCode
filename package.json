@@ -84,7 +84,8 @@
     "db:schema:update": "pnpm --dir apps/zcode-cli exec tsx ../../scripts/check-sqlite-schema.ts --update",
     "ncode:port:plan": "node scripts/ncode-port-plan.mjs",
     "ncode:upstream:check": "node scripts/ncode-upstream-check.mjs",
-    "ncode:locale:check": "node scripts/ncode-locale-check.mjs"
+    "ncode:locale:check": "node scripts/ncode-locale-check.mjs",
+    "ncode:mock-cdn:clean": "node scripts/ncode-mock-cdn-clean.mjs"
   },
   "dependencies": {
     "border-beam": "^1.0.1",
