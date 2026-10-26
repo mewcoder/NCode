@@ -9,7 +9,6 @@ interface SkillDisplayCandidate {
 }
 
 const OFFICIAL_BUILTIN_PLUGIN_NAMES = new Set([
-  "android-emulator",
   "browser",
   "browser-use",
   "document-skills",
@@ -17,7 +16,6 @@ const OFFICIAL_BUILTIN_PLUGIN_NAMES = new Set([
   "pdf",
   "presentations",
   "spreadsheets",
-  "ios-simulator",
   "restore-legacy-sessions",
   "skill-creator",
   "plugin-creator",
@@ -28,14 +26,12 @@ const OFFICIAL_BUILTIN_PLUGIN_NAMES = new Set([
 const OFFICIAL_PLUGIN_PATH_MARKERS = [
   "/zcode-plugins-official/",
   "\\zcode-plugins-official\\",
-  "/android-emulator-plugin/",
   "/browser-use-plugin/",
   "/document-skills-plugin/",
   "/documents-plugin/",
   "/pdf-plugin/",
   "/presentations-plugin/",
   "/spreadsheets-plugin/",
-  "/ios-simulator-plugin/",
   "/restore-legacy-sessions-plugin/",
   "/skill-creator-plugin/",
   "/plugin-creator-plugin/",
@@ -44,10 +40,6 @@ const OFFICIAL_PLUGIN_PATH_MARKERS = [
 ];
 
 const BUILTIN_SKILL_DESCRIPTIONS: Record<string, Record<Locale, string>> = {
-  "android-dev": {
-    "zh-CN": "通过 android-emulator MCP 工具构建、运行、检查并轻量自动化 Android 应用。",
-    "en-US": "Build, run, inspect, and lightly automate Android apps through the android-emulator MCP tools.",
-  },
   "brainstorming": {
     "zh-CN": "在任何创造性工作前使用：创建功能、构建组件、增加能力或修改行为；先探索用户意图、需求和设计。",
     "en-US": "Use before any creative work, including creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements, and design before implementation.",
@@ -75,10 +67,6 @@ const BUILTIN_SKILL_DESCRIPTIONS: Record<string, Record<Locale, string>> = {
   "finishing-a-development-branch": {
     "zh-CN": "实现已完成、测试通过、需要决定如何合并、发 PR 或清理分支时使用。",
     "en-US": "Use when implementation is complete, tests pass, and you need to decide how to integrate the work through merge, PR, or cleanup.",
-  },
-  "ios-dev": {
-    "zh-CN": "通过 ios-simulator MCP 工具构建、运行、检查并轻量自动化 iOS 模拟器应用。",
-    "en-US": "Build, run, inspect, and lightly automate iOS Simulator apps through the ios-simulator MCP tools.",
   },
   "pdf": {
     "zh-CN": "专业 PDF 工具集，覆盖报告、创意视觉、学术 LaTeX 和现有 PDF 处理四条生产线。可按文档类型自动路由，支持报告、海报、论文、简历、提取、合并、拆分、表单填写和格式转换等任务。",

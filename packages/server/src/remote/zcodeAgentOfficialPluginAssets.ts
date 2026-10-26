@@ -3,14 +3,12 @@ import { posix } from "node:path";
 export const REMOTE_AGENT_OFFICIAL_PLUGIN_DIR_NAME = "packages";
 
 export const REMOTE_AGENT_OFFICIAL_PLUGIN_PACKAGE_NAMES = [
-  "android-emulator-plugin",
   "browser-use-plugin",
   "zcode-cua-plugin",
   "documents-plugin",
   "pdf-plugin",
   "presentations-plugin",
   "spreadsheets-plugin",
-  "ios-simulator-plugin",
   "restore-legacy-sessions-plugin",
   "skill-creator-plugin",
   "plugin-creator-plugin",

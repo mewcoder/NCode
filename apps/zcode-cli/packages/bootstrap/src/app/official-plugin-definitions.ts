@@ -42,7 +42,7 @@ export interface OfficialPluginDefinition {
   componentTypes?: readonly string[];
   // 内容型 plugin (无 MCP server / 无系统依赖) 可以设为 true,
   // 这样用户首次 `/skill <name>` 就能用,不必先 `zcode plugins enable`。
-  // 默认 false 保持 ios-simulator / android-emulator 这类重负载 plugin 原来行为。
+  // 默认 false：重负载 plugin 不自动启用。
   defaultEnabled?: boolean;
   listing?: OfficialPluginListingSeed;
   /**
@@ -161,26 +161,6 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
     version: "0.6.1",
   },
   {
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "developer-tools",
-      displayName: "Android Emulator",
-      displayName_i18n: { "zh-CN": "Android 模拟器" },
-      icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/android-emulator/icon.png`,
-      description_i18n: {
-        "zh-CN": "提供 Android 开发工作流与模拟器自动化能力。",
-      },
-    },
-    name: "android-emulator",
-    rootCandidates: [
-      "packages/android-emulator-plugin",
-      "../android-emulator-plugin",
-      "../../android-emulator-plugin",
-      "../../../android-emulator-plugin",
-    ],
-    version: "0.1.0",
-  },
-  {
     // manifest 只声明 browser-use skill；宿主 node_repl MCP 独立注入，package 另外携带其 server/client
     // runtime 资产。默认启用仅控制「何时/如何用内置浏览器」的 skill 与 browser bridge。
     defaultEnabled: true,
@@ -246,26 +226,6 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       version,
     }),
   ),
-  {
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "developer-tools",
-      displayName: "iOS Simulator",
-      displayName_i18n: { "zh-CN": "iOS 模拟器" },
-      icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/ios-simulator/icon.png`,
-      description_i18n: {
-        "zh-CN": "提供 iOS 开发工作流与模拟器自动化能力。",
-      },
-    },
-    name: "ios-simulator",
-    rootCandidates: [
-      "packages/ios-simulator-plugin",
-      "../ios-simulator-plugin",
-      "../../ios-simulator-plugin",
-      "../../../ios-simulator-plugin",
-    ],
-    version: "0.1.0",
-  },
   {
     listing: {
       author: ZAI_AUTHOR,

@@ -68,15 +68,6 @@ export const officialSeaPlugins = [
   },
   {
     marketplace: "zcode-plugins-official",
-    name: "android-emulator",
-    packageName: "@zcode/android-emulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    rootPath: join("packages", "android-emulator-plugin"),
-    version: "0.1.0",
-  },
-  {
-    marketplace: "zcode-plugins-official",
     name: "documents",
     packageName: "@zcode/documents-plugin",
     // 0.2.0 起带查看面板：SEA 必须在嵌入前校验 office-runtime 构建出的 server 与面板资源。
@@ -152,15 +143,6 @@ export const officialSeaPlugins = [
     // SEA 清单仍指向旧版时，runtime 会与官方 definition 精确匹配失败，
     // 导致发布产物不 seed browser-use，进而无法装配宿主 node_repl MCP。
     version: "0.5.1",
-  },
-  {
-    marketplace: "zcode-plugins-official",
-    name: "ios-simulator",
-    packageName: "@zcode/ios-simulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    rootPath: join("packages", "ios-simulator-plugin"),
-    version: "0.1.0",
   },
   {
     marketplace: "zcode-plugins-official",

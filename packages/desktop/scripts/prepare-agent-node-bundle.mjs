@@ -101,14 +101,6 @@ const browserUseRequiredRuntimePaths = [
 const officeViewerRuntimePaths = ["dist/server.mjs", "dist/ui/assets.json", "dist/ui/panel.html"];
 const officialPluginPackages = [
   {
-    packageName: "@zcode/android-emulator-plugin",
-    relativePath: "apps/zcode-cli/packages/android-emulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    runtimeBuildScript: "scripts/build-mcp.mjs",
-    stagedPath: "packages/android-emulator-plugin",
-  },
-  {
     packageName: "@zcode/documents-plugin",
     relativePath: "apps/zcode-cli/packages/documents-plugin",
     requiresRuntime: true,
@@ -202,14 +194,6 @@ const officialPluginPackages = [
     requiredRuntimePaths: browserUseRequiredRuntimePaths,
     runtimeBuildScript: "scripts/build.mjs",
     stagedPath: "packages/browser-use-plugin",
-  },
-  {
-    packageName: "@zcode/ios-simulator-plugin",
-    relativePath: "apps/zcode-cli/packages/ios-simulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    runtimeBuildScript: "scripts/build-mcp.mjs",
-    stagedPath: "packages/ios-simulator-plugin",
   },
   {
     // 修复原因：restore-legacy-sessions 已注册为官方插件，但 Electron 生产包只会拷贝
