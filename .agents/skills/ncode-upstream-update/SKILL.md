@@ -77,7 +77,7 @@ description: 更新 NCode 的 ZCode 上游源码，每个版本使用独立干�
 - **locale**（`i18n/locales/*.ts`）：取 ours（当版键全集，防止 formatMessage 落 key 名），叠加品牌串 `ZCode→NCode` 与关键文案替换（如 `chat.error.noAvailableModel` 改 BYO key 表述）；不取 theirs（会带入未来版本的键）。
 - **Provider 包裹层**（Root/App 的 MarketingTouchProvider、RewardsProvider、OccupationOnboarding、BotGroupDeliveryProvider 等）：取 ours 结构 + 正则摘除包裹标签保留子内容；同步删除对应 import。
 - **登录/账户 handler**：删 `handleOpenLoginEntry`/`handleWelcomeScreenComplete`、shell 的 `onLogin` 透传；**props 契约保留**（`onLogin?: () => void` 留在中间层类型上，只有叶子组件不渲染入口），否则调用链连锁报错。
-- **市场源**：`DEFAULT_PLUGIN_MARKETPLACES`（ZCode 官方 GitHub 源）与 Claude 官方市场均内置不可删（启动补种 + `isRemovableMarketplace` 判定），移植时保持一致。
+- **市场源**：以本版 `ncode-feature.md` 的“插件商店来源与分类”为准，核对默认来源、迁移与回退、自动补种和可删除边界；不照搬上游默认市场及不可删保护。
 - **3.15+ 新模块依赖**（bots 装配导出、highspeed、cloudContent、desktop-telemetry 等）在更老树上不存在：相关关闭实现改为「恢复原版 + 仅补 policy import/门禁」，不要平移上一版文件。
 
 - 建立基线后先跑 `pnpm ncode:closure:impact --validate --ref <官方基线 commit>`：产出全部关闭项的按章节差距清单，作为本版适配的工作清单；适配过程中可用不带 `--ref` 的工作区模式跟踪收敛进度（期望差距逐步降为 0）。再用 `--base <上一版快照 ref> --head <官方基线>` 输出上游版本间 diff 命中的关闭面，作为重点核对范围。

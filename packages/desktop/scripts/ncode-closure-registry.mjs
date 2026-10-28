@@ -232,8 +232,9 @@ export const NCODE_CLOSURE_ANCHORS = [
     section: "一、关闭功能 · 14 插件商店来源与分类",
     kind: "require",
     file: "packages/shared/src/plugin-marketplaces.ts",
-    pattern: /zai-org\/zcode-plugins/,
-    note: "默认市场使用 GitHub 仓库源",
+    // 默认来源已按 feature 清单改为 CDN；旧 GitHub 断言会误报已完成的分发适配。
+    pattern: /source:\s*"https:\/\/cdn-zcode\.z\.ai\/zcode\/official-plugin\/marketplace\.json"/,
+    note: "默认市场使用官方 CDN 已构建目录",
   },
   {
     section: "一、关闭功能 · 14 插件商店来源与分类",

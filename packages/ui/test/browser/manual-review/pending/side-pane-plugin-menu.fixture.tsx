@@ -35,7 +35,9 @@ const services = (params.has("noBridge")
   : {
       pluginManagementService: {
         listPlugins: readCatalog,
-        getPluginsOverview: readCatalog,
+        getPluginsOverview: params.has("splitCatalog")
+          ? async () => (await fetch("/overview")).json()
+          : readCatalog,
         installPlugin: (input: unknown) => mutatePlugin("/install", input),
         setPluginEnabled: (input: unknown) => mutatePlugin("/enable", input),
       },

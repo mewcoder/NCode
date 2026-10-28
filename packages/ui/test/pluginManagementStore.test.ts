@@ -104,6 +104,30 @@ beforeEach(() => {
 });
 
 describe("pluginManagementStore", () => {
+  it("keeps inventory-only reads independent from a pending catalog", async () => {
+    const pending = Promise.withResolvers<ZCodePluginsOverviewResult>();
+    const service = createPluginServiceMock({
+      getPluginsOverview: vi.fn(() => pending.promise),
+    });
+    const catalog = createPluginManagementStore(service);
+    const catalogRequest = catalog
+      .getState()
+      .initialize({ workspacePath: "/workspace/app", pluginService: service });
+    await vi.waitFor(() => expect(service.getPluginsOverview).toHaveBeenCalledTimes(1));
+    const local = createPluginManagementStore(service, { loadMode: "inventory-only" });
+    await local.getState().initialize({ workspacePath: "/workspace/app", pluginService: service });
+    expect(local.getState().plugins).toHaveLength(1);
+    expect(local.getState().loading).toBe(false);
+    expect(local.getState().marketplaceAvailabilityKnown).toBe(false);
+    expect(service.getPluginsOverview).toHaveBeenCalledTimes(1);
+    expect(service.listPlugins).toHaveBeenCalledTimes(2);
+    expect(catalog.getState().loading).toBe(true);
+    pending.resolve(makeOverview());
+    await catalogRequest;
+    expect(catalog.getState().availablePlugins).toHaveLength(1);
+    expect(local.getState().availablePlugins).toEqual([]);
+  });
+
   it("loads both independently mounted market projections for the same workspace", async () => {
     const first = createPluginManagementStore();
     const second = createPluginManagementStore();

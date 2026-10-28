@@ -38,6 +38,8 @@ export interface PluginManagementState {
   /** Source 缓存权威：同一 home 路径下不同 Source 的投影不能互相复用。 */
   authorityKey: string | null;
   configScope: ZCodePluginScope | null;
+  /** 侧栏只查本地清单，其余视图继续读取完整目录。 */
+  loadMode: "catalog" | "inventory-only";
   plugins: ZCodePluginInfo[];
   marketplaces: ZCodePluginMarketplaceSummary[];
   /** 最近一次 overview 是否成功；false 表示来源存在性未知，不能推导孤立状态。 */
@@ -132,13 +134,17 @@ function throwForErrorDiagnostic(diagnostics: ZCodePluginDiagnostic[]): void {
   }
 }
 
-export const createPluginManagementStore = (initialService?: IPluginManagementService) => {
+export const createPluginManagementStore = (
+  initialService?: IPluginManagementService,
+  options: { loadMode?: PluginManagementState["loadMode"] } = {},
+) => {
   let lastService = initialService;
   return create<PluginManagementState>((set, get) => ({
     workspacePath: null,
     workspaceIdentity: null,
     authorityKey: null,
     configScope: null,
+    loadMode: options.loadMode ?? "catalog",
     plugins: [],
     marketplaces: [],
     marketplaceAvailabilityKnown: false,
@@ -504,9 +510,15 @@ function subscribeStore(store: ReturnType<typeof createPluginManagementStore>) {
 subscribeStore(usePluginManagementStore);
 
 /** 每个市场/管理视图持有独立查询投影，写入仍由同一个 CLI 插件服务负责。 */
-export function useScopedPluginManagementStore(pluginService: IPluginManagementService) {
+export function useScopedPluginManagementStore(
+  pluginService: IPluginManagementService,
+  loadMode: PluginManagementState["loadMode"] = "catalog",
+) {
   // 服务切换后不能复用旧主机的目录和在途写入状态。
-  const store = useMemo(() => createPluginManagementStore(pluginService), [pluginService]);
+  const store = useMemo(
+    () => createPluginManagementStore(pluginService, { loadMode }),
+    [pluginService, loadMode],
+  );
   useEffect(() => subscribeStore(store), [store]);
   return store;
 }

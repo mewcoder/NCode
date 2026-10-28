@@ -77,6 +77,8 @@ NC-POL-04：远端 Server 在空上报端点下不调用 MID 初始化器，临�
 5. 面板入口读取当前工作区插件管理 store 的已安装条目及实际清单 `uiSurfaces`，不消费远端推荐。包括官方、个人、inline/开发和孤立安装；排除目录中未安装、缺包、待恢复条目。每个 `(pluginId,surfaceId)` 只出现一次，保留清单顺序。
 6. 已安装但暂停的插件仍展示并复用 workspace 启用命令；入口不安装或恢复插件。运行时 `listSurfaces` 在点击时验证真实可用性后才打开面板。草稿无会话时不展示；不支持的平台/远程环境沿用既有提示与边界。
 
+7. 侧栏“应用插件”及添加菜单只请求 `plugins/list`，不请求 `plugins/overview`；清单读取与市场总览的在途请求按模式隔离。CLI 继续拥有插件事实，入口在本次清单读取完成后显示，不增加重开快照或有效期。
+
 ## 状态所有者和事件顺序
 
 插件安装/启停由现有插件管理 store/服务唯一拥有；入口只是视图投影。当前 hook 只保存目标就绪和错误状态，不复制 accepted 会话、插件安装事实或面板运行时。使用包含服务、workspace identity/path、session、remote session 的目标身份隔离异步操作，旧目标迟到结果不能打开新目标或显示其错误。
@@ -89,6 +91,8 @@ sequenceDiagram
   participant U as 面板入口 hook/UI
   M->>H: 显式 desktopContextPromptEnabled=true
   U->>S: initialize(workspaceIdentity/path)
+  S->>H: plugins/list（侧栏仅清单模式）
+  H-->>S: 本地插件及实际 uiSurfaces
   S-->>U: 已安装清单及启停状态
   U->>U: 按 uiSurfaces 派生、去重入口
   U->>S: 用户点击暂停插件：setEnabled(workspace)
@@ -109,7 +113,7 @@ sequenceDiagram
 - NC-CFG-05：已安装多面板（含个人/开发/孤立安装）逐项显示，重复去重；未安装/缺包/待恢复不显示。
 - NC-CFG-06：暂停插件可以启用、失败可重试、重复点击不重复写入；卸载后随 store 更新移除；不发安装/恢复命令。
 - NC-CFG-07：工作区/服务/会话切换立即隔离旧条目、错误与迟到的面板查询。
-- NC-CFG-08：浏览器交互回归覆盖桌面浅色英文与窄屏深色中文：菜单及标签页显示已安装面板，启用/打开流程可用，客户端配置请求数为零。
+- NC-CFG-08：浏览器交互回归覆盖桌面浅色英文与窄屏深色中文：菜单及标签页显示已安装面板，启用/打开流程可用，客户端配置和市场总览请求数均为零；市场总览挂起不阻塞本地清单。
 - NC-CFG-09：`policy.d.ts` 与 `policy.js` 字段集和字面量取值一致（含嵌套 `clientConfigDefaults`、`build`），由 `ncodeFeaturePolicyDeclaration.test.ts` 纯文本比对守卫：只改 JS 不改声明必须失败，不靠人工记忆对齐。下游可编译性另行验证：`pnpm --filter @zcode/contracts build`（该项目不开启 `allowJs`）必须通过。
 
 ## 最早适配提交的复查与归并

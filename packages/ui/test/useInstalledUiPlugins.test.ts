@@ -61,6 +61,20 @@ function setup() {
   return { service, getSnapshot };
 }
 const target = { workspacePath: "/workspace/a", workspaceIdentity: "identity-a", sessionId: "s" };
+it("应用插件仅查询本地清单，不查询市场总览", async () => {
+  const { service } = setup();
+  service.getPluginsOverview.mockImplementation(async () => {
+    throw new Error("应用插件不应读取市场总览");
+  });
+  const { result } = renderHook(() => useInstalledUiPlugins(target));
+  await waitFor(() => expect(result.current.entries).toHaveLength(2));
+  expect(result.current.loading).toBe(false);
+  expect(service.listPlugins).toHaveBeenCalledTimes(1);
+  expect(service.getPluginsOverview).not.toHaveBeenCalled();
+  await act(async () => result.current.prepare(result.current.entries[0]!.item));
+  expect(service.getPluginsOverview).not.toHaveBeenCalled();
+});
+
 it("个人/孤立已安装插件的多面板去重，不读推荐；暂停可启用", async () => {
   const { service, getSnapshot } = setup();
   const { result } = renderHook(() => useInstalledUiPlugins(target));
@@ -159,7 +173,7 @@ it("服务切换隔离旧错误，草稿不加载面板", async () => {
   const { service: next } = setup();
   rerender({ sessionId: "s" });
   expect(result.current.entries).toEqual([]);
-  await waitFor(() => expect(next.getPluginsOverview).toHaveBeenCalled());
+  await waitFor(() => expect(next.listPlugins).toHaveBeenCalled());
   await act(async () => {
     pending.reject(new Error("old failure"));
     await operation;

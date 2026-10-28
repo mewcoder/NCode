@@ -19,7 +19,7 @@ export function useInstalledUiPlugins(target: {
 }) {
   const { pluginManagementService: service, pluginUiBridgeService: bridge } = useServices();
   const enabled = target.sessionId !== null && NCODE_FEATURE_POLICY.pluginPanels === "installed";
-  const store = useScopedPluginManagementStore(service);
+  const store = useScopedPluginManagementStore(service, "inventory-only");
   const state = store();
   const key = JSON.stringify([
     target.workspacePath,

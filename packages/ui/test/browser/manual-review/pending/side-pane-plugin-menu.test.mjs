@@ -102,6 +102,37 @@ for (const [width, locale, theme] of [
   [1200, "en-US", "light"],
   [390, "zh-CN", "dark"],
 ]) {
+  test(`PLM-SIDEPANE-APP-LOAD ${width}/${locale}/${theme}`, async () => {
+    const page = await browser.newPage({ viewport: { width, height: 800 } });
+    let overviewRequested = false;
+    await page.route("**/catalog", (route) => route.fulfill({ json: catalog() }));
+    await page.route("**/overview", async (route) => {
+      overviewRequested = true;
+      await route.fulfill({ json: catalog() });
+    });
+    await page.route("**/client-config", (route) => route.fulfill({ json: {} }));
+    try {
+      await page.goto(
+        `${origin}fixture?splitCatalog=1&locale=${locale}&theme=${theme}${width < 500 ? "&mobile=1" : ""}`,
+        { waitUntil: "domcontentloaded" },
+      );
+      await page.locator(launcherItems).first().waitFor({ timeout: 1500 });
+      assert.equal(overviewRequested, false);
+      assert.equal(await page.locator(launcherItems).count(), 2);
+      assert.equal(await page.getByTestId("side-pane-ui-loading").count(), 0);
+      const artifacts = join(tmpdir(), "ncode-installed-ui-panels");
+      await mkdir(artifacts, { recursive: true });
+      await page.screenshot({ path: join(artifacts, `inventory-only-${width}-${theme}.png`) });
+    } finally {
+      await page.close();
+    }
+  });
+}
+
+for (const [width, locale, theme] of [
+  [1200, "en-US", "light"],
+  [390, "zh-CN", "dark"],
+]) {
   test(`NC-CFG-08 installed panels ${width}/${locale}/${theme}`, async () => {
     const page = await browser.newPage({ viewport: { width, height: 800 } });
     page.setDefaultTimeout(15000);
