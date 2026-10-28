@@ -37,12 +37,14 @@ export const DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS: ReadonlySet<string> = new Set(
   // bootstrap 的「Settings 默认启用集合与 CLI 的官方插件声明一致」单测机械对照两者。
 ]);
 
+export const ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL =
+  "https://zai-org.github.io/zcode-plugins/";
+
 export const DEFAULT_PLUGIN_MARKETPLACES: DefaultPluginMarketplace[] = [
   {
-    // NCode 从 GitHub 获取目录及相对插件源码，与本地 seed 分片合并。
-    // 使用仓库简写以进入 GitHub source 解析，manifest name 保持 canonical id。
+    // 优先使用官方 CDN；不可达时由插件 adapter 回退到 Pages 已构建分发。
     id: ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
-    source: "zai-org/zcode-plugins",
+    source: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
     name: ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
     description: "Official ZCode plugins marketplace: built-in and community plugins for ZCode.",
     pluginCount: 0,

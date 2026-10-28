@@ -146,41 +146,35 @@ that reports nothing was removed, rather than an error.
 
 The built-in marketplace name is `zcode-plugins-official`.
 
-### NCode default GitHub source
+### Official CDN first, GitHub Pages fallback (2026-10-26)
 
-NCode registers `zai-org/zcode-plugins` as the default source of the existing
-`zcode-plugins-official` identity. The adapter resolves this shorthand through
-the existing GitHub Archive / Git source loader, including the root
-`marketplace.json` and relative plugin directories. A raw JSON URL alone is not
-an installable source for this repository's relative entries.
+Default: `https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json`;
+fallback: `https://zai-org.github.io/zcode-plugins/`. Exact uncredentialed official
+catalog/versioned ZIP requests try CDN, then Pages once for transport/timeout/HTTP
+failure. Cancellation, invalid JSON/manifest/artifact metadata, SHA-256 or extraction
+failure never switches source. Catalog CDN budget is 10 seconds; other requests
+retain 180 seconds. Existing proxy/CA rules, atomic activation and old-state recovery
+remain; no retry loop, routing cache or proxy bypass is added.
 
-This is NCode's only default marketplace. Claude's marketplace is no longer
-automatically registered. Existing Claude records and installed plugins remain
-unchanged, and existing personal-source handling is retained.
-
-The plugin adapter owns `known_marketplaces.json`. Default registration changes
-only the canonical official record whose source is exactly the retired CDN URL
-`https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json`; custom sources
-and other markets are preserved. Migration keeps identity, addedAt, plugin count,
-installed records and configuration, and clears lastUpdated / lastRefreshFailure
-so the existing store refresh path can fetch the new source. It is idempotent
-and performs no network request itself; a failed refresh keeps the cached catalog.
+Only previous default Pages/unpinned GitHub sources migrate, once, clearing refresh
+time but preserving installs/config/catalog; customized sources and headers remain.
+Cached official Pages ZIP URLs also try CDN first. Catalogs may differ: fallback
+replaces the snapshot, never unions entries; ZIP fallback keeps version/digest,
+never downgrades. Personal sources are unchanged; official icons remain on Pages.
 
 ```text
-bootstrap / store request
-  → plugin adapter: register defaults / migrate exact retired source
-  → known_marketplaces.json: same id, GitHub source, refresh timestamp cleared
-  → existing refresh: fetch repository → merge remote and bundled entries
-  → atomic directory activation: source tree + both official partitions + catalog
-  → existing install: relative source directory → installed plugin cache
-  → next startup: bundled reseed preserves the remote partition
+store → plugin adapter (existing catalog/install owner)
+      → CDN request → success → validate → existing atomic activation
+                    → transport/status failure → Pages request → validate
+                    → cancellation/invalid content → fail; preserve old state
 ```
 
-Directory activation must preserve both locally owned official partition files;
-repository files must not replace them. Remote entries retain precedence over
-same-name bundled catalog entries. Existing installed plugin directories remain
-unchanged. This change does not build UI plugins or rewrite upstream icon URLs:
-GitHub source trees omit compiled UI runtimes, and some icons still use CDN URLs.
+Official `_artifact.path` must equal `plugins/<name>/<version>/plugin.zip`, with
+valid matching `_artifact`/`source` SHA-256. Invalid metadata fails closed. ZIPs
+include compiled UI runtimes; no client build or automatic reinstall is performed.
+Acceptance covers both network/status fallbacks, cancellation/corruption rejection,
+source migration and custom-source preservation. Runtime/desktop evidence and
+limitations are recorded in the plugin lifecycle coverage matrix.
 
 For `zcode-plugins-official`, manifest parsing fills missing `publisherType`
 from direct relative source directories: `plugins/<name>` is `official`, and
@@ -197,13 +191,9 @@ downloaded / cached manifest → adapter parser: fill missing publisherType
   → normalized Store Listing → existing public / community segment selector
 ```
 
-Acceptance: a fresh storage root uses GitHub; the exact old source migrates only
-once; custom sources stay unchanged; a directory-source refresh supports relative
-plugin installation, retains bundled entries and partitions, and survives a
-second refresh and bundled reseed. Existing official-id reservation stays intact.
-Regression evidence also covers publisher inference on cached manifests, explicit
-metadata precedence, personal sources, unknown paths and the public/community UI
-segment projection.
+Directory-source regression coverage remains for personal/development sources:
+relative plugin installation preserves bundled entries/partitions across refresh
+and reseed. Official-id reservation and publisher inference remain unchanged.
 
 External Claude Marketplace sources use `.claude-plugin/marketplace.json` as
 their canonical manifest location. ZCode may normalize the fetched marketplace

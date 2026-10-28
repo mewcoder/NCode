@@ -11,6 +11,7 @@ import {
   ensureDefaultPluginMarketplaces,
   addMarketplace,
   installMarketplacePlugin,
+  loadMarketplaceManifestSync,
 } from "../src/plugins/index.js";
 
 describe("ZCode official marketplace partitions", () => {
@@ -26,13 +27,16 @@ describe("ZCode official marketplace partitions", () => {
     return storageRoot;
   }
 
-  it("registers GitHub by default and migrates only the exact retired official source once", async () => {
+  it("registers CDN by default and migrates only exact previous defaults once", async () => {
     const storageRoot = await makeStorageRoot();
     expect(
       ensureDefaultPluginMarketplaces(storageRoot).find(
         (record) => record.id === "zcode-plugins-official",
       )?.source,
-    ).toEqual({ source: "github", repo: "zai-org/zcode-plugins" });
+    ).toEqual({
+      source: "url",
+      url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+    });
     expect(ensureDefaultPluginMarketplaces(storageRoot).map((record) => record.id)).toEqual([
       "zcode-plugins-official",
     ]);
@@ -41,7 +45,7 @@ describe("ZCode official marketplace partitions", () => {
       name: "zcode-plugins-official",
       source: {
         source: "url",
-        url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+        url: "https://zai-org.github.io/zcode-plugins/marketplace.json",
       },
       addedAt: "2026-01-01T00:00:00.000Z",
       lastUpdated: "2026-01-02T00:00:00.000Z",
@@ -60,12 +64,36 @@ describe("ZCode official marketplace partitions", () => {
       name: record.name,
       addedAt: record.addedAt,
       pluginCount: 12,
-      source: { source: "github", repo: "zai-org/zcode-plugins" },
+      source: {
+        source: "url",
+        url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+      },
     });
     const firstMtime = (await stat(knownPath)).mtimeMs;
     expect(ensureDefaultPluginMarketplaces(storageRoot)).toEqual(migrated);
     expect((await stat(knownPath)).mtimeMs).toBe(firstMtime);
 
+    await writeFile(
+      knownPath,
+      JSON.stringify({
+        version: 1,
+        marketplaces: [{ ...record, source: { source: "github", repo: "zai-org/zcode-plugins" } }],
+      }),
+    );
+    expect(ensureDefaultPluginMarketplaces(storageRoot)[0]?.source).toEqual({
+      source: "url",
+      url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
+    });
+    for (const source of [
+      { source: "github", repo: "zai-org/zcode-plugins", ref: "main" },
+      { source: "github", repo: "zai-org/zcode-plugins", path: "custom.json" },
+      { source: "github", repo: "zai-org/zcode-plugins", sparsePaths: ["plugins"] },
+      { source: "url", url: record.source.url, headers: { "X-Custom": "preserve" } },
+    ]) {
+      const customRecord = { ...record, source };
+      await writeFile(knownPath, JSON.stringify({ version: 1, marketplaces: [customRecord] }));
+      expect(ensureDefaultPluginMarketplaces(storageRoot)[0]).toEqual(customRecord);
+    }
     const custom = {
       ...record,
       source: { source: "directory", path: join(storageRoot, "custom") },
@@ -74,6 +102,36 @@ describe("ZCode official marketplace partitions", () => {
     await writeFile(knownPath, JSON.stringify({ version: 1, marketplaces: [custom, personal] }));
     expect(ensureDefaultPluginMarketplaces(storageRoot)).toEqual(
       expect.arrayContaining([custom, personal]),
+    );
+  });
+
+  it("rebases official cached CDN assets but preserves personal and external images", async () => {
+    const storageRoot = await makeStorageRoot();
+    const cdn = "https://cdn-zcode.z.ai/zcode/official-plugin/assets/";
+    const plugins = [
+      {
+        name: "panel",
+        source: "filesystem",
+        icon: cdn + "panel/icon.png",
+        heroImage: "https://example.com/hero.png",
+      },
+    ];
+    writeCdnOfficialMarketplacePartitionSync({
+      storageRoot,
+      manifest: { name: "zcode-plugins-official", plugins },
+    });
+    const official = loadMarketplaceManifestSync(storageRoot, "zcode-plugins-official")!
+      .plugins[0]!;
+    expect(official.listing?.icon).toBe(
+      "https://zai-org.github.io/zcode-plugins/assets/panel/icon.png",
+    );
+    expect(official.listing?.heroImage).toBe("https://example.com/hero.png");
+    await addMarketplace({
+      storageRoot,
+      source: { source: "settings", marketplace: { name: "personal", plugins } },
+    });
+    expect(loadMarketplaceManifestSync(storageRoot, "personal")!.plugins[0]!.listing?.icon).toBe(
+      cdn + "panel/icon.png",
     );
   });
 

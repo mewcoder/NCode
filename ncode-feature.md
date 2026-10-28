@@ -143,7 +143,7 @@ sequenceDiagram
 
 ### 14. 插件商店来源与分类
 
-- **市场来源**：默认 `zcode-plugins-official` 使用 `zai-org/zcode-plugins` GitHub 仓库源，沿用现有 Archive/Git 获取链路；不能只换成 raw JSON，因为目录里的插件 source 是相对路径。只自动迁移该市场已保存的旧默认 CDN 地址，清除旧刷新状态，自定义来源保持原样；保留市场 id、内置插件、安装身份和用户配置。源码源不包含 UI 插件编译产物，图标仍遵循上游目录地址。
+- **市场来源**：默认 `zcode-plugins-official` 使用 `https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json` 的已构建 ZIP 分发，目录和官方版本 ZIP 网络失败时一次性回退 `https://zai-org.github.io/zcode-plugins/`。仅迁移此前无自定义参数的 GitHub/Pages 默认来源，清除刷新状态；自定义来源不变，保留市场 id、内置插件、安装身份和用户配置。ZIP 保持同一 SHA-256 校验，用户取消、无效目录/制品元数据、摘要或解压失败不换源；两边目录可能不是同一发布批次，ZIP 回退不切换版本。复用既有代理解析，不新增自动重试或持久测速缓存。官方图标暂使用 Pages 镜像。
 - **默认市场**：不自动注册 Claude 插件市场；已有来源和已安装插件保留。Claude 插件市场（`claude-plugins-official`）按个人市场对待：市场源管理中可删除——它不在 `ensureDefaultPluginMarketplaces` 自动补种名单内（补种仅 `zcode-plugins-official`），删除后不会回流；上游以"默认个人市场 id"为由的不可删保护在 NCode 放开（[PluginStoreSourcesDialog.tsx](packages/ui/src/settings/PluginStoreSourcesDialog.tsx) 定位 `isRemovableMarketplace`），ZCode 官方市场仍不可删。已装 Claude 插件的来源标签与刷新失败静默逻辑不受影响。
 - **公开与社区**：解析官方市场源码目录时，为缺少 `publisherType` 的条目按直接目录 `plugins/<name>` / `external_plugins/<name>` 补齐公开/社区归属；接受可选 `./` 前缀与结尾 `/`。显式字段优先，已有缓存同样生效；其他市场、未知路径、嵌套或越级路径不推断。仅补充展示字段，不改变插件身份或权限。
 - **目录合并**：插件 adapter 继续拥有市场记录与目录；仓库刷新后保留应用生成的 bundled/remote 两个分片及合并目录，仓库同名文件不能替换本地分片。远端同名条目优先，重复刷新、应用重启及内置播种后目录不丢失，网络失败保留已有缓存。
@@ -430,9 +430,9 @@ sequenceDiagram
 
 ### 9. 插件市场与插件设置
 
-- [ ] 空存储只登记 GitHub 的 `zai-org/zcode-plugins`，市场 id 为 `zcode-plugins-official`，不自动登记 Claude 市场；已有 Claude 记录和安装保留。
-- [ ] 旧默认 CDN 来源自动切换并允许刷新，重复启动不重复迁移；自定义来源与已安装插件配置保持原样。
-- [ ] GitHub 来源可实际刷新和解析相对插件目录；连续刷新、内置播种和重启后两个本地分片及合并条目完整，失败时仍可浏览旧缓存。
+- [ ] 空存储只登记 z.ai CDN 官方目录，市场 id 为 `zcode-plugins-official`，不自动登记 Claude 市场；已有 Claude 记录和安装保留。
+- [ ] 旧默认 GitHub/Pages 来源精确迁移，重复启动不重复迁移；自定义来源与已安装插件配置保持原样。
+- [ ] 官方目录和 ZIP 的 CDN 成功路径与网络失败后的 Pages 回退可用；取消/无效内容不换源，ZIP 不降级版本且摘要必须一致；连续刷新、内置播种和重启后两个本地分片及合并条目完整，失败时仍可浏览旧缓存。
 - [ ] “公开”与“社区”正确分开：`plugins/` 条目在公开，`external_plugins/` 条目在社区；显式归属优先，旧缓存同样正确，个人来源不因该规则进入公开或社区。
 - [ ] 商店首页、分类、搜索和精选均无金融分类插件。
 - [ ] 普通官方插件可浏览、查看详情、安装及启停；已有插件可管理。

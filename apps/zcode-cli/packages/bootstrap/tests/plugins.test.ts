@@ -156,7 +156,7 @@ describe("ZCode plugins", () => {
           await readFile(join(marketplaceRoot, "marketplace.json"), "utf8"),
         ) as { plugins: Array<{ icon?: string }> };
         expect(saved.plugins[0]?.icon).toBe(
-          "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+          "https://zai-org.github.io/zcode-plugins/assets/figma/icon.png",
         );
       });
     } finally {
@@ -616,8 +616,8 @@ describe("ZCode plugins", () => {
             name: "zcode-plugins-official",
             pluginCount: 13,
             source: {
-              source: "github",
-              repo: "zai-org/zcode-plugins",
+              source: "url",
+              url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
             },
           }),
         ]),
@@ -2385,8 +2385,8 @@ describe("ZCode plugins", () => {
       ).toMatchObject({
         pluginCount: 13,
         source: {
-          source: "github",
-          repo: "zai-org/zcode-plugins",
+          source: "url",
+          url: "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json",
         },
       });
       expect(overview.diagnostics).toEqual(

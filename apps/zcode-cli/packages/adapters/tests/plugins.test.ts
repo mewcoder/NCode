@@ -66,7 +66,7 @@ describe("NodePluginAdapter", () => {
       { name: "svg", icon: "svg/icon.svg", mimeType: "image/svg+xml" },
     ]);
     expect(icons.get("figma")).toBe(
-      "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+      "https://zai-org.github.io/zcode-plugins/assets/figma/icon.png",
     );
     expect(icons.has("unsafe")).toBe(false);
     expect(icons.has("svg")).toBe(false);
@@ -87,7 +87,7 @@ describe("NodePluginAdapter", () => {
     expect(enriched.plugins).toEqual([
       {
         name: "figma",
-        icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+        icon: "https://zai-org.github.io/zcode-plugins/assets/figma/icon.png",
         source: "./figma",
       },
       { name: "existing", icon: "https://example.com/existing.png", source: "./existing" },
@@ -257,7 +257,7 @@ describe("NodePluginAdapter", () => {
         plugins: [
           {
             name: "figma",
-            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+            icon: "https://zai-org.github.io/zcode-plugins/assets/figma/icon.png",
           },
         ],
       });
@@ -327,7 +327,7 @@ describe("NodePluginAdapter", () => {
         plugins: [
           {
             name: "figma",
-            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+            icon: "https://zai-org.github.io/zcode-plugins/assets/figma/icon.png",
           },
         ],
       });
@@ -374,7 +374,7 @@ describe("NodePluginAdapter", () => {
         plugins: [
           {
             name: "figma",
-            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/figma/icon.png",
+            icon: "https://zai-org.github.io/zcode-plugins/assets/figma/icon.png",
           },
         ],
       });
@@ -2075,62 +2075,161 @@ describe("NodePluginAdapter", () => {
     }
   });
 
-  it("loads the default official GitHub archive and installs a relative plugin without system Git", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "ncode-official-github-"));
-    const storageRoot = join(dir, "storage");
-    const archive = createStoredZip([
-      {
-        path: "zcode-plugins-main/marketplace.json",
-        content: JSON.stringify({
-          name: "zcode-plugins-official",
-          plugins: [{ name: "github", source: "./plugins/github", version: "1.0.0" }],
-        }),
-      },
-      {
-        path: "zcode-plugins-main/plugins/github/.claude-plugin/plugin.json",
-        content: JSON.stringify({ name: "github", version: "1.0.0" }),
-      },
-      { path: "zcode-plugins-main/plugins/github/skills/demo/SKILL.md", content: "# demo" },
-    ]);
-    const requestedUrls: string[] = [];
-    try {
-      vi.stubEnv("PATH", join(dir, "no-system-git"));
-      vi.stubEnv("HTTP_PROXY", "");
-      vi.stubEnv("HTTPS_PROXY", "");
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async (url: string | URL | Request) => {
-          requestedUrls.push(String(url));
-          return new Response(archive, {
-            status: 200,
-            headers: { "content-type": "application/zip" },
-          });
-        }),
-      );
-      const [updated] = await updateMarketplace({
-        marketplace: "zcode-plugins-official",
-        storageRoot,
-      });
-      expect(updated?.source).toEqual({ source: "github", repo: "zai-org/zcode-plugins" });
-      const install = await installMarketplacePlugin({
-        marketplace: "zcode-plugins-official",
-        name: "github",
-        storageRoot,
-      });
-      expect(install.installed[0]?.id).toBe("github@zcode-plugins-official");
-      expect(
-        await readFile(
-          join(install.installed[0]?.installPath ?? "", "skills", "demo", "SKILL.md"),
-          "utf8",
-        ),
-      ).toBe("# demo");
-      expect(requestedUrls).toEqual([
-        "https://api.github.com/repos/zai-org/zcode-plugins/zipball/HEAD",
+  it.each([false, true, "network"])(
+    "loads official catalog and verified UI ZIP with CDN fallback=%s",
+    async (fallback) => {
+      const dir = await mkdtemp(join(tmpdir(), "ncode-official-pages-"));
+      const storageRoot = join(dir, "storage");
+      const archive = createStoredZip([
+        {
+          path: "panel/.zcode-plugin/plugin.json",
+          content: JSON.stringify({ name: "panel", version: "1.0.0" }),
+        },
+        { path: "panel/dist/server.mjs", content: "compiled runtime" },
       ]);
-    } finally {
-      await rm(dir, { force: true, recursive: true });
-    }
-  });
+      const sha256 = sha256Buffer(archive);
+      const base = "https://zai-org.github.io/zcode-plugins/";
+      const cdn = "https://cdn-zcode.z.ai/zcode/official-plugin/";
+      const selected = fallback ? base : cdn;
+      const catalog = {
+        name: "zcode-plugins-official",
+        plugins: [
+          {
+            name: "panel",
+            version: "1.0.0",
+            icon: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/panel/icon.png",
+            source: {
+              source: "url",
+              type: "zip",
+              url: "https://cdn-zcode.z.ai/zcode/official-plugin/plugins/panel/1.0.0/plugin.zip",
+              path: "panel",
+              sha256,
+            },
+            _artifact: { path: "plugins/panel/1.0.0/plugin.zip", sha256, size: archive.length },
+          },
+        ],
+      };
+      const requestedUrls: string[] = [];
+      const installPanel = (signal?: AbortSignal) =>
+        installMarketplacePlugin({ marketplace: catalog.name, name: "panel", storageRoot, signal });
+      try {
+        vi.stubEnv("PATH", join(dir, "no-system-git"));
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async (url: string | URL | Request) => {
+            requestedUrls.push(String(url));
+            if (fallback && String(url).startsWith(cdn)) {
+              if (fallback === "network") throw new TypeError("connection reset");
+              return new Response("unavailable", { status: 503 });
+            }
+            if (String(url) === selected + "marketplace.json")
+              return new Response(JSON.stringify(catalog));
+            if (String(url) === selected + "plugins/panel/1.0.0/plugin.zip")
+              return new Response(archive);
+            throw new Error(`Unexpected network request: ${String(url)}`);
+          }),
+        );
+        const [updated] = await updateMarketplace({
+          marketplace: "zcode-plugins-official",
+          storageRoot,
+        });
+        expect(updated?.source).toEqual({ source: "url", url: cdn + "marketplace.json" });
+        expect(
+          loadMarketplaceManifestSync(storageRoot, "zcode-plugins-official")?.plugins[0]?.listing
+            ?.icon,
+        ).toBe(base + "assets/panel/icon.png");
+        const install = await installPanel();
+        expect(
+          await readFile(join(install.installed[0]!.installPath, "dist/server.mjs"), "utf8"),
+        ).toBe("compiled runtime");
+        expect(requestedUrls).toEqual(
+          fallback
+            ? [
+                cdn + "marketplace.json",
+                base + "marketplace.json",
+                cdn + "plugins/panel/1.0.0/plugin.zip",
+                base + "plugins/panel/1.0.0/plugin.zip",
+              ]
+            : [cdn + "marketplace.json", cdn + "plugins/panel/1.0.0/plugin.zip"],
+        );
+        // 同一版本的镜像下载仍必须做完整摘要校验，不能只信任目录中的版本号。
+        const corruptFetch = vi.fn(async () => new Response("corrupt archive"));
+        vi.stubGlobal("fetch", corruptFetch);
+        await expect(installPanel()).rejects.toThrow(/sha256|SHA-256|digest/i);
+        expect(corruptFetch).toHaveBeenCalledTimes(1);
+        const controller = new AbortController();
+        const cancelledFetch = vi.fn(async () => {
+          controller.abort();
+          throw new DOMException("cancelled", "AbortError");
+        });
+        vi.stubGlobal("fetch", cancelledFetch);
+        await expect(installPanel(controller.signal)).rejects.toThrow();
+        expect(cancelledFetch).toHaveBeenCalledTimes(1);
+        expect(
+          await readFile(join(install.installed[0]!.installPath, "dist/server.mjs"), "utf8"),
+        ).toBe("compiled runtime");
+      } finally {
+        await rm(dir, { force: true, recursive: true });
+      }
+    },
+  );
+
+  it.each([
+    "../escape.zip",
+    "/plugins/panel/1.0.0/plugin.zip",
+    "https://example.com/plugin.zip",
+    "plugins/panel/../plugin.zip",
+    "plugins/panel/1.0.0/plugin.zip?target=cdn",
+    "mismatch",
+    "missing",
+  ])(
+    "rejects unsafe Pages artifact metadata (%s) and preserves the catalog",
+    async (artifactPath) => {
+      const dir = await mkdtemp(join(tmpdir(), "ncode-pages-invalid-"));
+      const sha256 = "a".repeat(64);
+      try {
+        const old = {
+          name: "zcode-plugins-official",
+          plugins: [{ name: "old", source: "filesystem" }],
+        };
+        writeBundledOfficialMarketplacePartitionSync({ storageRoot: dir, manifest: old });
+        const invalid = {
+          name: "panel",
+          version: "1.0.0",
+          source: {
+            source: "url",
+            type: "zip",
+            url: "https://cdn-zcode.z.ai/zcode/official-plugin/panel.zip",
+            path: "panel",
+            sha256,
+          },
+          ...(artifactPath === "missing"
+            ? {}
+            : {
+                _artifact: {
+                  path:
+                    artifactPath === "mismatch" ? "plugins/panel/1.0.0/plugin.zip" : artifactPath,
+                  sha256: artifactPath === "mismatch" ? "b".repeat(64) : sha256,
+                },
+              }),
+        };
+        vi.stubGlobal(
+          "fetch",
+          vi.fn(async () => new Response(JSON.stringify({ name: old.name, plugins: [invalid] }))),
+        );
+        expect(await updateMarketplace({ marketplace: old.name, storageRoot: dir })).toEqual([]);
+        expect(
+          loadKnownMarketplacesSync(dir).find((p) => p.id === old.name)?.lastRefreshFailure
+            ?.message,
+        ).toMatch(/artifact/i);
+        expect(loadMarketplaceManifestSync(dir, old.name)?.plugins.map((p) => p.name)).toEqual([
+          "old",
+        ]);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("adds a public GitHub marketplace and installs its GitHub plugin without system Git", async () => {
     const dir = await mkdtemp(join(tmpdir(), "zcode-plugin-github-archive-no-git-"));

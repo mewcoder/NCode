@@ -178,3 +178,7 @@ PLM-LC-018（管理列表本地化）、PLM-LC-019（双入口创建插件草稿
 卸载内置 UI 插件（如 Word 文档）后，可恢复卡片仍在「UI 插件」专区，不掉进「生产力」等分类分组。已安装时同样在专区。
 
 桌面候选用例：`packages/desktop/test/e2e/plugins/manual-review/pending/plugin-builtin-ui-uninstall.test.ts`，真实 CLI，经卡片菜单卸载 `documents@zcode-plugins-official`，等待总览进入 `restorableBuiltins` 后断言卡片在 `plugin-store-ui-section` 内。bootstrap 单测校验内置定义的 `ui` 组件类型与插件包 `ui.surfaces` 一致，且卸载后官方目录与可恢复列表都带 `ui`。保持 pending，不自动晋升。
+
+## PLM-OFFICIAL-CDN-FIRST
+
+官方目录和已构建 ZIP 优先使用 CDN，网络/超时/HTTP 失败时回退一次 GitHub Pages。覆盖旧 Pages/无 pin GitHub 默认源的幂等迁移、自定义来源保留、图标镜像、SHA-256 和路径验证；用户取消、无效内容、摘要或解压失败不换源，目录失败保持旧快照。真实网络 smoke 在隔离 storage 中刷新、安装 UI 插件并验证 MCP 初始化和 UI 资源读取；未实际渲染桌面面板时不得声称完成桌面交互验证。沿用既有安装、启停及持久化 owner。

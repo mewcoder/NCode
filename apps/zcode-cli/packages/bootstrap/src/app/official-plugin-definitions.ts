@@ -1,8 +1,9 @@
+import { ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL } from "@zcode/shared";
 import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
 
 // 内置插件的商店信息 seed（原样写入官方 marketplace.json 的条目 raw，键名与 CDN 目录
 // schema 一致：displayName_i18n / examplePrompts_i18n 等），解析复用 adapter 的
-// parseEntryStoreListing。icon 指向官方 assets CDN；请求失败时 UI 会安全降级为默认图标。
+// parseEntryStoreListing。icon 指向官方 Pages assets；请求失败时 UI 会安全降级为默认图标。
 export interface OfficialPluginListingSeed {
   displayName?: string;
   displayName_i18n?: Record<string, string>;
@@ -60,7 +61,7 @@ export interface OfficialPluginDefinition {
 }
 
 const ZAI_AUTHOR = { name: "Z.ai", url: "https://z.ai" } as const;
-const OFFICIAL_PLUGIN_ASSETS_BASE_URL = "https://cdn-zcode.z.ai/zcode/official-plugin/assets";
+const OFFICIAL_PLUGIN_ASSETS_BASE_URL = `${ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL}assets`;
 
 export const OFFICIAL_NODE_REPL_HOST_REQUIRED_SEED_PATHS = ["dist/mcp/server.js"] as const;
 
