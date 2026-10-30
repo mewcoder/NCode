@@ -258,7 +258,9 @@ Issue 02：真实 SSH 未占用端口 5 秒内出现“无法连接到主机”�
 
 - HF01：持久会话 + 可控 resume hook 屏障；打开后历史与草稿可见，初始化期间不显示提示条，发送/执行不可用，释放屏障后原草稿可发。证据：V4 协议时序 + Desktop E2E。
 - HF02：初始化失败；历史/草稿/滚动保留，输入框上方重试；重复点击及双连接只启动一次新尝试。证据：gateway/resume 单测 + UI E2E。
+- HF02 的最终投影对齐失败分支：复用已 ready 的 runtime，重试后恢复投影及执行可用性，SessionStart hook 次数不增加；不能与半初始化失败后的完整 resume 重试混为一谈。
 - HF03：分页、快速切换、warm/live child、compact 修复、远端 identity、continuous/replayable 与旧能力组合。复用现有 cold-resume/transport 回归，补足初始化窗口断言。
+- HF04（2026-10-30 accepted，CLI 已验证 / 完整远端 UI planned）：进程冷启动的 Provider 配置缺失、阻塞或失败不阻塞生命周期/能力查询及历史首帧；失败仅反映在 runtimeInitialization，修复后显式重试。协议入口不提前加载执行工厂，Host 在 runtime-materialization 应答前应用 Account Config；本地/外部 Host 与旧能力订阅保持配置顺序。CLI 两种投递模式的启动集成 5/5，HF01/HF02 macOS Desktop 2/2；范围与证据见 [本轮记录](analysis/session-history-readiness-2026-10-30.md)，不等同于手机/真实远端 UI 全覆盖。
 - 剪枝：附件/工作流详情及 App 提前加载不在本轮；不新增全局缓存、队列或初始化 phase。
 - pending spec：`packages/desktop/test/e2e/conversation-session/conversation-session-history-first.test.ts`。HF01/HF02 已在 macOS 本分支构建产物上通过（2/2），仍待人工审核，未晋升 formal/Docker gate。完整验证与限制见冷恢复 spec §8。
 

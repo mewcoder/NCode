@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./protocol": {
+      "types": "./dist/zcode-protocol-entrypoint.d.ts",
+      "import": "./dist/zcode-protocol-entrypoint.js"
+    },
     "./v4-replay": {
       "types": "./dist/zcode-protocol-v4/replay.d.ts",
       "import": "./dist/zcode-protocol-v4/replay.js"

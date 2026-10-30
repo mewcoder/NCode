@@ -18,7 +18,6 @@ import {
 import { formatCliHelp } from "./help.js";
 import { runHooksCommand } from "./hooks-trust-command.js";
 import { detectCliLocale } from "./locale.js";
-import { loadBootstrapModule } from "./bootstrap-loader.js";
 import { runEmbeddedSearchCli } from "./internal-search/embedded-search-cli.js";
 import { runCommandsCommand } from "./commands-command.js";
 import { resolveCliCwd } from "./cwd.js";
@@ -280,7 +279,8 @@ const runZCodeProtocolCommand = async (
     }
 
     const runProtocolAgent =
-      deps.runZCodeProtocolAgent ?? (await loadBootstrapModule()).runZCodeProtocolAgent;
+      deps.runZCodeProtocolAgent ??
+      (await import("@zcode/bootstrap/protocol")).runZCodeProtocolAgent;
     await runProtocolAgent({
       lifecycle: deps.protocolLifecycle,
       cwd: workingDirectory,

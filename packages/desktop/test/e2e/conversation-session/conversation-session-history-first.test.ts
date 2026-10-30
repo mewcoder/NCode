@@ -79,7 +79,7 @@ describe("HF01：历史首帧早于 resume hook 完成", () => {
     await waitForV4TimelineContaining("HISTORY_FIRST_OK", 30_000);
   });
 
-  it("HF02：最终物化失败后保留历史、草稿和滚动，双击重试只恢复一次", async function () {
+  it("HF02：最终物化失败后保留历史、草稿和滚动，重试复用已就绪 runtime", async function () {
     this.timeout(120_000);
     await Promise.all([rm(release, { force: true }), rm(entered, { force: true })]);
     await selectV4TaskById(HISTORY_FIRST_FAILED_SESSION);
@@ -116,20 +116,15 @@ describe("HF01：历史首帧早于 resume hook 完成", () => {
         .trim()
         .split("\n").length;
       await retry.doubleClick();
-      await browser.waitUntil(
-        async () => (await readFile(entered, "utf8").catch(() => "")) === "entered",
-        { timeout: 30_000, timeoutMsg: "重试未重新执行 resume hook" },
-      );
-      expect((await readFile(join(root, "attempts"), "utf8")).trim().split("\n").length).toBe(
-        attemptsBefore + 1,
-      );
-      expect(await $('[data-testid="v4-session-initialization"]').isExisting()).toBe(false);
-      expect(await $(`[data-testid="${TID_V4_COMPOSER_SEND}"]`).isEnabled()).toBe(false);
-      await writeFile(release, "release");
+      // Gateway 已保留 ready runtime；这里只重试最终投影，不能要求重复运行有外部副作用的 hook。
       await browser.waitUntil(
         async () => await $(`[data-testid="${TID_V4_COMPOSER_SEND}"]`).isEnabled(),
         { timeout: 30_000, timeoutMsg: "重试未就绪" },
       );
+      expect((await readFile(join(root, "attempts"), "utf8")).trim().split("\n").length).toBe(
+        attemptsBefore,
+      );
+      expect(await $('[data-testid="v4-session-initialization"]').isExisting()).toBe(false);
       expect(await $(`[data-testid="${TID_V4_COMPOSER_INPUT}"]`).getText()).toContain(
         "重试保留草稿",
       );

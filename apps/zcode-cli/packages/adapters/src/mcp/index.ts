@@ -64,6 +64,7 @@ import {
   createMcpTransportFetch,
   type NetworkEgressEnvPolicy,
 } from "./network.js";
+export { createMcpTransportFetch } from "./network.js";
 import {
   applyMcpNodeFallbackEnv,
   type McpNodeFallback,

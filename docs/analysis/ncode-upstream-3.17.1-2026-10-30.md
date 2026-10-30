@@ -5,8 +5,8 @@
 - 官方来源：https://github.com/zai-org/ZCode ，main `a60ba6a7e5a06742270ca605f5d2cc2766afa7e1`，提交日期 2026-10-30，package.json 版本 3.17.1；官方最新 tag 仍为 v3.15.1，按未打 tag 源码快照命名分支。
 - 工作分支：`ncode-v3.17.1-a60ba6a7`，从上述官方 commit 创建。
 - 需求、工作流与品牌来源：`ncode` / `ncode-v3.16.2` 的 `89f9a67215feb2ac0a361a8ebce6300abe0f47f9`，上版官方基线 `3c5b227649371507ddc4eb46ac5133afe6db1cab`。
-- 开始时工作区干净；freshness 与 origin 同步检查通过。旧版 19 个特性提交按序以 no-commit 方式移植，逐项处理结构漂移；未创建适配提交、未推送、未移动 main/ncode 或旧版本分支。
-- 根与 CLI 依赖按新版 lockfile 安装；Electron 44.7.0 已用于本轮桌面 E2E。没有启动或重启用户日常数据实例。
+- 开始时工作区干净；freshness 与 origin 同步检查通过。旧版 19 个特性提交按序以 no-commit 方式移植，逐项处理结构漂移；适配已按特性整理为下述 4 个提交，未推送、未移动 main/ncode 或旧版本分支。
+- 根与 CLI 依赖按新版 lockfile 安装；Electron 44.7.0 已用于本轮隔离桌面 E2E。后续应用户要求启动正常数据 dev，并在历史优先加载实现后重建重启，见该 feature 的独立记录。
 
 ## 适配决策
 
@@ -70,9 +70,15 @@ pnpm --filter @zcode/desktop test:e2e -- --spec './test/e2e/ncode/ncode-help-men
 - 用户菜单浏览器首轮 17/18，旧 helper 仍等待已关闭的“连接使用”；对齐既有 NCode 匿名菜单名称后 18/18。
 - 静态锚点随当前导航所有者及格式化后的表达式更新，保留 remoteDevices/dataSync 的独立关闭断言；最终工程回归通过。
 
+## 已提交适配与独立优化
+
+- 3.17.1 适配已获授权并提交：`d627d6db` 本地策略、`7edbbae1` 插件市场与面板、`5ffff9bf` 品牌、`6f1d1652` 更新工具与回归门禁。
+- 上述提交后的干净工作区已执行 `ZCODE_AFFECTED_TEST_BASE=a60ba6a7e5a06742270ca605f5d2cc2766afa7e1 pnpm verify:pre-push`，通过；受影响 engineering 测试选中 159/159 后按合同跳过，不能记为执行通过。
+- 随后新增的“历史优先加载”是独立优化 feature，不属于上述已提交适配；实现、规范和测试仍在工作区。范围、冷启动测量、HF01/HF02 证据与未验证项见 [独立记录](session-history-readiness-2026-10-30.md)。
+
 ## 未验证与收尾边界
 
 - 未构建 DMG/ZIP 或执行实际安装包审计；本轮审计脚本回归使用合成 asar，不等于新版本安装包审计。
 - Windows/Linux、真实手机/SSH/WSL/Docker 连接、完整页面与重启矩阵、真实外部 API Key/MCP OAuth、插件市场公网下载与独立插件端到端功能未在本轮复验。
 - 不把确定性模型 replay 当作真实供应商可用性或线上请求证明，不把静态门禁当作完整产品验收。
-- 未运行需要干净提交的 verify:pre-push；提交/推送尚未授权，当前变更仅保留为可审查工作区。获得授权并验收后再按特性提交、执行 pre-push，并按 skill 同步最新已验收 ncode 快照及安装的 skill 副本。
+- 历史优先加载 feature 尚未提交，也未运行包含该 feature 的提交后 `verify:pre-push`；此前适配的通过结果不覆盖这批新增改动。版本分支尚未推送，`ncode` 仍为 `89f9a672`，本机安装的 skill 副本尚未同步本版。后续按授权、验收和干净工作区门禁完成版本收尾，不把文档同步视为发布完成。

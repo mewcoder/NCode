@@ -1,9 +1,8 @@
-import { createMcpTransportFetch } from "@zcode/adapters";
 import { createConfig, resolvePath } from "@zcode/adapters/config";
 import type { McpElicitationPort, McpNotificationPort } from "@zcode/contracts";
-import { createNodeModelSelectionFacade } from "@zcode/provider-node";
 import { createNodeLoggerFactory } from "@zcode/adapters/logging";
 import {
+  createMcpTransportFetch,
   createMcpAdapterConnectionPool,
   createMcpTelemetryTracker,
   type McpConnectionPool,
@@ -20,7 +19,6 @@ import { traceContextToLogContext, createRootTraceContext } from "@zcode/contrac
 import type { McpPort, ModelSelection } from "@zcode/contracts";
 import type { PresentationSurface } from "@zcode/core";
 import type { RunZCodeProtocolAgentOptions, ZCodeAppOptions } from "./app/types.js";
-import { createZCodeApp } from "./app/create-app.js";
 import {
   createNodeReplBrowserBroker,
   type NodeReplBrowserBroker,
@@ -32,7 +30,7 @@ import {
 import { closeSessionStore, getSessionDbPath } from "./app/session-store.js";
 import { resolveMcpNodeFallbackProvider } from "./app/mcp-node-fallback.js";
 import { getCliStorageRoot, getProjectMemoryRoot } from "./app/paths.js";
-import { startProcessProviderRegistryRuntime } from "./app/process-provider-registry-runtime.js";
+import type { startProcessProviderRegistryRuntime } from "./app/process-provider-registry-runtime.js";
 import { scheduleStartupLogRetentionCleanup } from "./log-retention.js";
 import { resolveProcessProviderEndpointRoutingPort } from "./provider-endpoint-routing.js";
 import { StartupTimer, startupNow } from "./startup-logging.js";
@@ -145,6 +143,14 @@ export async function runZCodeProtocolAgent(
   let providerRegistryRuntime:
     | Awaited<ReturnType<typeof startProcessProviderRegistryRuntime>>
     | undefined;
+  let providerRegistryReady: Promise<NonNullable<typeof providerRegistryRuntime>> | undefined;
+  let modelSelectionFacade:
+    | ReturnType<typeof import("@zcode/provider-node").createNodeModelSelectionFacade>
+    | undefined;
+  const shutdown = new AbortController();
+  const runtimeSignal = options.lifecycle
+    ? AbortSignal.any([shutdown.signal, options.lifecycle.signal])
+    : shutdown.signal;
   try {
     // 数据库准备先于账号、Registry 和遥测，不把远端材料等待混进迁移门禁。
     const configResult = createConfig({ env: options.env });
@@ -165,20 +171,42 @@ export async function runZCodeProtocolAgent(
     });
     const runtimeEnv = options.env ?? process.env;
     options.lifecycle?.signal.throwIfAborted();
-    providerRegistryRuntime = await acquireProtocolStartupResource({
-      signal: options.lifecycle?.signal,
-      logger,
-      create: () => startProcessProviderRegistryRuntime(runtimeEnv),
-      disposeLate: (runtime) => runtime.dispose(),
-    });
-    options.lifecycle?.signal.throwIfAborted();
-    logger.info("Worker Provider Registry 已就绪", {
-      accountRevision: providerRegistryRuntime.snapshot.sourceRevisions.account,
-      configRevision: providerRegistryRuntime.snapshot.sourceRevisions.config,
-      event: "zcode_protocol.provider_registry.ready",
-      module: "bootstrap.zcode_protocol",
-      providerCount: providerRegistryRuntime.snapshot.registry.providers.length,
-    });
+    // 历史读取不依赖模型可执行性；把 Registry 的唯一初始化屏障留给执行入口，
+    // 避免配置缺失/慢读取在协议开始服务前挡住历史。失败可重试，关闭后不复活资源。
+    const ensureProviderRegistry = () => {
+      runtimeSignal.throwIfAborted();
+      providerRegistryReady ??= acquireProtocolStartupResource({
+        signal: runtimeSignal,
+        logger,
+        create: async () => {
+          const { startProcessProviderRegistryRuntime } =
+            await import("./app/process-provider-registry-runtime.js");
+          runtimeSignal.throwIfAborted();
+          return startProcessProviderRegistryRuntime(runtimeEnv);
+        },
+        disposeLate: (runtime) => runtime.dispose(),
+      })
+        .then((runtime) => {
+          if (runtimeSignal.aborted) {
+            runtime.dispose();
+            runtimeSignal.throwIfAborted();
+          }
+          providerRegistryRuntime = runtime;
+          logger.info("Worker Provider Registry 已就绪", {
+            accountRevision: runtime.snapshot.sourceRevisions.account,
+            configRevision: runtime.snapshot.sourceRevisions.config,
+            event: "zcode_protocol.provider_registry.ready",
+            module: "bootstrap.zcode_protocol",
+            providerCount: runtime.snapshot.registry.providers.length,
+          });
+          return runtime;
+        })
+        .catch((error: unknown) => {
+          providerRegistryReady = undefined;
+          throw error;
+        });
+      return providerRegistryReady;
+    };
     const runtimeSurface = resolveProtocolRuntimeSurface(runtimeEnv);
     const telemetryEnv = await acquireProtocolStartupResource({
       signal: options.lifecycle?.signal,
@@ -306,15 +334,42 @@ export async function runZCodeProtocolAgent(
             workingDirectory: options.cwd,
           });
     mcpPort = mcpConnectionPool?.acquireLease({ leaseId: "protocol-settings" });
-    const activeProviderRegistryRuntime = providerRegistryRuntime;
     const protocolCliStorageRoot = getCliStorageRoot(resolvePath(configResult.config.storage.dir));
-    const modelSelectionFacade = createNodeModelSelectionFacade(
-      activeProviderRegistryRuntime.runtime.registryService,
-    );
     options.lifecycle?.signal.throwIfAborted();
     const server = (serverForCleanup = new ZCodeProtocolAgentServer({
-      createZCodeApp: (appOptions = {}) =>
-        createZCodeApp({
+      createZCodeApp: async (appOptions = {}) => {
+        const activeProviderRegistryRuntime = await ensureProviderRegistry();
+        const [{ createZCodeApp }, { createNodeModelSelectionFacade }] = await Promise.all([
+          import("./app/create-app.js"),
+          import("@zcode/provider-node"),
+        ]);
+        runtimeSignal.throwIfAborted();
+        modelSelectionFacade ??= createNodeModelSelectionFacade(
+          activeProviderRegistryRuntime.runtime.registryService,
+        );
+        const selectionFacade = modelSelectionFacade;
+        if (configResult.config.features.mcp !== false) {
+          nodeReplBrowserBroker ??= createNodeReplBrowserBroker({
+            browserControlPort: server.browserControlPort,
+            logger,
+            platform: process.platform,
+          });
+          const broker = nodeReplBrowserBroker;
+          try {
+            await acquireProtocolStartupResource({
+              signal: runtimeSignal,
+              logger,
+              create: () => broker.ready,
+            });
+          } catch (error) {
+            if (!runtimeSignal.aborted && nodeReplBrowserBroker === broker) {
+              nodeReplBrowserBroker = undefined;
+              await broker.close();
+            }
+            throw error;
+          }
+        }
+        return createZCodeApp({
           ...applyProtocolProviderRegistry(
             applyProtocolPresentationSurface(appOptions, presentationSurface),
             activeProviderRegistryRuntime.runtime.registryService,
@@ -322,7 +377,7 @@ export async function runZCodeProtocolAgent(
           ),
           // 只读同进程已应用快照；不为子任务另发 Host RPC，也不在 ModelFactory 偷换模型。
           resolveEffectiveModelSelection: (selection) => {
-            const view = modelSelectionFacade.getView(undefined, undefined, { selection });
+            const view = selectionFacade.getView(undefined, undefined, { selection });
             return {
               effectiveSelection: view.effectiveSelection ?? null,
               selectionIssue: view.selectionIssue,
@@ -353,7 +408,8 @@ export async function runZCodeProtocolAgent(
           sourceTitle: "electron",
           onToolExecResource: (params) =>
             connection.send({ method: zcodeProtocolNotifications.toolExecResource, params }),
-        }),
+        });
+      },
       cwd: options.cwd,
       env: options.env,
       loggerFactory,
@@ -366,27 +422,15 @@ export async function runZCodeProtocolAgent(
         memoryRoot: ({ workspacePath, workspaceIdentity }) =>
           getProjectMemoryRoot(protocolCliStorageRoot, workspacePath, workspaceIdentity),
       }),
-      syncAccountProviderConfig: activeProviderRegistryRuntime.syncAccountProviderConfig,
+      syncAccountProviderConfig: async (snapshot) =>
+        (await ensureProviderRegistry()).syncAccountProviderConfig(snapshot),
       refreshProviderRegistry: async (reason) => {
-        await activeProviderRegistryRuntime.runtime.registryService.refresh(reason);
+        await (await ensureProviderRegistry()).runtime.registryService.refresh(reason);
       },
       version: options.version,
     }));
     officialMcpAuthContext = server.officialMcpAuthRequestContext;
     elicitationServer = server;
-    if (configResult.config.features.mcp !== false) {
-      nodeReplBrowserBroker = createNodeReplBrowserBroker({
-        browserControlPort: server.browserControlPort,
-        logger,
-        platform: process.platform,
-      });
-      const broker = nodeReplBrowserBroker;
-      await acquireProtocolStartupResource({
-        signal: options.lifecycle?.signal,
-        logger,
-        create: () => broker.ready,
-      });
-    }
     const connection = new ZCodeProtocolNdjsonConnection({
       signal: options.lifecycle?.signal,
       clearPostResponseMessages: () => server.clearPostResponseMessages(),
@@ -434,6 +478,7 @@ export async function runZCodeProtocolAgent(
     });
     throw error;
   } finally {
+    shutdown.abort(new Error("Protocol runtime is shutting down"));
     options.lifecycle?.requestShutdown();
     await officialCommandEndpoint?.close().catch((error: unknown) => {
       logger.warn("Official command endpoint close failed", {

@@ -2857,6 +2857,16 @@ export function createZCodeAgentService(
             void (async () => {
               let preferences: ZCodeSessionRuntimePreferencesResult;
               try {
+                // 历史首帧不等 Registry；在既有 runtime 创建偏好应答前同步，
+                // 保证 Account Overlay 已应用才允许 CLI 解析会话模型。
+                if (parsed.data.scope === "runtime-materialization") {
+                  await ensureAccountProviderConfigSynced({
+                    client,
+                    reason: "runtime_materialization",
+                    workspace,
+                    refreshRegistry: true,
+                  });
+                }
                 preferences = zcodeSessionRuntimePreferencesResultSchema.parse(
                   // 同一 RPC 承载 runtime 创建与首次执行两个时机；必须继续传递
                   // 已校验的 scope，避免首次执行为了 Shell 再次等待远端 client config。
@@ -6127,6 +6137,15 @@ export function createZCodeAgentService(
         preferences = zcodeSessionRuntimePreferencesResultSchema.parse(
           params.resolution.preferences,
         );
+        // 外部 Host 的偏好回包同样必须经过本执行端的 Registry 屏障，不能只修本机路径。
+        if (pending.request.scope === "runtime-materialization") {
+          await ensureAccountProviderConfigSynced({
+            client: pending.client,
+            reason: "runtime_materialization",
+            workspace: pending.workspace,
+            refreshRegistry: true,
+          });
+        }
         // 远端组织态由远端 Host 读取；客户端设置回包不能覆盖本机目录事实。
         if (
           pending.request.scope === "runtime-materialization" &&
@@ -6138,7 +6157,7 @@ export function createZCodeAgentService(
           );
         }
       } catch (error) {
-        logger.warn(undefined, "Host 返回运行时偏好格式非法", {
+        logger.warn(undefined, "准备 Host 运行时偏好响应失败", {
           ...responseContext,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -6519,22 +6538,22 @@ export function createZCodeAgentService(
         cliProcessState === "spawned"
           ? Math.max(0, Math.round(performance.now() - cliBootstrapStartedAt))
           : undefined;
-      // conversation 冷订阅会在 CLI 内部直接恢复历史 Session 并立即发布首帧。
-      // 若 Account Config 尚未到达，首帧会先按缺少 Account Overlay 的 Registry 解析；这里只建立
-      // Account Config 顺序屏障，不提升模型执行权限。ZCode Built-in / Personal 仍由 Worker 维护。
-      const providerRegistryStartedAt = performance.now();
-      await ensureAccountProviderConfigSynced({
-        client,
-        reason: "conversation_subscribe",
-        workspace: params,
-        refreshRegistry: true,
-      });
-      const providerRegistrySyncMs = Math.max(
-        0,
-        Math.round(performance.now() - providerRegistryStartedAt),
-      );
       const connection = resolveV4Connection(params);
       const historyFirst = connection.historyFirst === true && (await supportsHistoryFirst(client));
+      // 支持历史优先的连接只物化持久事实；Account Config 屏障放在 runtime 偏好应答前。
+      // 旧消费者仍在订阅前等待完整配置，不能把历史可读误当成模型可执行。
+      const providerRegistryStartedAt = performance.now();
+      if (!historyFirst) {
+        await ensureAccountProviderConfigSynced({
+          client,
+          reason: "conversation_subscribe",
+          workspace: params,
+          refreshRegistry: true,
+        });
+      }
+      const providerRegistrySyncMs = historyFirst
+        ? undefined
+        : Math.max(0, Math.round(performance.now() - providerRegistryStartedAt));
       const topic = conversationTopic(params.sessionId);
       const taskMetaStartedAt = performance.now();
       const resumeThoughtLevel = await automationTaskIndexRepo
@@ -6596,7 +6615,7 @@ export function createZCodeAgentService(
         hostPrepareMs,
         ...(cliBootstrapMs !== undefined ? { cliBootstrapMs } : {}),
         cliProcessState,
-        providerRegistrySyncMs,
+        ...(providerRegistrySyncMs !== undefined ? { providerRegistrySyncMs } : {}),
         taskMetaReadMs,
         cliRequestMs,
       };

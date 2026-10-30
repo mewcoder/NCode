@@ -1,5 +1,9 @@
 # Tool Change Chain Spec
 
+历史冷打开（2026-10-30）：持久工具卡片沿既有 V4 历史物化，不等待 Provider Registry 或浏览器 broker
+准备。执行资源仍在 App 创建前就绪，runtimeInitialization 未 ready 时不接纳新执行；不改变工具 schema、
+权限、来源快照或模型请求字节。详见 `../zcode-protocol-agent-server.md` 与仓库冷恢复规范 HF04。
+
 工具 schema、顺序与描述是固定字节（tools 段字节进入缓存前缀）：`toToolJsonSchema` 按
 zod v4 toJSONSchema 的 key 顺序输出——`$schema` 在最前，`description`、`default` 在 `type` 前，
 数组的 `minItems`/`maxItems` 在 `type` 前，属性声明顺序不变；ToolSearch 输入 schema 走同一入口。

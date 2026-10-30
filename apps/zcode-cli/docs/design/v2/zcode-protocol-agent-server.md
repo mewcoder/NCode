@@ -32,6 +32,17 @@ zcode app-server --stdio
   -> createZCodeApp / AgentRuntime / SessionStore
 ```
 
+### 历史与执行准备（2026-10-30）
+
+app-server 通过 `@zcode/bootstrap/protocol` 公共入口加载协议，不经 Bootstrap 全能力 barrel；
+协议启动和内置插件描述读取使用已有 adapter 领域子入口，不因一个网络/插件函数初始化全部 adapters。
+存储就绪后可处理能力、生命周期与持久历史请求；Provider Registry 按需单飞，浏览器 broker
+在创建 App 前就绪。配置缺失/初始化失败不得使只读协议退出或清空已发布历史；显式重试可重新准备。
+Host 的 Account Config 应用屏障在既有 runtime-materialization 偏好应答前完成，旧能力客户端
+仍在完整恢复前同步。Gateway 的 publisher、初始化状态、失败/重试及 continuous/replayable
+边界不变；关闭中的进程拒绝新初始化并释放迟到资源。验收见仓库
+`docs/v4-refactor/17-cold-resume-runtime-activation.md` 的 HF04。
+
 ## stdio 输出边界
 
 `app-server --stdio` 与 `agent-server --stdio` 的 stdout 是严格的 ZCode Protocol NDJSON

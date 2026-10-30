@@ -27,6 +27,7 @@ NCode 是 [ZCode](https://github.com/zai-org/ZCode) 的精简定制版：**官�
 - 插件市场目录与已构建 ZIP 优先使用 z.ai CDN，网络失败时回退 GitHub Pages；Claude 插件市场按个人市场对待、可删除。
 - 动态工作流改为 `/workflow` 命令启用（固定 onDemand 模式）。
 - 个性化设置复用上游全局指令编辑能力，保留独立的数据导入入口；不内置依赖官方账号的 ZCode Sites 云部署。
+- 历史优先加载：展示历史不再等待 Provider 等执行准备；准备期间可阅读、编辑草稿，就绪后再发送，失败保留历史并支持重试。
 - 搜索结果过滤金融分类插件。
 - 全应用 NCode 品牌与图标。
 

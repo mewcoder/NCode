@@ -4,7 +4,6 @@ import {
   type ZCodeProviderRefreshRegistryResult,
   type ZCodeProviderUpdateAccountConfigResult,
 } from "@zcode/shared";
-import { parseProcessAccountProviderConfigSnapshot } from "../app/process-provider-registry-runtime.js";
 import {
   parseParams,
   ProtocolRequestError,
@@ -21,6 +20,8 @@ export async function updateAccountProviderConfig(
   params: unknown,
 ): Promise<ZCodeProviderUpdateAccountConfigResult> {
   const envelope = parseParams(zcodeProviderUpdateAccountConfigParamsSchema, params);
+  const { parseProcessAccountProviderConfigSnapshot } =
+    await import("../app/process-provider-registry-runtime.js");
   const snapshot = parseProcessAccountProviderConfigSnapshot(envelope);
   if (!context.deps.syncAccountProviderConfig) {
     throw new ProtocolRequestError(-32018, "Account Provider Config runtime is not configured");

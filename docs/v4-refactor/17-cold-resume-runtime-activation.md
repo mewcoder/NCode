@@ -126,6 +126,7 @@ subscribe → durable messages M0 → 同一个 V4 publisher → 首帧进入 tr
 - gateway 是两阶段唯一 owner；context.sessions 入册不是 ready。初始化期间新执行命令明确拒绝，不进入 accepted input queue；既有 command query/dedupe 保留语义。
 - 初始化事件和最终 hydration 使用同一个 publisher；对齐 memory tail、source seq、compact 修复及最新配置之后才 ready。UI 不保留第二份 transcript。
 - failure 清理仅本次半初始化 record、event sink 和 app，保留历史 publisher。显式重试重新执行完整 resume（含 SessionStart hook），不承诺回滚 hook 外部副作用。
+- 若 runtime 已 ready、仅最后的历史投影对齐失败，沿用 Gateway 当前契约保留已就绪 runtime；显式重试只重做投影对齐，不重复 SessionStart hook。HF02 对此与半初始化失败分别断言，不能以重跑外部副作用换取测试通过。
 - 初始化开始后切走不强制取消既有生命周期；关闭/换代后的迟到结果不能更新新 publisher。初始化中的 record 不得被驻留回收。
 - warm/live/detached child 复用原流程，不创建第二个 runtime，不修改任务时间、taskType 或全局模型默认值。
 - desktop continuous 和 mobile replayable 共享同一恢复 owner，保持各自 gap/snapshot、workspaceIdentity/remoteSessionId 与订阅水位边界。
@@ -137,6 +138,36 @@ subscribe → durable messages M0 → 同一个 V4 publisher → 首帧进入 tr
 - Gateway/bridge/resume：必须修改，负责持久历史、单飞、失败清理与最终状态对齐。Host/transport 只透传新增能力和订阅意图。
 - sessions-index、驻留策略、legacy/Bot、全局插件/Skills 缓存：仅回归验证，不扩大行为。
 - 图谱补充 history-readable 与 runtime-ready 的依赖区别；原图缺少 workflow 查询早于订阅的时序边，应随实现更新。
+
+### 4.3 协议启动与执行准备分离（2026-10-30）
+
+- 用户确认：打开历史不等待 Provider、模型和工具执行环境。沿用同一个 CLI、存储和 V4 publisher，不新增 Host 直读数据库、历史缓存、第二份 transcript 或新输入队列。
+- `runZCodeProtocolAgent` 拥有进程级执行资源：存储准备完成即可接收只读协议；Provider Registry 按需单飞初始化，浏览器 broker 在创建 App 前准备。CLI 的 app-server 路由直接加载 protocol 公共入口，不经加载全部 Bootstrap 能力的 barrel。
+- Host 对已协商 `historyFirst` 的订阅不提前同步 Provider Registry；旧客户端仍保留原有顺序。Account Config 的应用屏障移到既有 `runtime-materialization` 偏好反向请求成功应答之前，本机与转发给外部 Host 的响应走同一规则。Registry 同步失败应返回初始化错误，不吞错或提前报告 ready。
+- Gateway 继续唯一拥有每个会话的历史/运行就绪、初始化单飞、失败和重试。正常首帧入 post-response outbox 后才调度 runtime activation；activation 通过既有偏好请求等待 Account Overlay 应用，再创建 App。不以 `Promise.all` 或固定延迟替代这个顺序。
+- 进程关闭中不得开始新的 Provider 初始化；在途初始化响应关闭信号，迟到资源由既有 startup-resource 清理。Provider 初始化失败不能关闭存储/协议或清空已显示历史；显式重试可再次初始化。成功资源随进程关闭释放。
+- 历史首屏仍需 CLI 代码加载、数据库迁移及历史物化；本次不承诺消除这部分耗时，不改变默认模型、旧模型恢复警告、工作区身份或 stop/restart 代际防护。desktop continuous 与 mobile replayable 使用同一 owner，投递语义不互换。
+
+```mermaid
+sequenceDiagram
+  participant Host
+  participant Protocol as CLI 协议/存储
+  participant Gateway as V4 Gateway
+  participant Runtime as 进程执行资源 / App
+  Host->>Protocol: 生命周期查询、historyFirst 订阅
+  Protocol->>Gateway: 只读持久历史
+  Gateway-->>Host: ACK 与历史首帧（同一 publisher）
+  Gateway->>Protocol: post-response 后调度 activation
+  Protocol->>Host: runtime-materialization 偏好请求
+  Host->>Runtime: 既有 Account Config 同步并等待应用
+  Runtime-->>Host: Registry 已应用
+  Host-->>Protocol: 偏好响应
+  Protocol->>Runtime: 创建 App、准备 broker 和工具
+  Runtime-->>Gateway: ready 或 failed
+  Gateway-->>Host: 更新初始化状态；失败保留历史
+```
+
+验收补充 HF04：冷启动时缺失或阻塞 Provider 配置，生命周期/能力查询和历史首帧仍成功；初始化失败保留历史，修复配置后显式重试成功。保留 HF01/HF02 的草稿、禁止执行、滚动及重试单飞断言，并验证旧客户端与两种投递模式。记录真实冷/热切换到首屏与 runtime-ready 的独立耗时，不把协议启动耗时算作历史读取时间。
 
 ## 5. 剪枝后的验证矩阵
 

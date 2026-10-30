@@ -3464,6 +3464,10 @@ nodes:
     docs:
       - "docs/v4-refactor/17-cold-resume-runtime-activation.md"
     codeSeeds:
+      - symbol: "runZCodeProtocolAgent"
+        file: "apps/zcode-cli/packages/bootstrap/src/zcode-protocol-entrypoint.ts"
+      - symbol: "createZCodeAgentService"
+        file: "packages/services/src/zcode-agent/zcodeAgentService.ts"
       - symbol: "activateSessionForResume"
         file: "apps/zcode-cli/packages/bootstrap/src/zcode-protocol/server-operations.ts"
       - symbol: "ColdSessionResumeCoordinator"
