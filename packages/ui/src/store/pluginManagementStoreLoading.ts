@@ -195,14 +195,19 @@ export async function loadInto(
     params.workspaceIdentity,
     params.authorityKey,
   );
-  const loadKey = `${workspaceKey}\0${params.configScope ?? "effective"}`;
+  const loadMode = get().loadMode;
+  // 侧栏清单不能复用正在等待市场总览的请求，否则仍会被无关目录阻塞。
+  const loadKey = `${workspaceKey}\0${params.configScope ?? "effective"}\0${loadMode}`;
   const existing = inFlightLoads.get(loadKey);
   // 变更前启动的查询不能充当变更后的刷新；同一轮通知的新查询仍可共用。
   if (existing && (params.fresh || (params.background && existing.revision < revision))) {
     await existing.task;
     return loadInto(set, get, { ...params, fresh: false });
   }
-  const request = existing ?? { task: runLoadInto({ ...params, workspaceKey }), revision };
+  const request = existing ?? {
+    task: runLoadInto({ ...params, workspaceKey, loadMode }),
+    revision,
+  };
   inFlightLoads.set(loadKey, request);
   try {
     const result = await request.task;
@@ -226,9 +231,23 @@ export async function loadInto(
 }
 
 async function runLoadInto(
-  params: PluginLoadParams & { workspaceKey: string },
+  params: PluginLoadParams & { workspaceKey: string; loadMode: PluginManagementState["loadMode"] },
 ): Promise<Partial<PluginManagementState>> {
   try {
+    // 侧栏仅展示实际已安装面板；市场总览不参与该投影，也不应成为加载完成屏障。
+    if (params.loadMode === "inventory-only") {
+      const result = await params.pluginService.listPlugins({
+        workspacePath: params.workspacePath,
+        ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
+        ...(params.configScope ? { configScope: params.configScope } : {}),
+      });
+      return {
+        plugins: result.plugins,
+        diagnostics: result.diagnostics,
+        loading: false,
+        marketplaceAvailabilityKnown: false,
+      };
+    }
     // React StrictMode、settings service 引用刷新或快速切换设置页时，
     // 同一 workspace 会并发触发 initialize。每次触发都发成独立 plugins/list 的话，
     // agent 已经 stale 时这些请求会排队产生多个 30s timeout。按 workspaceKey 复用 in-flight

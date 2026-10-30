@@ -307,3 +307,17 @@ WPL-009 与 PGA 的 Agent bridge setup 先通过侧栏进入指定项目草稿�
 真实 PhotoCraft `0.2.4` 批次 `zcode-mcp-host-e2e-mVIb8h` 通过最小化首次启动、后台编辑、恢复和删除。
 `--background-only` 批次 `zcode-mcp-host-e2e-MDAfE9` 通过无锚点冷启动、最小化执行、闲置恢复与删除释放。
 沿用该分支的展示模式与子 frame 导航行为，启动承载面由握手 phase 收束，不依赖可选 App capabilities。
+
+## PLM-OFFICIAL-CDN-FIRST：官方目录与 ZIP 双源
+
+- 合同见 CLI `plugin-compat.md`：CDN 优先、网络/HTTP 失败回退一次；取消/无效内容不换源、不降级，个人来源不改。
+- 2026-10-28 拆分验证：从 Git 暂存区导出快照，不带未暂存的加载/会话优化；adapters 97/97、reference protocol 4/4。bootstrap 43/47（补齐临时快照的 Office dist 与生成的 browser client 后定向复测），余下 4 项为已移除模拟器和固定数量 13/实际 11 的旧断言，当前完整工作区同样失败。本轮未重跑公网安装或桌面 E2E。完整工作区根/CLI 类型、Lint 与架构检查通过；CLI 类型使用现有 Turbo 入口，CLI Lint 通过现有脚本及 JS pnpm 入口绕过本机原生 pnpm 启动问题。
+- 拆分前组合改动验证：adapters 105/105；bootstrap 71/75，4 项为已移除模拟器/固定数量旧断言；类型、Lint（0 errors / 81 warnings）、架构和 CLI 构建通过。
+- Excalidraw 0.3.4：源码隔离安装、摘要校验、MCP 与 UI resource read 共 2637 ms；桌面 Electron 下重建生产 Agent、移除代理环境，通过 stdio 刷新和安装共 3770 ms。报告 `/tmp/ncode-cdn-first-{smoke,built-smoke}-report.json`。不代表画板交互、跨平台或远控已验证。
+- CDN 51 项（10-23）/Pages 48 项（10-21）不同步；13 项版本/摘要不同。目录回退整份替换，ZIP 仍须匹配选中版本摘要。对比 `/tmp/ncode-catalog-comparison.json`。
+
+### 前期 Pages-only 与 Context dev 证据
+
+- Pages-only adapters 103/103；隔离安装 Context 0.3.10、校验、MCP/HTML 资源通过（10666 ms），报告 `/tmp/ncode-pages-smoke-report.json`；Excalidraw 当时 180 秒下载超时，日志 `/tmp/ncode-pages-smoke.log`，不记为安装成功。
+- test dev 真实商店安装 Context，正式会话沙箱 running、两项只读工具及原生面板渲染/刷新通过；使用本地确定性模型，不是正式 E2E/CI。初次 CLI 隔离不完整，已卸载共享安装并用显式 storage 重跑，清理测试新增全局配置。
+- 证据 `packages/desktop/.e2e-artifacts/plugin-management/plm-github-pages-dev/`：`dev-smoke-report.json`、`cleanup.json`、`installed.json`、`mcp-runtime-events.log`、`context-panel-native.png`/`context-panel-ax.txt`。截图以原生为准；Windows/Linux/手机远控未验证。

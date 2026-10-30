@@ -6,7 +6,11 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { PluginDiagnostic, PluginManifest, PluginStoreListing } from "@zcode/contracts";
 import { isOfficialMarketplaceId, ZCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
-import { DEFAULT_PLUGIN_MARKETPLACES, sanitizeZCodeRuntimeEnv } from "@zcode/shared";
+import {
+  DEFAULT_PLUGIN_MARKETPLACES,
+  ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL,
+  sanitizeZCodeRuntimeEnv,
+} from "@zcode/shared";
 import { loadPluginMcpServerDefinitions, resolvePluginMcpServers } from "./mcp.js";
 import {
   appendPluginSourceCleanupError,
@@ -20,9 +24,14 @@ import {
 import { enumeratePluginComponents, type PluginComponentGroup } from "./plugin-components.js";
 import { applyNetworkEgressEnv } from "../network/subprocess-env.js";
 import { createNodeWebFetchHttpClientAdapter } from "../http/index.js";
-import { writeCdnOfficialMarketplacePartitionSync } from "./official-marketplace.js";
+import {
+  copyOfficialMarketplacePartitions,
+  writeCdnOfficialMarketplacePartitionSync,
+} from "./official-marketplace.js";
 import {
   isZipPluginUrlSource,
+  isPluginDownloadTransportFailure,
+  PluginZipDownloadError,
   readZipPluginSourceSha256,
   resolveZipPluginSource,
 } from "./zip-source.js";
@@ -49,8 +58,10 @@ const KNOWN_MARKETPLACES_FILE = "known_marketplaces.json";
 const INSTALLED_PLUGINS_FILE = "installed_plugins.json";
 const MARKETPLACE_FILE = "marketplace.json";
 const CLAUDE_OFFICIAL_MARKETPLACE = "claude-plugins-official";
+const OFFICIAL_CDN_MARKETPLACE_URL =
+  "https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json";
 const PLUGIN_ICON_SOURCES_FILE = "icon-sources.json";
-const PLUGIN_ICON_ASSETS_BASE_URL = "https://cdn-zcode.z.ai/zcode/official-plugin/assets/";
+const PLUGIN_ICON_ASSETS_BASE_URL = `${ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL}assets/`;
 const PLUGIN_ICON_SOURCES_URL = `${PLUGIN_ICON_ASSETS_BASE_URL}${PLUGIN_ICON_SOURCES_FILE}`;
 const MARKETPLACE_JSON_MAX_BYTES = 10 * 1024 * 1024;
 const MARKETPLACE_JSON_MAX_REDIRECTS = 5;
@@ -68,12 +79,7 @@ const CLAUDE_MARKETPLACE_REFRESH_TIMEOUT_MS = 30_000;
 const MARKETPLACE_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const PLUGIN_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const SOURCE_SHA256_PATTERN = /^[a-f0-9]{64}$/u;
-const UNSUPPORTED_MANIFEST_FIELDS = [
-  "channels",
-  "lspServers",
-  "outputStyles",
-  "settings",
-] as const;
+const UNSUPPORTED_MANIFEST_FIELDS = ["channels", "lspServers", "outputStyles", "settings"] as const;
 
 export type MarketplaceSource =
   | { source: "url"; headers?: Record<string, string>; url: string }
@@ -346,8 +352,41 @@ export function loadKnownMarketplacesSync(storageRoot: string): KnownMarketplace
   return [];
 }
 
+function isPreviousOfficialDefaultSource(source: MarketplaceSource): boolean {
+  return (
+    (source.source === "url" &&
+      source.url === `${ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL}marketplace.json` &&
+      source.headers === undefined) ||
+    (source.source === "github" &&
+      source.repo === "zai-org/zcode-plugins" &&
+      source.ref === undefined &&
+      source.path === undefined &&
+      source.sparsePaths === undefined)
+  );
+}
+
 export function ensureDefaultPluginMarketplaces(storageRoot: string): KnownMarketplaceRecord[] {
-  const known = loadKnownMarketplacesSync(storageRoot);
+  const officialDefault = DEFAULT_PLUGIN_MARKETPLACES.find(
+    (marketplace) => marketplace.id === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE,
+  );
+  let migrated = false;
+  const known = loadKnownMarketplacesSync(storageRoot).map((record) => {
+    if (
+      !officialDefault ||
+      record.id !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE ||
+      !isPreviousOfficialDefaultSource(record.source)
+    )
+      return record;
+    // 已确认 CDN 直连可用而 Pages 大包可能断流；仅迁移旧默认来源，自定义 pin/凭据不改写。
+    // 清除刷新时间后仍由既有商店刷新链路更新目录，不在注册阶段联网。
+    const {
+      lastUpdated: _lastUpdated,
+      lastRefreshFailure: _lastRefreshFailure,
+      ...previous
+    } = record;
+    migrated = true;
+    return { ...previous, source: defaultMarketplaceSourceFromString(officialDefault.source) };
+  });
   const existingIds = new Set(known.map((record) => record.id));
   const now = new Date().toISOString();
   const missing = DEFAULT_PLUGIN_MARKETPLACES.filter(
@@ -363,7 +402,7 @@ export function ensureDefaultPluginMarketplaces(storageRoot: string): KnownMarke
       pluginCount: marketplace.pluginCount,
     }),
   );
-  if (missing.length === 0) return known;
+  if (missing.length === 0 && !migrated) return known;
   const next = [...known, ...missing];
   writeKnownMarketplacesSync(storageRoot, next);
   return next;
@@ -685,7 +724,11 @@ async function requestMarketplaceJson(
       continue;
     }
     if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Failed to fetch marketplace: ${response.status} ${response.statusText}`);
+      throw new PluginZipDownloadError(
+        `Failed to fetch marketplace: ${response.status} ${response.statusText}`,
+        currentUrl,
+        response.status,
+      );
     }
     return JSON.parse(new TextDecoder().decode(response.body)) as unknown;
   }
@@ -1221,7 +1264,9 @@ export async function validateLocalPluginPath(input: {
       },
     ];
   }
-  const rootPath = statSync(resolved).isDirectory() ? resolved : resolveManifestRootFromFile(resolved);
+  const rootPath = statSync(resolved).isDirectory()
+    ? resolved
+    : resolveManifestRootFromFile(resolved);
   if (findMarketplaceManifestPath(rootPath)) {
     return validateMarketplaceSource({
       signal: input.signal,
@@ -1469,13 +1514,21 @@ async function resolvePluginSourceRoot(input: {
       const url = readRequiredPluginSourceString(source, "url", "URL");
       const sourceType = typeof source.type === "string" ? source.type : "";
       if (sourceType === "zip") {
+        const artifactPath = `plugins/${input.entry.name}/${input.entry.version}/plugin.zip`;
+        const cdnUrl = new URL(artifactPath, OFFICIAL_CDN_MARKETPLACE_URL).href;
+        const pagesUrl = new URL(artifactPath, ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL).href;
+        const official =
+          input.marketplace === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE &&
+          source.headers === undefined &&
+          (url === cdnUrl || url === pagesUrl);
         return resolveZipPluginSource({
+          ...(official ? { fallbackUrl: pagesUrl } : {}),
           headers: readPluginSourceHeaders(source),
           path: readOptionalZipPluginSourcePath(source),
           sha256: readRequiredZipPluginSourceSha256(source),
           signal: input.signal,
           stripRoot: readOptionalZipPluginSourceStripRoot(source),
-          url,
+          url: official ? cdnUrl : url,
         });
       }
       if (sourceType && sourceType !== "git") {
@@ -1750,8 +1803,28 @@ async function loadMarketplaceFromSource(
       return { manifest, sourceRoot: source.path };
     }
     case "url": {
-      const parsed = await requestMarketplaceJson(source.url, source.headers, options.signal);
-      return { manifest: parseRequiredMarketplaceManifest(parsed) };
+      const official =
+        source.headers === undefined &&
+        (source.url === OFFICIAL_CDN_MARKETPLACE_URL ||
+          source.url === `${ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL}marketplace.json`);
+      const parsed = await requestMarketplaceJson(
+        official ? OFFICIAL_CDN_MARKETPLACE_URL : source.url,
+        source.headers,
+        options.signal,
+        official ? 10_000 : MARKETPLACE_JSON_TIMEOUT_MS,
+      ).catch((error) => {
+        if (!official || !isPluginDownloadTransportFailure(error, options.signal)) throw error;
+        return requestMarketplaceJson(
+          `${ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL}marketplace.json`,
+          undefined,
+          options.signal,
+        );
+      });
+      return {
+        manifest: parseRequiredMarketplaceManifest(
+          official ? rebaseOfficialDistributionArtifacts(parsed) : parsed,
+        ),
+      };
     }
     case "github": {
       const resolved = await resolveRepositoryMarketplaceSource(
@@ -1980,6 +2053,11 @@ async function stageMarketplaceDirectoryPlugins(
   return activateDirectoryAtomically({
     authorityPath: join(storageRoot, KNOWN_MARKETPLACES_FILE),
     prepare: async (stagedPath) => {
+      if (marketplace === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE) {
+        // 仓库目录替换会丢失应用生成的两个分片，导致再次刷新或启动播种时插件消失。
+        // 以本地 owner 的分片覆盖仓库同名文件，再写合并目录。
+        await copyOfficialMarketplacePartitions(storageRoot, stagedPath);
+      }
       await writeJsonFile(join(stagedPath, MARKETPLACE_FILE), manifest);
     },
     signal,
@@ -2172,6 +2250,60 @@ function normalizeInstalledPluginRecordFromMap(
   });
 }
 
+function rebaseOfficialDistributionArtifacts(value: unknown): unknown {
+  if (
+    !isRecord(value) ||
+    value.name !== ZCODE_OFFICIAL_PLUGIN_MARKETPLACE ||
+    !Array.isArray(value.plugins)
+  )
+    return value;
+  return {
+    ...value,
+    plugins: value.plugins.map((entry: unknown) => {
+      if (!isRecord(entry)) throw new Error("Invalid official Pages artifact entry");
+      const artifact = isRecord(entry._artifact) ? entry._artifact : {};
+      const source = isRecord(entry.source) ? entry.source : {};
+      const path = artifact.path;
+      // Pages 目录仍携带 CDN URL；只采用同份目录声明的相对制品路径，摘要不一致时拒绝刷新。
+      // 禁止 URL/编码/父目录语义，避免镜像改写逃出固定分发根目录或改变校验边界。
+      if (
+        typeof entry.name !== "string" ||
+        !PLUGIN_NAME_PATTERN.test(entry.name) ||
+        typeof entry.version !== "string" ||
+        source.source !== "url" ||
+        source.type !== "zip" ||
+        typeof path !== "string" ||
+        path !== `plugins/${String(entry.name)}/${String(entry.version)}/plugin.zip` ||
+        path.split("/").length !== 4 ||
+        /[\\%?#:]/u.test(path) ||
+        path.split("/").some((segment) => !segment || segment === "." || segment === "..") ||
+        typeof artifact.sha256 !== "string" ||
+        !SOURCE_SHA256_PATTERN.test(artifact.sha256) ||
+        source.sha256 !== artifact.sha256
+      )
+        throw new Error(`Invalid official Pages artifact metadata: ${String(entry.name)}`);
+      return {
+        ...entry,
+        source: { ...source, url: new URL(path, OFFICIAL_CDN_MARKETPLACE_URL).href },
+      };
+    }),
+  };
+}
+
+function rebaseOfficialListingAssets(entry: unknown): unknown {
+  if (!isRecord(entry)) return entry;
+  const updated = { ...entry };
+  const retiredAssets = new URL("assets/", OFFICIAL_CDN_MARKETPLACE_URL).href;
+  for (const field of ["icon", "heroImage"] as const) {
+    const value = entry[field];
+    if (typeof value !== "string" || !value.startsWith(retiredAssets)) continue;
+    const suffix = value.slice(retiredAssets.length);
+    const rebased = new URL(suffix, PLUGIN_ICON_ASSETS_BASE_URL);
+    if (rebased.href.startsWith(PLUGIN_ICON_ASSETS_BASE_URL)) updated[field] = rebased.href;
+  }
+  return updated;
+}
+
 function parseRequiredMarketplaceManifest(value: unknown): PluginMarketplaceManifest {
   const parsed = parseMarketplaceManifest(value);
   if (!parsed) throw new Error("Marketplace manifest is invalid");
@@ -2193,8 +2325,26 @@ function parseMarketplaceManifest(value: unknown): PluginMarketplaceManifest | n
   return normalizeMarketplaceManifest({
     ...value,
     name,
-    plugins: pluginEntries,
+    plugins:
+      name === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE
+        ? pluginEntries.map((entry) =>
+            rebaseOfficialListingAssets(fillOfficialPublisherType(entry)),
+          )
+        : pluginEntries,
   });
+}
+
+function fillOfficialPublisherType(entry: unknown): unknown {
+  if (!isRecord(entry) || entry.publisherType !== undefined || typeof entry.source !== "string") {
+    return entry;
+  }
+  // GitHub 源码目录没有 CDN 发布阶段生成的 publisherType，UI 缺省会全部归入公开。
+  // 仅按已知的直接源码目录补齐展示归属，显式字段及其他来源保持原义。
+  const root = /^(?:\.\/)?(plugins|external_plugins)\/[a-z0-9][a-z0-9._-]*\/?$/u.exec(
+    entry.source,
+  )?.[1];
+  if (!root) return entry;
+  return { ...entry, publisherType: root === "external_plugins" ? "community" : "official" };
 }
 
 function normalizeMarketplaceManifest(

@@ -9,12 +9,13 @@ import {
   isPublicStoreMarketplaceId,
   sortMarketplaceSources,
 } from "@/settings/pluginStoreListing.js";
-import { DEFAULT_MARKETPLACE_ID } from "@/settings/recommendedPlugins.js";
 
 // 官方市场不可移除：移除后启动时会被重新补种，只会造成「删了又回来」的困惑。
+// NCode：Claude 插件市场（DEFAULT_MARKETPLACE_ID）按个人市场对待、放开删除——
+// 它不在 ensureDefaultPluginMarketplaces 补种名单内（补种仅 zcode-plugins-official），
+// 删除后不会回流；上游以"默认个人市场"为由的保护不再适用。
 function isRemovableMarketplace(marketplace: ZCodePluginMarketplaceSummary): boolean {
   if (isPublicStoreMarketplaceId(marketplace.id)) return false;
-  if (marketplace.id === DEFAULT_MARKETPLACE_ID) return false;
   return true;
 }
 

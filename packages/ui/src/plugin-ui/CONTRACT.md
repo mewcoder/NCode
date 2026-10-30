@@ -2,6 +2,10 @@
 
 Renderer 模块，层序 `domain → app → adapters → components`；公开入口为 `index.ts`。
 
+- NCode 面板启动页/菜单只投影当前工作区插件管理 store 的已安装清单 `uiSurfaces`，不请求或消费远端推荐；多面板按 pluginId/surfaceId 去重，暂停态复用既有启用命令。未安装、缺包、待恢复不展示，切换目标隔离旧异步结果。规则及验收见 [本地配置 spec](../../../../docs/ncode-local-client-config.spec.md)。
+
+- 侧栏面板入口只请求本地 `plugins/list`，与市场总览在途请求隔离；本次清单完成后派生入口，不新增成功快照缓存。
+
 - 窗口唯一页面管理器统一管理 MCP 与 Gen UI 的容量和回收；`createPage` 持有 MCP controller、AppBridge、独立 workspace/session lease、通知 feed 和内存快照。卡片、侧栏只登记锚点。内联页面位于滚动容器内部，侧栏单独定位；原子移动保留同一 guest，不重读资源、不重新握手。解绑必须在 DOM 卸载前同步移入隐藏承载区。
 - 页面承载容器只负责布局，不接收鼠标命中；webview 显式接收点击。webview 释放后的空容器不能遮挡宿主重载按钮，内联、侧栏与预览共用此规则。
 - 侧栏展示由宿主工作区/主视图、展开状态和当前标签共同派生。隐藏卡片同步解绑展示锚点，按资源声明选择隐藏或可执行后台表面；回收前恢复复用同一 guest，不以保活 DOM 尺寸推断展示意图。

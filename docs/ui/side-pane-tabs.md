@@ -38,6 +38,8 @@ flowchart LR
 
 ## UI 行为
 
+- NCode 默认显示应用内「开发者工具」入口，开发版和安装版共用 `developerToolsPreference` 读取规则。`zcode:developer-tools:enabled` 与兼容键 `zcode:token-debug:enabled` 都未设置或无法读取时默认启用；已有值仍沿用任一启用即启用的规则，`0` / `false` / `off` / `no` 表示关闭。不写入默认值，不自动打开面板。验收覆盖空存储可见、显式关闭、旧键兼容，以及清除开关后从 side pane 打开请求诊断面板。
+
 - tab strip 的「+」直接创建并激活一个「新标签页」（New tab），不再弹出应用菜单。每次点击生成独立 id，允许同时保留多个新标签页。
 - 新标签页是统一 registry 中的 `new-tab` 类型，归属创建时的工作区与对话；聚焦、拖拽排序、关闭、关闭其他/全部沿用现有 tab 操作（新标签页不进入最近关闭），不维护第二套局部 tab 状态。
 - 新标签页复用标准 tab trigger，使用空白文件图标与关闭按钮，宽度沿用其他标签（最小 60px、最大 156px）；标题不拉伸填满剩余区域。

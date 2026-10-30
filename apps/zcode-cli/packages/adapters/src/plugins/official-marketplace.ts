@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFile, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
 
@@ -9,6 +10,21 @@ const MERGED_MARKETPLACE_FILE = "marketplace.json";
 interface BundledMarketplacePartition {
   manifest: Record<string, unknown>;
   version: 1;
+}
+
+export async function copyOfficialMarketplacePartitions(
+  storageRoot: string,
+  targetDirectory: string,
+): Promise<void> {
+  for (const fileName of [BUNDLED_PARTITION_FILE, CDN_PARTITION_FILE]) {
+    try {
+      await copyFile(partitionPath(storageRoot, fileName), join(targetDirectory, fileName));
+    } catch (error) {
+      // 首次拉取可没有内置分片；权限等真实 IO 失败仍交给事务回滚。
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+      await rm(join(targetDirectory, fileName), { force: true });
+    }
+  }
 }
 
 export function writeBundledOfficialMarketplacePartitionSync(input: {
@@ -32,17 +48,11 @@ export function writeCdnOfficialMarketplacePartitionSync(input: {
   return rebuildOfficialMarketplaceSync(input.storageRoot);
 }
 
-export function loadBundledOfficialPluginRootsSync(
-  storageRoot: string,
-): string[] | undefined {
+export function loadBundledOfficialPluginRootsSync(storageRoot: string): string[] | undefined {
   const bundledPartition = readBundledPartition(storageRoot);
   if (!bundledPartition) return undefined;
 
-  const officialCacheRoot = resolve(
-    storageRoot,
-    "cache",
-    ZCODE_OFFICIAL_PLUGIN_MARKETPLACE,
-  );
+  const officialCacheRoot = resolve(storageRoot, "cache", ZCODE_OFFICIAL_PLUGIN_MARKETPLACE);
   return readPluginEntries(bundledPartition.manifest).flatMap((plugin) => {
     const name = readPluginName(plugin);
     const cachePath = typeof plugin.cachePath === "string" ? plugin.cachePath : undefined;

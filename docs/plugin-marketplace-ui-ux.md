@@ -22,9 +22,11 @@
   胶囊、长描述、「MCP 服务器」「技能」等组件分区、「信息」区（开发者/类别/版本/网站/
   隐私政策/服务条款）。
 
-公开与社区分段共同使用官方市场 `zcode-plugins-official`（内置插件 + CDN zip 插件，目录源
-`https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json`），按发布条目 `publisherType` 区分维护归属；个人分段承载其余一切
+公开与社区分段共同使用官方市场 `zcode-plugins-official`（内置插件 + 已发布 ZIP 插件，NCode 默认目录源
+`https://cdn-zcode.z.ai/zcode/official-plugin/marketplace.json`，网络失败回退 GitHub Pages），按发布条目 `publisherType` 区分维护归属；个人分段承载其余一切
 个人来源（claude-plugins-official、用户自加市场、inline）。
+
+NCode 优先从 CDN 下载目录和已构建 ZIP，网络失败时回退 Pages；两边复用既有代理解析，ZIP 按同一 SHA-256 校验，不因摘要或解压失败换源。官方市场图标暂使用 Pages 镜像。以下“CDN 分片”沿用既有存储命名。详见 CLI 插件兼容规格的官方双源分发约定。
 
 ### 官方市场单一身份与合并合同
 

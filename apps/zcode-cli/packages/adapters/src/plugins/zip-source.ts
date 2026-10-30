@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import * as yauzl from "yauzl";
+import { isHttpClientPortError } from "@zcode/contracts";
 import { createNodeWebFetchHttpClientAdapter } from "../http/index.js";
 import {
   appendPluginSourceCleanupError,
@@ -35,6 +36,7 @@ export interface ResolveZipPluginSourceInput {
   headers?: Record<string, string>;
   path?: string;
   sha256: string;
+  fallbackUrl?: string;
   signal?: AbortSignal;
   stripRoot?: boolean;
   url: string;
@@ -45,6 +47,7 @@ export interface ResolveHttpZipSourceInput {
   path?: string;
   requireSingleRoot?: boolean;
   sha256?: string;
+  fallbackUrl?: string;
   signal?: AbortSignal;
   stripRoot?: boolean;
   url: string;
@@ -76,6 +79,7 @@ export async function resolveZipPluginSource(
     headers: input.headers,
     path: input.path,
     sha256: input.sha256,
+    fallbackUrl: input.fallbackUrl,
     signal: input.signal,
     stripRoot: input.stripRoot,
     url: input.url,
@@ -101,11 +105,14 @@ export async function resolveHttpZipSource(
 
   try {
     throwIfAborted(input.signal);
-    const zipBytes = await downloadZipArchive({
-      headers: input.headers,
-      signal: input.signal,
-      url: input.url,
-    });
+    let zipBytes: Uint8Array;
+    try {
+      zipBytes = await downloadZipArchive(input);
+    } catch (error) {
+      // 网络失败才允许官方镜像接续；摘要、解压和用户取消不能通过换源绕过。
+      if (!input.fallbackUrl || !isPluginDownloadTransportFailure(error, input.signal)) throw error;
+      zipBytes = await downloadZipArchive({ signal: input.signal, url: input.fallbackUrl });
+    }
     const actualSha256 = createHash("sha256").update(zipBytes).digest("hex");
     if (input.sha256 !== undefined && actualSha256 !== input.sha256.toLowerCase()) {
       throw new Error(
@@ -150,6 +157,15 @@ export function isZipPluginUrlSource(
     (source as { type?: unknown }).type === "zip" &&
     typeof (source as { url?: unknown }).url === "string" &&
     typeof (source as { sha256?: unknown }).sha256 === "string"
+  );
+}
+
+export function isPluginDownloadTransportFailure(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return false;
+  if (error instanceof PluginZipDownloadError) return true;
+  return (
+    isHttpClientPortError(error) &&
+    (error.code === "timeout" || error.code === "network_error" || error.code === "proxy_error")
   );
 }
 

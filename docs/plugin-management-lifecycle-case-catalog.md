@@ -202,3 +202,7 @@ PLM-LC-018（管理列表本地化）、PLM-LC-019（双入口创建插件草稿
 WPL-015 在市场安装前断言无开关，安装后通过卡片开关停用再启用，并读取 Agent 投影；随后验证 User/Workspace 配置、暂停与恢复继承。PD/PP、PF、PLM-UI-001 使用新的管理返回入口；PLG12 的详情启停使用菜单。启停中保留可见的加载提示和无障碍标签。
 
 `PLM-UI-RETENTION`：见 [后台执行 spec](plugin-ui-background-execution.md)。资源声明才后台保留；默认五分钟回收并重建 widgetState；每窗口超过四个后台声明页时按三十分钟未活跃且不忙淘汰。轮询不续期、可见/忙碌保护、删除/重建竞态；入口 `--managed-only`，候选回归不晋升 CI。
+
+## PLM-OFFICIAL-CDN-FIRST
+
+官方目录和已构建 ZIP 优先使用 CDN，网络/超时/HTTP 失败时回退一次 GitHub Pages。覆盖旧 Pages/无 pin GitHub 默认源的幂等迁移、自定义来源保留、图标镜像、SHA-256 和路径验证；用户取消、无效内容、摘要或解压失败不换源，目录失败保持旧快照。真实网络 smoke 在隔离 storage 中刷新、安装 UI 插件并验证 MCP 初始化和 UI 资源读取；未实际渲染桌面面板时不得声称完成桌面交互验证。沿用既有安装、启停及持久化 owner。
