@@ -55,16 +55,16 @@ pnpm dev:desktop
 macOS arm64：
 
 ```sh
-pnpm bundle:desktop -- --os mac --arch arm64
+ZCODE_ENV=production ZCODE_PREVIEW_IDENTITY=0 pnpm bundle:desktop -- --os mac --arch arm64
 ```
 
 Windows x64：
 
 ```sh
-pnpm bundle:desktop -- --os win --arch x64
+ZCODE_ENV=production ZCODE_PREVIEW_IDENTITY=0 pnpm bundle:desktop -- --os win --arch x64
 ```
 
-安装包默认输出到 `packages/desktop/dist/`。
+以上命令使用正式 NCode 身份；未设置 `ZCODE_ENV=production` 时默认生成 Preview 测试包。安装包默认输出到 `packages/desktop/dist/`。
 
 ## 来源与许可
 

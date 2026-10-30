@@ -74,11 +74,19 @@ pnpm --filter @zcode/desktop test:e2e -- --spec './test/e2e/ncode/ncode-help-men
 
 - 3.17.1 适配已获授权并提交：`d627d6db` 本地策略、`7edbbae1` 插件市场与面板、`5ffff9bf` 品牌、`6f1d1652` 更新工具与回归门禁。
 - 上述提交后的干净工作区已执行 `ZCODE_AFFECTED_TEST_BASE=a60ba6a7e5a06742270ca605f5d2cc2766afa7e1 pnpm verify:pre-push`，通过；受影响 engineering 测试选中 159/159 后按合同跳过，不能记为执行通过。
-- 随后新增的“历史优先加载”是独立优化 feature，不属于上述已提交适配；实现、规范和测试仍在工作区。范围、冷启动测量、HF01/HF02 证据与未验证项见 [独立记录](session-history-readiness-2026-10-30.md)。
+- 随后新增的“历史优先加载”已独立提交为 `dc125ab1 perf(ncode): decouple history loading from runtime preparation`，实现、规范和测试在同一提交中；不是品牌、市场或关闭策略的补漏。范围、冷启动测量、HF01/HF02 证据与未验证项见 [独立记录](session-history-readiness-2026-10-30.md)。
+- `dc125ab1` 提交后的完整 `verify:pre-push` 已通过，使用同一官方基线；后续收尾文档提交与推送继续执行门禁，不沿用此前适配的通过结论。收尾额外复跑根/CLI 类型检查与 lint、CLI 定向回归 233/233、关闭项与 E2E 基线 58/58、manifest 4/4 和锚点预检 48/48，均通过；CLI 首轮并行构建冲突与复跑过程见独立记录。
+
+### macOS arm64 正式产物补验
+
+- 首次未指定环境的命令产出 Preview 测试包；正式包另用 `ZCODE_ENV=production ZCODE_PREVIEW_IDENTITY=0 pnpm bundle:desktop -- --os mac --arch arm64 --skip-prepare` 构建成功。此处 `--skip-prepare` 只省掉 bundle 入口重复的一次准备，后续 `pnpm build` 仍完整执行 `prepare:runtime-assets`，没有跳过产物生成或校验。
+- 产物：`packages/desktop/dist/NCode-3.17.1-mac-arm64.dmg`（163.5 MiB）、`packages/desktop/dist/NCode-3.17.1-mac-arm64.zip`（157.7 MiB）及 `packages/desktop/dist/mac-arm64/NCode.app`。包内 buildCommitId 为 `dc125ab1`、appVersion 为 3.17.1；后续收尾只改文档，不把文档提交号冒充产物构建号。
+- 正式 `.app` 的 `pnpm ncode:artifact:audit` 25/25 通过：无遥测/飞书运行时包、上报端点或远端升级 feed；asar 和 13 个 glm staging 包均无四个已关闭内置插件；N 品牌及关键外置运行时依赖在位。包内 `icon.icns` 与源码字节一致，Info.plist 产品名为 NCode。
+- 构建日志明确跳过 macOS code signing；本地包未签名、未公证、未实际安装。不把构建/静态审计等同于 Gatekeeper 放行、安装后的视觉验收或全平台验收。安装包保留在本机，未上传 GitHub Releases。
 
 ## 未验证与收尾边界
 
-- 未构建 DMG/ZIP 或执行实际安装包审计；本轮审计脚本回归使用合成 asar，不等于新版本安装包审计。
+- macOS 正式 DMG/ZIP 与真实 `.app` 审计已补齐；实际安装、签名/公证与完整安装后页面验收尚未执行。
 - Windows/Linux、真实手机/SSH/WSL/Docker 连接、完整页面与重启矩阵、真实外部 API Key/MCP OAuth、插件市场公网下载与独立插件端到端功能未在本轮复验。
 - 不把确定性模型 replay 当作真实供应商可用性或线上请求证明，不把静态门禁当作完整产品验收。
-- 历史优先加载 feature 尚未提交，也未运行包含该 feature 的提交后 `verify:pre-push`；此前适配的通过结果不覆盖这批新增改动。版本分支尚未推送，`ncode` 仍为 `89f9a672`，本机安装的 skill 副本尚未同步本版。后续按授权、验收和干净工作区门禁完成版本收尾，不把文档同步视为发布完成。
+- 用户已授权版本收尾；本机安装的更新 skill 与仓库副本已逐字节同步。按 workflow 将 `ncode` 与本版本分支同步为同一最终 tip，保留旧版本分支，显式 lease 原子推送后核对远端引用；最终推送门禁及远端核对结果由执行输出确认，不把本记录中的发布步骤当作已发生的推送证明。

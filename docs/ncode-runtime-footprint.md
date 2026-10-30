@@ -62,7 +62,7 @@ Main 进程通过 `utilityProcess.fork` 创建两类子进程：Host（每窗口
 ## 复测命令
 
 ```sh
-pnpm bundle:desktop -- --os mac --arch arm64
+ZCODE_ENV=production ZCODE_PREVIEW_IDENTITY=0 pnpm bundle:desktop -- --os mac --arch arm64
 pnpm ncode:artifact:audit -- --app packages/desktop/dist/mac-arm64/NCode.app
 du -sh packages/desktop/dist/mac-arm64/NCode.app/Contents/{Frameworks,Resources,Resources/glm/*}
 ```

@@ -20,7 +20,7 @@ NCode 的安装包产物必须机器可验证地满足 ncode-feature.md 的关�
 当前发布以本地构建为准；CI 与 GitHub Releases 自动化属于后续独立决策，不包含在本 spec。
 
 1. `pnpm verify:pre-push` 通过（工作区、lint、schema、架构与受影响工程测试）。
-2. `pnpm bundle:desktop -- --os <os> --arch <arch>` 产出安装包。
+2. `ZCODE_ENV=production ZCODE_PREVIEW_IDENTITY=0 pnpm bundle:desktop -- --os <os> --arch <arch>` 产出正式 NCode 安装包；未设置生产环境时默认是 Preview 测试包，不把它替代正式身份的验收。
 3. `pnpm ncode:artifact:audit -- --app packages/desktop/dist/<产物>` 全部通过；`pnpm ncode:branding:check` 通过。
 4. 按 ncode-feature.md「四、按页面验收」第 15 节记录产物核对结果；未执行的平台如实标注未验证。
 5. 版本与分支：产物对应 `ncode-v<版本号>` 分支快照，验收记录回写 ncode-feature.md。

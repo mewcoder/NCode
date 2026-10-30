@@ -5,7 +5,7 @@
 - 用户确认作为独立的 NCode 体验与性能优化 feature；稳定需求以 [ncode-feature.md 第二章第 8 节](../../ncode-feature.md#8-历史优先加载历史显示与执行准备分离) 为准。
 - 与 3.17.1 上游适配分开归属，不归入品牌、插件市场或关闭策略提交，也不恢复旧版已撤销的缓存/扫描复用实验。
 - 同一提交包含 CLI 只读启动与按需执行资源、Host 配置屏障调整、必要的公共子入口、规范/图谱/用例目录、CLI 回归及桌面 HF01/HF02 E2E；测试与实现不拆成无上下文的尾随提交。
-- 建议提交标题：`perf(ncode): decouple history loading from runtime preparation`。本次文档同步不执行提交或推送。
+- 实现已独立提交为 `dc125ab1 perf(ncode): decouple history loading from runtime preparation`；后续收尾记录单独归入文档提交，不改写已验证的实现提交。
 
 ## 范围与决策
 
@@ -67,4 +67,12 @@ HF01 使用文件事件阻塞 resume hook，历史可见且可编辑草稿，发
 已重建并重启正常数据的 dev；原 Electron PID 40452 已退出，新 PID 35804，Vite 5174、CDP 9229。CLI dist 与 Desktop staged bundle 均与上述新 hash 一致。
 新 dev 打开一条 528 行历史：live，runtime ready；Host 前置 2 ms、历史准备 164 ms、CLI 请求 167 ms，ACK 不再带订阅前 Provider 同步耗时。该单次读数不作为冷启动前后对比。
 
-未运行 Windows/Linux、真实 SSH/手机、完整页面矩阵或安装包验收。本 feature 未提交、未推送，`ncode` 分支未移动；获得提交授权后需在干净工作区重跑 `verify:pre-push`，不能用此前上游适配的门禁结果代替。
+未运行 Windows/Linux、真实 SSH/手机或完整页面矩阵。macOS 正式安装包构建与只读产物审计在下述收尾阶段补齐，不等于实际安装或签名验收。
+
+## 收尾复验
+
+- 用户以“都做完”授权提交、版本快照同步与推送。`dc125ab1` 提交后在干净工作区完整运行 `ZCODE_AFFECTED_TEST_BASE=a60ba6a7e5a06742270ca605f5d2cc2766afa7e1 pnpm verify:pre-push`，通过；engineering affected 选中 159/159 后按合同跳过，未执行整套。
+- 收尾重新运行根 typecheck、CLI typecheck（32/32）、根 lint（0 errors / 69 warnings）、CLI lint（0 errors / 84 warnings / 7 项原样上游行数诊断）、关闭项与 E2E 基线定向回归（58/58）、manifest 回归（4/4）和锚点预检（48/48），均通过。
+- CLI 六文件补跑首轮为 228 通过 / 5 失败：当时与正式构建前的插件产物重建并行，`prepare-agent-node-bundle.mjs` 会删除并重建插件 dist，失败均为 PDF/Spreadsheets 产物的 ENOENT。停止交叉重建后，未修改源码或放宽断言，完整复跑 6 文件 233/233 通过。最终发布不并行重建这些产物与读取它们的测试。
+- production 身份 macOS arm64 DMG/ZIP 已生成，`.app` 审计 25/25 通过，包内 buildCommitId 为 `dc125ab1`；体积与限制见 [3.17.1 收尾记录](ncode-upstream-3.17.1-2026-10-30.md#macos-arm64-正式产物补验)。本机安装的更新 skill 与仓库副本已逐字节同步。
+- 发布规则：`ncode` 与 `ncode-v3.17.1-a60ba6a7` 指向同一最终 tip，旧版本分支保留；收尾文档提交后仍须通过干净工作区门禁，推送使用显式 lease 并核对远端引用。不用前一阶段通过结果代替最终推送门禁。

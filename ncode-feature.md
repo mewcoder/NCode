@@ -512,7 +512,8 @@ sequenceDiagram
 ### 15. 构建产物补查
 
 - [ ] 桌面构建后检查安装图标、应用图标、macOS DMG 背景及关于窗口资源。
-- [ ] 打包后运行 `pnpm ncode:artifact:audit -- --app <产物路径>`，遥测依赖、上报端点、升级 feed、image-search、品牌标记与关键运行时依赖逐项通过；规则与发布 runbook 见 [spec](docs/ncode-artifact-audit.spec.md)。（2026-10-24 macOS arm64 实测 19/19 通过，见第六节）
+- [x] macOS arm64 正式包：打包后运行 `pnpm ncode:artifact:audit -- --app <产物路径>`，关闭项依赖、上报端点、升级 feed、已关闭内置插件、品牌标记与关键运行时依赖逐项通过；规则与发布 runbook 见 [spec](docs/ncode-artifact-audit.spec.md)。（2026-10-30 3.17.1 实测 25/25，通过不代表已签名或安装，见第九节）
+- [ ] Windows/Linux 产物按同一规则构建并审计；未构建平台不得沿用 macOS 结果。
 - [ ] Web 启动后检查标题和 favicon；当前平台无法验证的项目记录为未验证。
 
 配套执行 `pnpm typecheck`、`pnpm lint` 和 `pnpm architecture:check --changed`，按修改范围运行相关测试。静态检查通过与页面实测结果分别记录。
@@ -581,3 +582,11 @@ sequenceDiagram
 - SKILL 沉淀冲突处置模板（locale 取 ours+品牌替换、Provider 包裹正则摘除、登录 handler 删除但 props 契约保留）与平移判定（官方两版 diff ≤110 行取上一版 NCode 文件）。
 
 下次更新路径：`ncode:port:plan` 出计划 → 逐提交 cherry-pick + 处置表 → 差距清单适配 → 门禁（锚点/manifest/typecheck/单测）→ 收敛判定 → 覆盖式推 `ncode`。
+
+## 九、3.17.1 收尾与产物补验（2026-10-30）
+
+- 官方基线为 `a60ba6a7e5a06742270ca605f5d2cc2766afa7e1`；4 个上游适配提交之后，独立增加 `dc125ab1` 历史优先加载 feature，不混入品牌、市场或关闭策略。详见 [适配与收尾记录](docs/analysis/ncode-upstream-3.17.1-2026-10-30.md) 与 [历史优先加载记录](docs/analysis/session-history-readiness-2026-10-30.md)。
+- 根与 CLI 类型检查、lint、48/48 关闭锚点、58/58 NCode 工程回归、4/4 manifest 回归和 233/233 CLI 定向回归通过；HF01/HF02 桌面实测 2/2，NHELP/NWF/个性化 9/9。不同阶段的重跑不累加为测试总数，失败与重跑过程保留在对应记录中。
+- 含历史优先加载的 `dc125ab1` 提交后完整 `verify:pre-push` 通过；engineering affected 选中全套 159 个规格后按合同跳过，未执行。收尾文档提交后及最终推送仍要求干净工作区门禁。
+- production 身份 macOS arm64 DMG/ZIP 构建成功，正式 `.app` 产物审计 25/25；包内版本 3.17.1、buildCommitId 为 `dc125ab1`，图标与源码一致。本机更新 skill 副本与仓库版本逐字节一致。
+- 未验证 Windows/Linux、真实远端/手机、完整页面与重启矩阵、安装后视觉及签名/公证；本机包未签名、未实际安装，未发布到 GitHub Releases。其余页面复查条目保持未勾选，不用静态审计或确定性模型回放替代。
