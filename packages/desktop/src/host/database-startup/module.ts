@@ -4,7 +4,7 @@
  */
 export const hostDatabaseStartupModule = {
   id: "host-database-startup",
-  requires: ["project-storage", "shared", "desktop"],
+  requires: ["project-storage", "shared", "desktop", "desktop-telemetry"],
   provides: ["host-database-startup"],
   publicEntrypoints: [
     "contract.ts",

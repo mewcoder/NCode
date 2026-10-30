@@ -31,9 +31,7 @@ import {
 } from "./components/ui/dialog.js";
 import { cn } from "./components/lib/utils.js";
 import { toast } from "./components/ui/toast.js";
-import { useFeedbackStore } from "@/feedback/feedbackStore.js";
 import { getProviderBusinessErrorMessageId } from "@/lib/providerBusinessError.js";
-import { buildErrorFeedbackDescription } from "@/lib/errorFeedbackDraft.js";
 import {
   isSuspiciousEmptyModelResultMessage,
   resolveOffPeakTicketExpiredBusinessCode,
@@ -177,7 +175,6 @@ export function ChatErrorBanner({
   onOpenUpgrade,
   modelConfigTarget = "local",
   onReconnect,
-  remoteKind,
 }: {
   error: ZCodeUiError;
   onReconnect?: () => void;
@@ -191,7 +188,6 @@ export function ChatErrorBanner({
   modelConfigTarget?: ChatErrorBannerModelConfigTarget;
 }) {
   const { intl } = useZCodeIntl();
-  const openFeedbackSubmit = useFeedbackStore((state) => state.openSubmit);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const actionButtonClassName = "shrink-0";
   const requestConfigError = Boolean(resolveRequestSecurityErrorMessageId(error));
@@ -207,31 +203,6 @@ export function ChatErrorBanner({
   if (shouldSuppressChatErrorBanner(error)) {
     return null;
   }
-
-  const handleOpenFeedback = async () => {
-    openFeedbackSubmit({
-      title: localizedErrorMessage.slice(0, 80),
-      type: "bug",
-      module: remoteConnectionFailure
-        ? remoteKind === "ssh"
-          ? "SSH连接失败"
-          : remoteKind === "wsl"
-            ? "WSL连接失败"
-            : "其它"
-        : "模型调用报错",
-      severity: "P2-中",
-      includeLogs: true,
-      description: buildErrorFeedbackDescription({
-        message: localizedErrorMessage,
-        detail: error.detail,
-        traceId: error.traceId,
-        formatMessage: (id: string, values?: Record<string, string>) =>
-          intl.formatMessage({ id }, values),
-      }),
-      screenshots: [],
-    });
-    toast(intl.formatMessage({ id: "chat.error.feedbackOpened" }));
-  };
 
   const handleCopyError = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
@@ -380,26 +351,6 @@ export function ChatErrorBanner({
           >
             <CopyIcon className="size-3.5" />
             {intl.formatMessage({ id: "chat.error.copyFull" })}
-          </Button>
-        ) : null}
-
-        {/* Bugfix: 错误横幅本身就是异常态，不能再经过 Radix Tooltip 的 Popper/Slot 状态链。
-            这里改成普通 Button，避免无可用模型等错误触发横幅时发生 Maximum update depth 循环。 */}
-        {!modelConfigMissing ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void handleOpenFeedback();
-            }}
-            // ChatErrorBanner 这里之前混用了原生 button，导致按钮体系、焦点态和禁用态都绕开了设计系统。
-            // 统一收口到 Button 组件后，错误横幅里的所有操作按钮才能保持同一套交互和主题表现。
-            className={cn(actionButtonClassName)}
-            aria-label={intl.formatMessage({ id: "chat.error.feedback" })}
-            title={error.traceId}
-          >
-            {intl.formatMessage({ id: "chat.error.feedback" })}
           </Button>
         ) : null}
 

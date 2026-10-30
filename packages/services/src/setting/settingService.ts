@@ -8,6 +8,7 @@ import type {
 } from "@zcode/shared";
 import {
   appSettingsPatchSchema,
+  NCODE_FEATURE_POLICY,
   appSettingsSchema,
   formatLogPrefix,
   formatZodError,
@@ -462,6 +463,9 @@ export function createSettingServiceWithMigrations(): {
       workspaceProjection = reader;
     },
     prepareLegacyAccountConnections(resolveOrganization) {
+      // 账号源先读设置再检查 identity，单靠空 identity 挡不住旧团队组织补全请求。
+      // NCode 在迁移 owner 的入口短路，保留旧字段与普通本地偏好，不查询官方组织接口。
+      if (!NCODE_FEATURE_POLICY.officialAccountQueries) return Promise.resolve([]);
       // 已完成导入后不让每次请求鉴权重复读迁移文件。恢复旧备份需要重启 Host。
       if (migrationComplete) return Promise.resolve([]);
       if (inFlight) return inFlight;

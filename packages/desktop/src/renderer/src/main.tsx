@@ -1,6 +1,5 @@
 /* eslint-disable max-lines -- Desktop renderer bridge 聚合平台、远端 attachment 与启动编排契约。 */
 import { DatabaseStartupAdmission } from "./databaseStartupAdmission.js";
-import { initializeDesktopLocalTtft } from "./local-ttft/contract.js";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import {
@@ -27,12 +26,12 @@ import {
   LAUNCH_MARKS_QUERY_KEY,
   type LaunchMarks,
   DEFAULT_LOCALE,
+  NCODE_FEATURE_POLICY,
 } from "@zcode/shared";
 import type { Locale } from "@zcode/shared";
 import type { IServiceAccessor } from "@zcode/services";
 import { createDesktopPlatform } from "./desktopPlatform.js";
 import { startPerformanceTimelineCleanup } from "./performanceTimelineCleanup.js";
-import { initializeDesktopUserActionTrace } from "./userActionTraceBootstrap.js";
 import { buildRemoteWorkspaceSessionServicesForRegistration } from "./remoteWorkspaceSessionServices.js";
 import { handleSourceSettingsServicePortMessage } from "./sourceSettingsServicePortBridge.js";
 import {
@@ -145,11 +144,7 @@ let baseServicesForRemoteSessions: IServiceAccessor | null = null;
 const pendingRemoteWorkspaceServicePorts: RemoteWorkspaceServicePortRegistration[] = [];
 
 const desktopPlatform = createDesktopPlatform({ isLocalDevelopmentRuntime });
-initializeDesktopLocalTtft(desktopPlatform);
-initializeDesktopUserActionTrace({
-  platform: desktopPlatform,
-  isLocalDevelopmentRuntime,
-});
+// NCode 不启动动作采集：关闭端口不能仅阻止上传后仍创建观察器和事件订阅。
 
 /**
  * 等待 preload 通过 window.postMessage 转发 MessagePort。
@@ -342,6 +337,8 @@ function initializeBusinessRoot(port: MessagePort): void {
       >
         <StartupReadyNotifier />
         <Root
+          // Bug 原因：只关闭 Main 门禁时，UI 缺省开启仍会轮询状态；两端必须消费同一本地策略。
+          webRemoteControlFeatureEnabled={NCODE_FEATURE_POLICY.webRemoteControl}
           services={services}
           platform={desktopPlatform}
           isDesktop

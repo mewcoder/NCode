@@ -89,17 +89,7 @@ const commandStdoutMaxBuffer = 64 * 1024 * 1024;
 const requiredRuntimeModules = [
   "module-details-from-path",
   "pngjs",
-  // Bugfix: telemetry 的 OTLP exporter 在启动阶段依赖 sdk-metrics；开发态 hoist 会掩盖
-  // electron-builder 漏包。最终产物必须机械校验该闭包，禁止可生成但无法启动的安装包流出。
-  "@opentelemetry/sdk-metrics",
-  // 与 afterPack 注入名单同口径：校验 OTLP proto 导出链（exporter → otlp-transformer → protobufjs）完整进包，
-  // 缺包产物在打包阶段直接失败，而不是等安装后启动崩溃。
-  "@opentelemetry/exporter-trace-otlp-proto",
-  "@opentelemetry/exporter-metrics-otlp-proto",
-  // Bugfix: @arms/rum-core 运行时会从 CJS 入口继续 require('@babel/runtime/helpers/*')。
-  // 它把 @babel/runtime 挂在 peerDependencies，pnpm workspace 开发态通常能解析，
-  // 但如果生产包没把该 peer 运行时带进 app.asar，已安装应用会在主进程启动阶段直接崩溃。
-  // 这里把 @babel/runtime 纳入 bundle 后机械校验，防止坏包继续流出。
+  // @babel/runtime 仍是 Desktop 的独立生产依赖，继续校验其 CommonJS 运行时边界。
   "@babel/runtime",
   // services 里的代理探测会在运行时 require("undici")。
   // 如果这里只校验 pngjs/ssh2 依赖，打包链路就会放过“产物能生成但主进程启动即缺 undici”的坏包。
@@ -110,10 +100,8 @@ const requiredRuntimeModules = [
   "node-forge",
   // 与 tsup external 对齐，保留 ZIP 解包器的 CommonJS 运行时边界。
   "yauzl",
-  // Bugfix: 飞书 SDK 为了避开 Electron ESM 动态 require 崩溃会作为外部依赖保留，
-  // 生产包必须显式校验 app.asar 中存在该 scoped 包。
-  "@larksuiteoapi/node-sdk",
-  // 26.17.0 的 pnpm collector 仍可能漏掉 deduped 传递依赖；最终包从 updater 入口校验完整闭包。
+  // NCode 关闭 Bot/群聊后飞书 provider 不在宿主打包图内，
+  // @larksuiteoapi/node-sdk 不再作为生产依赖（ncode-feature.md 一、10）。
   "electron-updater",
   // ssh2 的关键依赖链（asn1/bcrypt-pbkdf/tweetnacl）若缺失，
   // 连接远程 workspace 时会在 keyParser 阶段直接抛 MODULE_NOT_FOUND。

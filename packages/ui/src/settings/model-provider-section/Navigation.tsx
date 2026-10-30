@@ -26,6 +26,7 @@ import {
 } from "@zcode/shared";
 import { TID_MODEL_PROVIDER_NAV_ITEM, testId } from "@zcode/shared/test-ids";
 import { useCallback, useMemo, type KeyboardEvent } from "react";
+import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import type { ModelProviderNavGroup, ModelProviderNavItem } from "./constants.js";
 import { useOptimisticReorder } from "./useOptimisticReorder.js";
@@ -375,6 +376,8 @@ export function ModelProviderSectionNavigation({
   onReorderProviderIds?: (providerIds: string[]) => Promise<void>;
   reorderableProviderIds?: ReadonlySet<string>;
 }) {
+  const { intl } = useZCodeIntl();
+  const hasItems = navigationGroups.some((group) => group.items.length > 0);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
@@ -385,8 +388,19 @@ export function ModelProviderSectionNavigation({
   return (
     <aside className="px-1.5 py-3 md:py-2 md:px-2">
       <div className="flex min-h-0 flex-col gap-3 max-md:gap-1">
+        {/* 空分组被隐藏后侧栏原先完全空白，按请求状态区分加载和无供应商。 */}
+        {!hasItems ? (
+          <p role="status" className="px-2 py-8 text-center text-ui-sm text-foreground-subtlest">
+            {intl.formatMessage({
+              id:
+                presetLoading || customLoading
+                  ? "common.loading"
+                  : "settings.modelProvider.providersEmpty",
+            })}
+          </p>
+        ) : null}
         {navigationGroups
-          .filter((group) => group.id !== "custom" || group.items.length > 0)
+          .filter((group) => group.items.length > 0)
           .map((group) => (
             <div key={group.id} className="flex flex-col gap-2 max-md:gap-1">
               <div className="flex h-7 items-center justify-between px-2 py-1 max-md:hidden">

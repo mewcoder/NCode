@@ -10,6 +10,7 @@ import {
   type McpTelemetryTracker,
 } from "@zcode/adapters/mcp";
 import {
+  NCODE_FEATURE_POLICY,
   zcodeProtocolNotifications,
   type ZCodeMcpResourceSample,
   type ZCodeMcpTelemetryEvent,
@@ -218,23 +219,27 @@ export async function runZCodeProtocolAgent(
       resolveRuntimeZCodeEndpointOrigin(options.env ?? process.env);
     const workspaceIdentity = (options.env ?? process.env)[ZCODE_WORKSPACE_IDENTITY_ENV]?.trim();
     const officialMcpAuth = {
-      authHeadersPort: createOfficialMcpAuthHeadersPort({
-        resolveContext: () => officialMcpAuthContext,
-        // workspaceKey 必须遵守仓库约定 `workspaceIdentity?.trim() || workspacePath`，
-        // 否则同路径不同 identity 的远端 workspace 在审计上下文里无法区分。
-        // 注意：agent 进程当前没有 identity 来源，因此实际多为 undefined，key 退化为 path；
-        // 详见 official-mcp-auth-port.ts 的"剩余缺口"说明。
-        resolveWorkspace: ({ workspaceIdentity, workspacePath }) => {
-          const path = workspacePath ?? options.cwd;
-          if (!path) return undefined;
-          const identity = workspaceIdentity?.trim();
-          return {
-            ...(identity ? { workspaceIdentity: identity } : {}),
-            workspaceKey: identity || path,
-            workspacePath: path,
-          };
-        },
-      }),
+      ...(NCODE_FEATURE_POLICY.officialAccountQueries
+        ? {
+            authHeadersPort: createOfficialMcpAuthHeadersPort({
+              resolveContext: () => officialMcpAuthContext,
+              // workspaceKey 必须遵守仓库约定 `workspaceIdentity?.trim() || workspacePath`，
+              // 否则同路径不同 identity 的远端 workspace 在审计上下文里无法区分。
+              // 注意：agent 进程当前没有 identity 来源，因此实际多为 undefined，key 退化为 path；
+              // 详见 official-mcp-auth-port.ts 的"剩余缺口"说明。
+              resolveWorkspace: ({ workspaceIdentity, workspacePath }) => {
+                const path = workspacePath ?? options.cwd;
+                if (!path) return undefined;
+                const identity = workspaceIdentity?.trim();
+                return {
+                  ...(identity ? { workspaceIdentity: identity } : {}),
+                  workspaceKey: identity || path,
+                  workspacePath: path,
+                };
+              },
+            }),
+          }
+        : {}),
       resolveZCodeApiOrigin,
       ...(workspaceIdentity ? { workspaceIdentity } : {}),
       // 信任判定只看一条：目标 origin 等于当前 ZCode API origin（https）。pluginId 不参与。
@@ -247,16 +252,22 @@ export async function runZCodeProtocolAgent(
     // 官方插件命令进程的代理端点（技术方案 5.8）：CLI 不持有凭证，端点每个请求向 host 现取
     // 身份头后转发给 zcode-server。和官方 MCP 用同一个 origin 表达式与网络配置。
     const endpointEnv = options.env ?? process.env;
-    officialCommandEndpoint = createOfficialCommandEndpoint({
-      resolveHeaders: createOfficialCommandAuthHeadersPort({
-        resolveContext: () => officialMcpAuthContext,
-        logger,
-      }).resolveHeaders,
-      resolveZCodeApiOrigin,
-      appVersion: endpointEnv.ZCODE_APP_VERSION?.trim() || options.version,
-      fetch: createMcpTransportFetch({ env: endpointEnv, network: configResult.config.network }),
-      logger,
-    });
+    // NCode 不提供官方账号云服务，普通 Bash 不为官方命令创建身份代理或注入端点环境。
+    officialCommandEndpoint = NCODE_FEATURE_POLICY.officialAccountQueries
+      ? createOfficialCommandEndpoint({
+          resolveHeaders: createOfficialCommandAuthHeadersPort({
+            resolveContext: () => officialMcpAuthContext,
+            logger,
+          }).resolveHeaders,
+          resolveZCodeApiOrigin,
+          appVersion: endpointEnv.ZCODE_APP_VERSION?.trim() || options.version,
+          fetch: createMcpTransportFetch({
+            env: endpointEnv,
+            network: configResult.config.network,
+          }),
+          logger,
+        })
+      : undefined;
     const activeOfficialCommandEndpoint = officialCommandEndpoint;
     // MCP elicitation 归属到协议 server 的会话；pool 先于 server 创建，端口延迟绑定。
     let elicitationServer: {
@@ -333,8 +344,12 @@ export async function runZCodeProtocolAgent(
               }
             : {}),
           providerEndpointRoutingPort,
-          officialCommandEnv: (sessionId, workspace) =>
-            activeOfficialCommandEndpoint.envForSession(sessionId, workspace),
+          ...(activeOfficialCommandEndpoint
+            ? {
+                officialCommandEnv: (sessionId, workspace) =>
+                  activeOfficialCommandEndpoint.envForSession(sessionId, workspace),
+              }
+            : {}),
           sourceTitle: "electron",
           onToolExecResource: (params) =>
             connection.send({ method: zcodeProtocolNotifications.toolExecResource, params }),

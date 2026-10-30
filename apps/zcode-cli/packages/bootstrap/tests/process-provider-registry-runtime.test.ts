@@ -33,6 +33,7 @@ import {
 const temporaryDirectories: string[] = [];
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(
     temporaryDirectories
       .splice(0)
@@ -41,7 +42,7 @@ afterEach(async () => {
 });
 
 describe("process provider registry runtime", () => {
-  it("Standalone 长生命周期下载 URL Release 后跟进 Registry；Managed Worker 不下载", async () => {
+  it("Standalone 和 Managed Worker 使用本地配置，启动及 Registry 刷新不下载", async () => {
     const root = await temporaryDirectory();
     const builtin = JSON.parse(
       await readFile(
@@ -53,23 +54,10 @@ describe("process provider registry runtime", () => {
     const active = join(root, "active.json");
     await writeFile(bundled, JSON.stringify(builtin));
     await writeFile(active, JSON.stringify(builtin));
-    builtin.revision += 1;
-    let releaseDownload!: () => void;
-    const wait = new Promise<void>((resolve) => {
-      releaseDownload = resolve;
+    const request = vi.fn(async () => {
+      throw new Error("NCode 不应请求官方配置或下载");
     });
-    const request = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      expect(init?.headers).toBeUndefined();
-      if (String(url).includes("/api/v1/client/configs?"))
-        return new Response(
-          JSON.stringify({
-            code: 0,
-            data: { configs: { builtin_provider_config_json: "https://cdn.example.com/new.json" } },
-          }),
-        );
-      await wait;
-      return new Response(JSON.stringify(builtin));
-    });
+    vi.stubGlobal("fetch", request);
     const credentialStore = createSharedZCodeCredentialStore({
       env: { ZCODE_DATA_BASE_DIR: root },
     });
@@ -85,29 +73,24 @@ describe("process provider registry runtime", () => {
         legacyCliUserConfigFilePath: join(root, "absent.json"),
       },
     });
-    const old = runtime.runtime.registryService.getSnapshot()!;
     try {
-      await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2));
-      expect(runtime.runtime.registryService.getSnapshot()).toBe(old);
-      releaseDownload();
-      await vi.waitFor(() =>
-        expect(runtime.runtime.registryService.getSnapshot()!.config.zcodeBuiltinRevision).toMatch(
-          `zcode-builtin:${builtin.revision}:`,
-        ),
-      );
+      // 下载装配已停用；仍验证本地刷新、Account/Config 对齐和 Worker 的配置一致性。
+      await runtime.runtime.registryService.refresh("ncode-local-config");
       const next = runtime.runtime.registryService.getSnapshot()!;
+      expect(next.config.zcodeBuiltinRevision).toMatch(`zcode-builtin:${builtin.revision}:`);
       expect(next.account.basedOnZCodeBuiltinRevision).toBe(next.config.zcodeBuiltinRevision);
       expect(JSON.parse(await readFile(active, "utf8")).revision).toBe(builtin.revision);
-      expect(JSON.parse(await readFile(bundled, "utf8")).revision).toBe(builtin.revision - 1);
+      expect(JSON.parse(await readFile(bundled, "utf8")).revision).toBe(builtin.revision);
+      expect(request).not.toHaveBeenCalled();
       const worker = await startProcessProviderRegistryRuntime(env);
       try {
         expect(worker.snapshot.config.zcodeBuiltinRevision).toBe(next.config.zcodeBuiltinRevision);
-        expect(request).toHaveBeenCalledTimes(2);
+        await worker.runtime.registryService.refresh("ncode-local-config");
+        expect(request).not.toHaveBeenCalled();
       } finally {
         worker.dispose();
       }
     } finally {
-      releaseDownload();
       runtime.dispose();
     }
   });

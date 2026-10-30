@@ -1,8 +1,9 @@
+import { ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL } from "@zcode/shared";
 import { ZCODE_OFFICIAL_PLUGIN_MARKETPLACE } from "@zcode/contracts";
 
 // 内置插件的商店信息 seed（原样写入官方 marketplace.json 的条目 raw，键名与 CDN 目录
 // schema 一致：displayName_i18n / examplePrompts_i18n 等），解析复用 adapter 的
-// parseEntryStoreListing。icon 指向官方 assets CDN；请求失败时 UI 会安全降级为默认图标。
+// parseEntryStoreListing。icon 指向官方 Pages assets；请求失败时 UI 会安全降级为默认图标。
 export interface OfficialPluginListingSeed {
   displayName?: string;
   displayName_i18n?: Record<string, string>;
@@ -42,7 +43,7 @@ export interface OfficialPluginDefinition {
   componentTypes?: readonly string[];
   // 内容型 plugin (无 MCP server / 无系统依赖) 可以设为 true,
   // 这样用户首次 `/skill <name>` 就能用,不必先 `zcode plugins enable`。
-  // 默认 false 保持 ios-simulator / android-emulator 这类重负载 plugin 原来行为。
+  // 默认 false：重负载 plugin 不自动启用。
   defaultEnabled?: boolean;
   listing?: OfficialPluginListingSeed;
   /**
@@ -60,7 +61,7 @@ export interface OfficialPluginDefinition {
 }
 
 const ZAI_AUTHOR = { name: "Z.ai", url: "https://z.ai" } as const;
-const OFFICIAL_PLUGIN_ASSETS_BASE_URL = "https://cdn-zcode.z.ai/zcode/official-plugin/assets";
+const OFFICIAL_PLUGIN_ASSETS_BASE_URL = `${ZCODE_OFFICIAL_PLUGIN_DISTRIBUTION_BASE_URL}assets`;
 
 export const OFFICIAL_NODE_REPL_HOST_REQUIRED_SEED_PATHS = ["dist/mcp/server.js"] as const;
 
@@ -161,26 +162,6 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
     version: "0.7.0",
   },
   {
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "developer-tools",
-      displayName: "Android Emulator",
-      displayName_i18n: { "zh-CN": "Android 模拟器" },
-      icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/android-emulator/icon.png`,
-      description_i18n: {
-        "zh-CN": "提供 Android 开发工作流与模拟器自动化能力。",
-      },
-    },
-    name: "android-emulator",
-    rootCandidates: [
-      "packages/android-emulator-plugin",
-      "../android-emulator-plugin",
-      "../../android-emulator-plugin",
-      "../../../android-emulator-plugin",
-    ],
-    version: "0.1.0",
-  },
-  {
     // manifest 只声明 browser-use skill；宿主 node_repl MCP 独立注入，package 另外携带其 server/client
     // runtime 资产。默认启用仅控制「何时/如何用内置浏览器」的 skill 与 browser bridge。
     defaultEnabled: true,
@@ -247,46 +228,6 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
       version,
     }),
   ),
-  {
-    // 沿用原聚合文档插件的官方搜图能力，仅拆出独立开关；认证仍由官方 MCP adapter 注入。
-    defaultEnabled: true,
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "productivity",
-      displayName: "Image Search",
-      displayName_i18n: { "zh-CN": "搜图" },
-      description_i18n: { "zh-CN": "查找插图与参考配图。" },
-    },
-    name: "image-search",
-    requiredSeedPaths: [".mcp.json"],
-    rootCandidates: [
-      "packages/image-search-plugin",
-      "../image-search-plugin",
-      "../../image-search-plugin",
-      "../../../image-search-plugin",
-    ],
-    version: "0.1.1",
-  },
-  {
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "developer-tools",
-      displayName: "iOS Simulator",
-      displayName_i18n: { "zh-CN": "iOS 模拟器" },
-      icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/ios-simulator/icon.png`,
-      description_i18n: {
-        "zh-CN": "提供 iOS 开发工作流与模拟器自动化能力。",
-      },
-    },
-    name: "ios-simulator",
-    rootCandidates: [
-      "packages/ios-simulator-plugin",
-      "../ios-simulator-plugin",
-      "../../ios-simulator-plugin",
-      "../../../ios-simulator-plugin",
-    ],
-    version: "0.1.0",
-  },
   {
     listing: {
       author: ZAI_AUTHOR,
@@ -427,47 +368,6 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
     // 这里的 version 追踪上游 zcode-cua runtime 版本，使插件 UI 展示、缓存路径、
     // marketplace 条目都对齐；具体版本由原子 producer bump 工作流维护。
     version: "0.6.5",
-  },
-  {
-    // ZCode Sites（技术方案 4）：Skill 指导 Agent 把项目改造并打包成 runner 可直接运行的产物包，
-    // 再用 scripts/zcode-site.mjs（CLI）上传发布；commands/ 是 /site-* 斜杠命令。
-    // 0.4.0 起自带 Sites 面板（UI plugin）：MCP server 与面板页面构建进 dist/，只给面板用，模型看不到
-    // （docs/site/sites-panel.md）。默认开启，用户不必先去设置里打开就能让 Agent 部署站点。
-    componentTypes: ["ui"],
-    name: "zcode-site",
-    defaultEnabled: true,
-    listing: {
-      author: ZAI_AUTHOR,
-      category: "productivity",
-      displayName: "ZCode Sites",
-      displayName_i18n: { "zh-CN": "ZCode Sites" },
-      description_i18n: {
-        "zh-CN": "把 Web 项目改造为可在云端 Linux 运行的部署包，一个 start.sh 即可启动。",
-      },
-      examplePrompts: ["Deploy this project as a website"],
-      examplePrompts_i18n: { "zh-CN": ["把这个项目部署成网站"] },
-      icon: `${OFFICIAL_PLUGIN_ASSETS_BASE_URL}/zcode-site/icon.png`,
-    },
-    rootCandidates: [
-      "packages/zcode-site-plugin",
-      "../zcode-site-plugin",
-      "../../zcode-site-plugin",
-      "../../../zcode-site-plugin",
-    ],
-    requiredSeedPaths: [
-      "commands/site-deploy.md",
-      "scripts/zcode-site.mjs",
-      "scripts/stage.mjs",
-      "skills/site-deploy/SKILL.md",
-      "skills/site-deploy/templates/static.sh",
-      "skills/site-deploy/templates/static-server.mjs",
-      "skills/site-deploy/templates/node.sh",
-      "skills/site-deploy/templates/python.sh",
-      // 缺了会 seed 出能看到面板入口却启动不了 MCP server 的残缺插件。
-      "dist/server.mjs",
-      "dist/ui/panel.html",
-    ],
-    version: "0.4.2",
   },
 ];
 

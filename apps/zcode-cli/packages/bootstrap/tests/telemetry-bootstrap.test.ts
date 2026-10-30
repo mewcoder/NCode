@@ -13,7 +13,7 @@ describe("prepareZCodeTelemetryEnv", () => {
     resetCapturedZCodeAgentTelemetryEnvForTest();
   });
 
-  it("从进程捕获区异步准备 identity，但不把 OTLP 凭据写回业务 env", async () => {
+  it("剥离遥测环境且不生成遥测 identity 或状态文件", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-bootstrap-telemetry-"));
     try {
       const env: NodeJS.ProcessEnv = {
@@ -27,11 +27,11 @@ describe("prepareZCodeTelemetryEnv", () => {
 
       expect(prepared.OTEL_EXPORTER_OTLP_HEADERS).toBeUndefined();
       expect(prepared.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT).toBeUndefined();
-      expect(prepared.ZCODE_TELEMETRY_DEVICE_MID).toMatch(/^[0-9a-f-]{36}$/u);
-      const state = JSON.parse(
-        await readFile(join(root, "v2", "telemetry-state.json"), "utf8"),
-      ) as Record<string, unknown>;
-      expect(state.deviceMid).toBe(prepared.ZCODE_TELEMETRY_DEVICE_MID);
+      expect(prepared.ZCODE_TELEMETRY_DEVICE_MID).toBeUndefined();
+      expect(prepared.ZCODE_MODEL_TELEMETRY_ENABLED).toBe("0");
+      await expect(
+        readFile(join(root, "v2", "telemetry-state.json"), "utf8"),
+      ).rejects.toMatchObject({ code: "ENOENT" });
     } finally {
       await rm(root, { force: true, recursive: true });
     }

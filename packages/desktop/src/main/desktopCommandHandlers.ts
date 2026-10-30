@@ -11,10 +11,8 @@ import {
   getFeedbackUrlFromConfig,
   normalizeZCodeEndpointOrigin,
   PlatformChannels,
-  resolveHelpAppConfig,
   resolveZCodeEndpointOrigin,
   ZCODE_ENV,
-  ZCODE_PRODUCT_FLAVOR,
   type AppSettings,
   type DesktopCommandId,
   type Locale,
@@ -24,7 +22,6 @@ import { app, BrowserWindow, dialog, session, shell } from "electron";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { showAboutDialog } from "./about.js";
-import { checkForUpdateMenuClick } from "./autoUpdater.js";
 import { resolveCuaOsSupport } from "./cuaOsSupport.js";
 import { syncWindowControlsOverlayForZoomLevel } from "./desktopWindowButtonPosition.js";
 import {
@@ -245,47 +242,6 @@ export async function resolveCommunityUrl(options: {
   }
 
   return getCommunityUrlFromConfigs(remoteConfig, localConfig, options.locale);
-}
-
-async function openFeedback(
-  logger: { warn: (...args: unknown[]) => void; error: (...args: unknown[]) => void },
-  targetWindow?: BrowserWindow | null,
-  fetchRemoteConfig?: () => Promise<unknown>,
-) {
-  let remoteConfig: unknown;
-  let localConfig: unknown;
-  try {
-    remoteConfig = await fetchRemoteAppConfig(fetchRemoteConfig);
-  } catch (error) {
-    logger.warn("[feedback] failed to fetch remote config:", error);
-  }
-  try {
-    localConfig = await readLocalAppConfig();
-  } catch (error) {
-    logger.warn("[feedback] failed to read local config:", error);
-  }
-  const config = resolveHelpAppConfig(remoteConfig, localConfig);
-  if (!config.feedback_use_external_form) {
-    resolveTargetWindow(targetWindow)?.webContents.send(PlatformChannels.OpenFeedbackDialog);
-    return;
-  }
-  if (config.feedback_url) await shell.openExternal(config.feedback_url);
-}
-
-async function openCommunity(
-  locale: Locale,
-  logger: {
-    warn: (...args: unknown[]) => void;
-    error: (...args: unknown[]) => void;
-  },
-  fetchRemoteConfig?: () => Promise<unknown>,
-) {
-  const communityUrl = await resolveCommunityUrl({ locale, logger, fetchRemoteConfig });
-  if (!communityUrl) {
-    logger.warn("[community] community_urls is missing from both remote and local config");
-    return;
-  }
-  await shell.openExternal(communityUrl);
 }
 
 async function promptCustomZCodeEndpoint(
@@ -594,26 +550,13 @@ export async function executeDesktopCommand(options: {
         }),
       );
       return;
+    // NCode 停用应用内升级与官方反馈/社群入口：命令仍保留在协议里，执行时直接返回。
     case DesktopCommandIds.CheckForUpdates:
-      // 按产品身份而不是后端环境放行：生产后端的 Preview 同样没有更新器。
-      if (ZCODE_PRODUCT_FLAVOR === "production") {
-        checkForUpdateMenuClick(targetWindow);
-      } else {
-        options.logger.info("[auto-update] Preview 已禁用手动更新检查");
-      }
+    case DesktopCommandIds.OpenFeedback:
+    case DesktopCommandIds.OpenCommunity:
       return;
     case DesktopCommandIds.RelaunchApp:
       await options.onRelaunchApp();
-      return;
-    case DesktopCommandIds.OpenFeedback:
-      await openFeedback(options.logger, targetWindow, options.fetchHelpConfig);
-      return;
-    case DesktopCommandIds.OpenCommunity:
-      await openCommunity(
-        options.currentApplicationLocale,
-        options.logger,
-        options.fetchHelpConfig,
-      );
       return;
     case DesktopCommandIds.ExportLogs:
       await exportLogs();

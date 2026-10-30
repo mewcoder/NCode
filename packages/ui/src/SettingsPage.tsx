@@ -1,4 +1,5 @@
 import { DataSyncSection } from "@/data-sync/index.js";
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 import { getWorkspaceSourceServerId } from "@/conversation-workspace-target/sourceIdentity.js";
 /* oxlint-disable eslint(max-lines) */
 import { ArrowLeft, type LucideIcon } from "lucide-react";
@@ -302,9 +303,9 @@ export function SettingsPage({
   captionWorkspacePath,
   onBack,
   onCreateTask,
-  onOpenWorkspace,
+  onOpenWorkspace: _onOpenWorkspace,
   onOpenRemoteWorkspace,
-  allowOpenWorkspace = true,
+  allowOpenWorkspace: _allowOpenWorkspace = true,
   onLogin,
   onLogout,
   user,
@@ -507,12 +508,18 @@ export function SettingsPage({
   // 商品门禁，导致仅有 Team Plan 的账号仍然没有 Usage 来源。企业商品只依赖对应的
   // Team Account Provider，个人额度继续依赖 Individual Provider，避免两个产品身份串线。
   const usageBigmodelEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled: !usageProviderSettingsLoading && Boolean(usageBigmodelTeamProviderFingerprint),
+    enabled:
+      NCODE_FEATURE_POLICY.officialAccountQueries &&
+      !usageProviderSettingsLoading &&
+      Boolean(usageBigmodelTeamProviderFingerprint),
     authenticated: true,
     family: "bigmodel",
   });
   const usageZaiEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled: !usageProviderSettingsLoading && Boolean(usageZaiTeamProviderFingerprint),
+    enabled:
+      NCODE_FEATURE_POLICY.officialAccountQueries &&
+      !usageProviderSettingsLoading &&
+      Boolean(usageZaiTeamProviderFingerprint),
     authenticated: true,
     family: "zai",
   });
@@ -2165,8 +2172,7 @@ export function SettingsPage({
                             />
                           ) : activeSection === "migration" ? (
                             <MigrationSection
-                              workspacePath={activeWorkspacePath}
-                              workspaceIdentity={activeWorkspaceIdentity}
+                              onOpenImport={requestMigrationDialog}
                               isDesktop={isDesktop}
                             />
                           ) : activeSection === "projects" ? (

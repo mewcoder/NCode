@@ -131,6 +131,21 @@ function recordingLogger(): { entries: RecordedLog[]; logger: Logger } {
 }
 
 describe("official mcp auth fetch", () => {
+  it("NCode composition without an auth port sends no reserved identity headers", async () => {
+    const fetch = createOfficialMcpAuthFetch({
+      baseFetch: globalThis.fetch,
+      official: { mcpKey: MCP_KEY, pluginId: PLUGIN_ID, source: "plugin" },
+      serverName: `plugin:zcode-tools:${MCP_KEY}`,
+      trustedOrigins: trustedRegistry(),
+      url: `${origin}/mcp`,
+    });
+    await fetch(`${origin}/mcp`, rpcRequest("tools/call", JWT_HEADERS));
+    expect(received).toHaveLength(1);
+    for (const name of Object.keys(JWT_HEADERS)) {
+      expect(received[0]!.headers[name.toLowerCase()]).toBeUndefined();
+    }
+  });
+
   it.each([
     {
       body: JSON.stringify({ code: 3001, msg: "parameter error" }),

@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- 网络指标采集/聚合/ARMS 上报 */
-import armsRum from "@arms/rum-electron";
+import { desktopRum as armsRum } from "../telemetry/index.js";
 import { mapZCodeEnvToArmsRumEnv } from "@zcode/shared";
 import type { NetworkObservation } from "@zcode/rpc";
 import {
@@ -71,7 +71,7 @@ function reportNetworkCustom(
   });
 
   try {
-    armsRum.sendCustom({
+    armsRum?.sendCustom({
       name,
       type: "custom",
       group: "network",
@@ -182,7 +182,7 @@ function classifyWsError(error: unknown): string {
 
 export function configureDesktopNetworkTelemetry(context: NetworkGlobalContext): void {
   globalContext = context;
-  armsRum.setConfig("properties", {
+  armsRum?.setConfig("properties", {
     device_mid: context.deviceMid,
     platform: normalizeOsCategory(context.platform),
     app_version: context.appVersion,

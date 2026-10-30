@@ -31,7 +31,7 @@ before(async () => {
           if (id.endsWith("/WorkspaceWebRemoteControlTrigger.tsx"))
             return "export const WorkspaceWebRemoteControlTrigger=()=>null;";
           if (id.endsWith("/WorkspaceSidebarFooterUsageSummary.tsx"))
-            return 'import React from "react"; export const useWorkspaceSidebarFooterUsageSummaryState=()=>({}); export const WorkspaceSidebarFooterPlanBadge=()=>React.createElement("span",{className:"rounded-full border border-border bg-surface px-1 py-px text-ui-xs text-foreground-subtle"},"Pro"); export const WorkspaceSidebarFooterUsageSummaryContent=()=>null;';
+            return 'import React from "react"; export const useWorkspaceSidebarFooterUsageSummaryState=(options)=>{window.footerUsageQueryEnabled=options.enabled;return {}}; export const WorkspaceSidebarFooterPlanBadge=()=>React.createElement("span",{className:"rounded-full border border-border bg-surface px-1 py-px text-ui-xs text-foreground-subtle"},"Pro"); export const WorkspaceSidebarFooterUsageSummaryContent=()=>React.createElement("span",{"data-testid":"official-usage-summary"},"official summary");';
         },
       },
       react(),
@@ -65,6 +65,50 @@ after(async () => {
   await server?.close();
 });
 
+for (const locale of ["zh-CN", "en-US"])
+  for (const theme of ["light", "dark"])
+    for (const mobile of ["0", "1"])
+      test(`NCode 使用统计入口 ${locale} ${theme} mobile=${mobile}`, async () => {
+        const page = await browser.newPage({
+          viewport: { width: mobile === "1" ? 390 : 960, height: 680 },
+        });
+        try {
+          await page.goto(
+            `${origin}fixture?${new URLSearchParams({ locale, theme, mobile, guest: "1" })}`,
+          );
+          await page.getByRole("button", { name: "NCode", exact: true }).click();
+          const usage = page.getByRole("menuitem", {
+            name: locale === "zh-CN" ? "使用统计" : "Usage stats",
+            exact: true,
+          });
+          await usage.waitFor();
+          assert.equal(await page.getByTestId("official-usage-summary").count(), 0);
+          assert.equal(await page.getByTestId("sidebar-coding-plan-upgrade-button").count(), 0);
+          assert.equal(await page.evaluate(() => window.footerUsageQueryEnabled), false);
+          await page.getByRole("menu").screenshot({
+            path: `${artifacts}/usage-${locale}-${theme}-${mobile}.png`,
+            animations: "disabled",
+          });
+          await usage.click();
+          await page.waitForFunction(() => document.body.dataset.openedSettingsSection === "usage");
+          assert.equal(await page.evaluate(() => window.footerUsageQueryEnabled), false);
+        } finally {
+          await page.close();
+        }
+      });
+
+test("NCode 使用统计入口回落至设置回调", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${origin}fixture?guest=1&usageFallback=1`);
+    await page.getByRole("button", { name: "NCode", exact: true }).click();
+    await page.getByRole("menuitem", { name: "使用统计", exact: true }).click();
+    await page.waitForFunction(() => document.body.dataset.openedSettingsSection === "usage");
+  } finally {
+    await page.close();
+  }
+});
+
 async function open(params = {}, clipboard = "ok", width = 960) {
   const page = await browser.newPage({ viewport: { width, height: 680 } });
   await page.addInitScript((mode) => {
@@ -84,7 +128,8 @@ async function open(params = {}, clipboard = "ok", width = 960) {
   }, clipboard);
   await page.goto(`${origin}fixture?${new URLSearchParams(params)}`);
   const trigger = page.getByRole("button", {
-    name: params.guest === "1" ? "连接使用" : "Alex",
+    // NCode 隐藏官方登录，访客通过同一个 NCode 菜单访问本地功能。
+    name: params.guest === "1" ? "NCode" : "Alex",
     exact: true,
   });
   await trigger.waitFor();

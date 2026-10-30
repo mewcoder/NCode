@@ -1,5 +1,6 @@
 import {
   buildZCodeEndpointUrls,
+  NCODE_FEATURE_POLICY,
   clientConfigReadOptionsSchema,
   parseClientConfigSnapshot,
   type ApiClient,
@@ -65,6 +66,15 @@ export function createClientConfigService(dependencies: {
   return {
     async getSnapshot(options = {}) {
       const { forceRefresh } = clientConfigReadOptionsSchema.parse(options);
+      // NCode 选择本地默认排序；强刷也在既有读取入口短路，不创建请求和计时器。
+      if (!NCODE_FEATURE_POLICY.remoteClientConfigs) {
+        return {
+          ...NCODE_FEATURE_POLICY.clientConfigDefaults,
+          uiPluginRecommendations: [
+            ...NCODE_FEATURE_POLICY.clientConfigDefaults.uiPluginRecommendations,
+          ],
+        };
+      }
       const context = await dependencies.resolveRequestContext();
       const url = new URL(
         "/api/v1/client/configs",

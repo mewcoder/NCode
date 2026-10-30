@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./cua-permission-broker": "./src/cua-permission-broker/index.ts",
     "./process/processTreeTerminator": "./src/process/processTreeTerminator.ts",
-    "./node": "./src/node.ts"
+    "./node": "./src/node.ts",
+    "./bots": "./src/bots/botsService.ts"
   },
   "scripts": {
     "lint": "oxlint",
@@ -18,7 +19,6 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.21.1",
-    "@larksuiteoapi/node-sdk": "1.64.0",
     "@zcode/provider": "workspace:*",
     "@zcode/provider-node": "workspace:*",
     "@zcode/rpc": "workspace:*",
@@ -37,6 +37,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@larksuiteoapi/node-sdk": "1.64.0",
     "@pierre/diffs": "^1.1.22",
     "@types/node": "^25.5.0",
     "@types/yauzl": "^2.10.3",

@@ -36,6 +36,8 @@ Memory 后台循环（Extraction、Dream）用同一个 `toolBatchModelEntries` 
 
 ## 官方命令环境包装保留 Bash 后台能力（2026-10-28）
 
+NCode 发行版不提供官方账号云部署：协议入口按既有 `officialAccountQueries` 本地策略不装配官方命令端点，也不传入 `officialCommandEnv`。Bash 直接复用原执行端口，后台生命周期、权限、取消、结果与普通环境保持上游语义；官方包装器实现和其独立回归保留。
+
 Bash handler → `withOfficialCommandEnv` 注入会话环境 → 原执行器
 `runBashWithBackgroundLifecycle` → 原有后台任务登记、输出与完成通知。
 包装层复用 core 公开的能力接口与检测函数，只在底层支持时暴露对应方法；显式后台和超时转后台

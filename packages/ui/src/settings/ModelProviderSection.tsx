@@ -1,3 +1,4 @@
+import { NCODE_FEATURE_POLICY } from "@zcode/shared";
 /* eslint-disable max-lines -- Model Provider 设置页需要集中编排导航、表单和 OAuth 交互，后续整体拆分时再收敛。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
@@ -397,10 +398,7 @@ export function ModelProviderSection({
     update: updateSharedSettings,
   } = useSettings();
   const authenticatedEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      codingPlanPurchaseTokenAuthenticatedByProviderId[
-        BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan
-      ] === true,
+    enabled: NCODE_FEATURE_POLICY.officialAccountQueries,
     authenticated: true,
     family: "bigmodel",
   });
@@ -408,10 +406,7 @@ export function ModelProviderSection({
   // zai 团队订阅永远拉不到、也无法展示对应团队。
   // zai 独立调 hook（zai family 走 zai provider），下游合并两 family 的订阅产品。
   const authenticatedZaiEnterpriseProducts = useEnterpriseCodingPlanProducts({
-    enabled:
-      codingPlanPurchaseTokenAuthenticatedByProviderId[
-        BUILTIN_MODEL_PROVIDER_IDS.zaiTeamCodingPlan
-      ] === true,
+    enabled: NCODE_FEATURE_POLICY.officialAccountQueries,
     authenticated: true,
     family: "zai",
   });
@@ -1135,7 +1130,8 @@ export function ModelProviderSection({
           })}
         </p>
       ) : null}
-      {templatePickerOpen ? (
+      {/* 无可见供应商时空选中项不是加载态，直接复用添加供应商界面。 */}
+      {templatePickerOpen || (!selectedNavItem && !loading && !modelProvidersRefreshing) ? (
         <ProviderTemplatePicker
           templates={providerTemplates}
           creating={creatingProvider}

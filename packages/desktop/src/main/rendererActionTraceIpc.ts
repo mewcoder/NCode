@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import {
   DISABLED_RENDERER_ACTION_TRACE_CONFIG,
+  ZCODE_ARMS_RUM_ENDPOINT,
   PlatformChannels,
   type RendererActionTraceConfigV1,
 } from "@zcode/shared";
@@ -64,6 +65,7 @@ export function registerRendererActionTraceIpc(options: {
   let lastConfig = resolveRuntimeConfig(options.rollout.getSnapshot(), options.env ?? process.env);
 
   const refresh = async (): Promise<RendererActionTraceConfigV1> => {
+    if (!ZCODE_ARMS_RUM_ENDPOINT) return disabledRendererActionTraceConfig();
     const next = resolveRuntimeConfig(await options.rollout.refresh(), options.env ?? process.env);
     if (JSON.stringify(next) !== JSON.stringify(lastConfig)) {
       lastConfig = next;
@@ -100,15 +102,17 @@ export function registerRendererActionTraceIpc(options: {
     options.broker.enqueue(batch);
   });
 
-  const refreshTimer = setInterval(() => {
-    void refresh().catch((error) => {
-      options.logger.debug("[renderer-action-trace] refresh failed", { error });
-    });
-  }, RENDERER_ACTION_TRACE_REFRESH_INTERVAL_MS);
-  refreshTimer.unref();
+  const refreshTimer = ZCODE_ARMS_RUM_ENDPOINT
+    ? setInterval(() => {
+        void refresh().catch((error) => {
+          options.logger.debug("[renderer-action-trace] refresh failed", { error });
+        });
+      }, RENDERER_ACTION_TRACE_REFRESH_INTERVAL_MS)
+    : undefined;
+  refreshTimer?.unref();
 
   return () => {
-    clearInterval(refreshTimer);
+    if (refreshTimer) clearInterval(refreshTimer);
     ipcMain.removeHandler(PlatformChannels.GetRendererActionTraceConfig);
     ipcMain.removeAllListeners(PlatformChannels.ReportRendererActionTraceBatch);
     for (const binding of rendererInstances.values()) binding.dispose();
@@ -120,6 +124,7 @@ export function resolveRuntimeConfig(
   config: RendererActionTraceConfigV1,
   env: Record<string, string | undefined>,
 ): RendererActionTraceConfigV1 {
+  if (!ZCODE_ARMS_RUM_ENDPOINT) return disabledRendererActionTraceConfig();
   if (isTruthy(env.ZCODE_LOCAL_TTFT_ENABLED)) config = { ...config, localTtftEnabled: true };
   if (!isTruthy(env.ZCODE_RENDERER_ACTION_TRACE_ENABLED)) return config;
   return {

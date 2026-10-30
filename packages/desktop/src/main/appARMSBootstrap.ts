@@ -1,7 +1,7 @@
 import { wrapStartupReporterRequest } from "./startupTelemetryDelivery.js";
 import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
-import armsRum from "@arms/rum-electron";
+import { desktopRum as armsRum } from "../telemetry/index.js";
 import { ZCODE_AGENT_LIFECYCLE_LOG_MARKER } from "@zcode/shared/process-diagnostic";
 import {
   ZCODE_ARMS_RUM_ENDPOINT,
@@ -221,106 +221,111 @@ const armsRumEnv = mapZCodeEnvToArmsRumEnv(desktopRuntimeEnv);
 // ensureDesktopDeviceMidSync 幂等且不重复写盘）。
 // 注意：渲染进程事件经 ArmsEventBridge 转发到主进程后，由主进程 client 用「主进程 config」
 // 重新打包上报，故只需在主进程 init 设置一次，即可覆盖主进程 + 渲染进程的全部上报。
-const armsDeviceMid = ensureDesktopDeviceMidSync();
+// NCode 端点为空时 armsRum 不会初始化，此处若仍调用 ensure 会凭空写盘 telemetry-state.json；
+// 只在真正需要 ARMS 设备维度时才读取或创建设备身份。
+const armsDeviceMid = ZCODE_ARMS_RUM_ENDPOINT ? ensureDesktopDeviceMidSync() : "";
 
 // 原因：armsRum.init() 返回 Promise；若不 await，web-contents-created / 渲染进程注入可能晚于首窗 dom-ready，导致零上报。
 // 须在 app.whenReady() 创建 BrowserWindow 之前 await armsInitPromise（见 index.ts）。
 // SDK 的 sendCustom 只表示入队，原 request 不检查 HTTP status。
 // 在 init 通过公开 useReporter 安装时包装传输，保留原 SDK 的过滤和序列化链路。
-const useReporter = armsRum.client.useReporter.bind(armsRum.client);
-armsRum.client.useReporter = (reporter) => {
-  const request = reporter.request.bind(reporter);
-  reporter.request = wrapStartupReporterRequest(request, {
-    acknowledged: (eventIds, delivery) =>
-      logger.info("[database-startup] telemetry delivery", { eventIds, delivery }),
-  });
-  useReporter(reporter);
-};
+// NCode 空端点下没有 SDK 客户端，禁止顶层访问 client 触发加载或副作用。
+if (armsRum) {
+  const useReporter = armsRum.client.useReporter.bind(armsRum.client);
+  armsRum.client.useReporter = (reporter) => {
+    const request = reporter.request.bind(reporter);
+    reporter.request = wrapStartupReporterRequest(request, {
+      acknowledged: (eventIds, delivery) =>
+        logger.info("[database-startup] telemetry delivery", { eventIds, delivery }),
+    });
+    useReporter(reporter);
+  };
+}
+// NCode 在空上报配置下不初始化 SDK。
 export const armsInitPromise = armsRum
-  .init({
-    enable: ZCODE_ARMS_RUM_ENDPOINT !== "",
-    version: ZCODE_VERSION,
-    endpoint: ZCODE_ARMS_RUM_ENDPOINT,
-    env: armsRumEnv,
-    // Browser SDK 由 SDK 在 dom-ready 经 executeJavaScript 注入；勿再在 preload/renderer 手动 init，避免重复采集
-    autoInject: true,
-    browserCollectors: { ...ARMS_BROWSER_COLLECTORS },
-    app: {
-      name: runtimeApplicationName,
-      version: ZCODE_VERSION,
-      env: armsRumEnv,
-      type: "electron",
-      framework: "react",
-    },
-    user: {
-      name: armsDeviceMid,
-    },
-    // 会话采样：必须为 1，否则 ARMS 默认 PV/perf/webvitals 等整会话事件会被丢弃（开发 0.1 时约 90% 看不到页面性能）
-    sessionConfig: {
-      sampleRate: 1,
-    },
-    // Electron 桌面为单页 file:// / dev-server 整页加载，无 History 路由；false 才能走 SDK 默认「完整页面加载」perf 采集
-    spaMode: false,
-    parseViewName: parseArmsViewName,
-    collectors: {
-      jsError: true,
-      consoleError: true,
-      crash: true,
-      application: true,
-      api: true,
-      rpc: true,
-    },
-    // 主进程 collectors：Electron 侧；renderer 侧见 browserCollectors + autoInject
-    // SDK tracing.sample 取值 0–100（百分比）；0.1 表示 0.1% 采样，几乎不会命中
-    tracing: {
-      enable: true,
-      sample: armsRumEnv === "prod" ? 0.1 : 1,
-    },
-    // HTTP 全链路耗时来自 ARMS api 批次；生产/本地运行均 ingest，本地运行额外打印批次摘要
-    beforeReport: (payload: { events?: Array<Record<string, unknown>> }) => {
-      // Bugfix: crash collector 会扫描共享 dump 目录，外部后代进程的 dump 也可能混入。
-      // 只保留包含当前产品可执行文件的原生 crash；过滤仅遍历现有批次元数据，不新增 IO。
-      const events = filterAndEnrichNativeCrashEvents(
-        (payload?.events ?? []).filter((event) => !shouldExcludeArmsEvent(event)),
-        runtimeApplicationName,
-        basename(process.execPath),
-      );
-      payload.events = events;
-      if (events.length === 0) {
-        // SDK 只有收到空返回值才停止发送；仅清空 events 仍会上传一个空批次。
-        return null;
-      }
-      ingestArmsApiEventsFromBatch(events);
-      enrichLongTaskAttribution(events);
-      // 隐私收口必须排在 ingest 与归因摘要之后：网络聚合沿用自己的 interface 归一规则，
-      // longTask 摘要需要原始 snapshots；只有最终离开本机的副本才做脱敏。
-      redactArmsEventBatch(events);
-      if (desktopRuntimeEnv === "development") {
-        const perfEvents = events.filter(
-          (event) => String(event.type ?? "").toLowerCase() === "perf",
-        );
-        const summary = events
-          .map((event) => {
-            const eventType = String(event.event_type ?? "?");
-            const subType = String(event.type ?? "");
-            const name = String(event.name ?? "");
-            if (subType === "perf") {
-              return `${eventType}:perf`;
-            }
-            return `${eventType}:${name || subType || "?"}`;
-          })
-          .join(", ");
-        logger.info(
-          `[arms] beforeReport batch=${events.length} perf=${perfEvents.length}${summary ? ` [${summary}]` : ""}`,
-        );
-      }
-      return payload;
-    },
-  })
-  .then(() => {
-    logger.info(`[arms] electron initialized env=${armsRumEnv} version=${ZCODE_VERSION}`);
-  })
-  .catch((error) => {
-    logger.error("[arms] electron init failed:", error);
-    throw error;
-  });
+  ? armsRum
+      .init({
+        enable: ZCODE_ARMS_RUM_ENDPOINT !== "",
+        version: ZCODE_VERSION,
+        endpoint: ZCODE_ARMS_RUM_ENDPOINT,
+        env: armsRumEnv,
+        // Browser SDK 由 SDK 在 dom-ready 经 executeJavaScript 注入；勿再在 preload/renderer 手动 init，避免重复采集
+        autoInject: true,
+        browserCollectors: { ...ARMS_BROWSER_COLLECTORS },
+        app: {
+          name: runtimeApplicationName,
+          version: ZCODE_VERSION,
+          env: armsRumEnv,
+          type: "electron",
+          framework: "react",
+        },
+        user: {
+          name: armsDeviceMid,
+        },
+        // 会话采样：必须为 1，否则 ARMS 默认 PV/perf/webvitals 等整会话事件会被丢弃（开发 0.1 时约 90% 看不到页面性能）
+        sessionConfig: {
+          sampleRate: 1,
+        },
+        // Electron 桌面为单页 file:// / dev-server 整页加载，无 History 路由；false 才能走 SDK 默认「完整页面加载」perf 采集
+        spaMode: false,
+        parseViewName: parseArmsViewName,
+        collectors: {
+          jsError: true,
+          consoleError: true,
+          crash: true,
+          application: true,
+          api: true,
+          rpc: true,
+        },
+        // 主进程 collectors：Electron 侧；renderer 侧见 browserCollectors + autoInject
+        // SDK tracing.sample 取值 0–100（百分比）；0.1 表示 0.1% 采样，几乎不会命中
+        tracing: {
+          enable: true,
+          sample: armsRumEnv === "prod" ? 0.1 : 1,
+        },
+        // HTTP 全链路耗时来自 ARMS api 批次；生产/本地运行均 ingest，本地运行额外打印批次摘要
+        beforeReport: (payload: { events?: Array<Record<string, unknown>> }) => {
+          // Bugfix: crash collector 会扫描共享 dump 目录，外部后代进程的 dump 也可能混入。
+          // 只保留包含当前产品可执行文件的原生 crash；过滤仅遍历现有批次元数据，不新增 IO。
+          const events = filterAndEnrichNativeCrashEvents(
+            (payload?.events ?? []).filter((event) => !shouldExcludeArmsEvent(event)),
+            runtimeApplicationName,
+            basename(process.execPath),
+          );
+          payload.events = events;
+          if (events.length === 0) return null;
+          ingestArmsApiEventsFromBatch(events);
+          enrichLongTaskAttribution(events);
+          // 隐私收口必须排在 ingest 与归因摘要之后：网络聚合沿用自己的 interface 归一规则，
+          // longTask 摘要需要原始 snapshots；只有最终离开本机的副本才做脱敏。
+          redactArmsEventBatch(events);
+          if (desktopRuntimeEnv === "development") {
+            const perfEvents = events.filter(
+              (event) => String(event.type ?? "").toLowerCase() === "perf",
+            );
+            const summary = events
+              .map((event) => {
+                const eventType = String(event.event_type ?? "?");
+                const subType = String(event.type ?? "");
+                const name = String(event.name ?? "");
+                if (subType === "perf") {
+                  return `${eventType}:perf`;
+                }
+                return `${eventType}:${name || subType || "?"}`;
+              })
+              .join(", ");
+            logger.info(
+              `[arms] beforeReport batch=${events.length} perf=${perfEvents.length}${summary ? ` [${summary}]` : ""}`,
+            );
+          }
+          return payload;
+        },
+      })
+      .then(() => {
+        logger.info(`[arms] electron initialized env=${armsRumEnv} version=${ZCODE_VERSION}`);
+      })
+      .catch((error) => {
+        logger.error("[arms] electron init failed:", error);
+        throw error;
+      })
+  : Promise.resolve();

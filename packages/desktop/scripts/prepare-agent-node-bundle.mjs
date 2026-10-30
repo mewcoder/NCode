@@ -102,14 +102,6 @@ const browserUseRequiredRuntimePaths = [
 const officeViewerRuntimePaths = ["dist/server.mjs", "dist/ui/assets.json", "dist/ui/panel.html"];
 const officialPluginPackages = [
   {
-    packageName: "@zcode/android-emulator-plugin",
-    relativePath: "apps/zcode-cli/packages/android-emulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    runtimeBuildScript: "scripts/build-mcp.mjs",
-    stagedPath: "packages/android-emulator-plugin",
-  },
-  {
     packageName: "@zcode/documents-plugin",
     relativePath: "apps/zcode-cli/packages/documents-plugin",
     requiresRuntime: true,
@@ -121,13 +113,6 @@ const officialPluginPackages = [
     ],
     runtimeBuildScript: "../office-runtime/scripts/build.mjs",
     stagedPath: "packages/documents-plugin",
-  },
-  {
-    packageName: "@zcode/image-search-plugin",
-    relativePath: "apps/zcode-cli/packages/image-search-plugin",
-    requiresRuntime: false,
-    requiredSeedPaths: [".mcp.json"],
-    stagedPath: "packages/image-search-plugin",
   },
   {
     packageName: "@zcode/pdf-plugin",
@@ -212,14 +197,6 @@ const officialPluginPackages = [
     stagedPath: "packages/browser-use-plugin",
   },
   {
-    packageName: "@zcode/ios-simulator-plugin",
-    relativePath: "apps/zcode-cli/packages/ios-simulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    runtimeBuildScript: "scripts/build-mcp.mjs",
-    stagedPath: "packages/ios-simulator-plugin",
-  },
-  {
     // 修复原因：restore-legacy-sessions 已注册为官方插件，但 Electron 生产包只会拷贝
     // 这里列出的资源。漏掉它会导致用户生产包首次启动后 plugins list 里看不到该插件。
     packageName: "@zcode/restore-legacy-sessions-plugin",
@@ -247,16 +224,6 @@ const officialPluginPackages = [
     relativePath: "apps/zcode-cli/packages/zcode-guide-plugin",
     requiresRuntime: false,
     stagedPath: "packages/zcode-guide-plugin",
-  },
-  {
-    // ZCode Sites（默认开启）。漏 stage 会让生产桌面包里找不到它；Sites 面板的 MCP server 与页面由插件自己的
-    // build 脚本构建进 dist/。
-    packageName: "@zcode/zcode-site-plugin",
-    relativePath: "apps/zcode-cli/packages/zcode-site-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/server.mjs", "dist/ui/panel.html"],
-    runtimeBuildScript: "scripts/build.mjs",
-    stagedPath: "packages/zcode-site-plugin",
   },
   {
     // node_repl 宿主：Browser Use 与 Computer Use 共用的 MCP runtime，本轮抽成独立包。

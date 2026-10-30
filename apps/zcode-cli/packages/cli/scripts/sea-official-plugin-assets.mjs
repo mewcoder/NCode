@@ -68,15 +68,6 @@ export const officialSeaPlugins = [
   },
   {
     marketplace: "zcode-plugins-official",
-    name: "android-emulator",
-    packageName: "@zcode/android-emulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    rootPath: join("packages", "android-emulator-plugin"),
-    version: "0.1.0",
-  },
-  {
-    marketplace: "zcode-plugins-official",
     name: "documents",
     packageName: "@zcode/documents-plugin",
     // 0.2.0 起带查看面板：SEA 必须在嵌入前校验 office-runtime 构建出的 server 与面板资源。
@@ -90,16 +81,6 @@ export const officialSeaPlugins = [
     rootPath: join("packages", "documents-plugin"),
     // 修复原因：SEA manifest 必须与 package、plugin manifest 和官方 definition 同步，避免发布产物嵌入旧版本。
     version: "0.2.1",
-  },
-  {
-    marketplace: "zcode-plugins-official",
-    name: "image-search",
-    packageName: "@zcode/image-search-plugin",
-    requiresRuntime: false,
-    requiredSeedPaths: [".mcp.json"],
-    rootPath: join("packages", "image-search-plugin"),
-    // 修复原因：SEA manifest 必须与 package、plugin manifest 和官方 definition 同步，避免发布产物嵌入旧版本。
-    version: "0.1.1",
   },
   {
     marketplace: "zcode-plugins-official",
@@ -165,15 +146,6 @@ export const officialSeaPlugins = [
   },
   {
     marketplace: "zcode-plugins-official",
-    name: "ios-simulator",
-    packageName: "@zcode/ios-simulator-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/mcp/server.js"],
-    rootPath: join("packages", "ios-simulator-plugin"),
-    version: "0.1.0",
-  },
-  {
-    marketplace: "zcode-plugins-official",
     name: "restore-legacy-sessions",
     packageName: "@zcode/restore-legacy-sessions-plugin",
     requiresRuntime: false,
@@ -209,22 +181,6 @@ export const officialSeaPlugins = [
     requiredSeedPaths: ["skills/zcode-configuration-guide/SKILL.md"],
     rootPath: join("packages", "zcode-guide-plugin"),
     version: "0.3.0",
-  },
-  {
-    // skill + start.sh 模板 + 零依赖的 zcode-site CLI，加上 Sites 面板（dist/ 下的 MCP server 与页面，
-    // 由插件自己的 build 脚本构建）。版本与 package.json / plugin.json / official-plugin-definitions.ts 同步 bump。
-    marketplace: "zcode-plugins-official",
-    name: "zcode-site",
-    packageName: "@zcode/zcode-site-plugin",
-    requiresRuntime: true,
-    requiredRuntimePaths: ["dist/server.mjs", "dist/ui/panel.html"],
-    requiredSeedPaths: [
-      "scripts/zcode-site.mjs",
-      "scripts/stage.mjs",
-      "skills/site-deploy/SKILL.md",
-    ],
-    rootPath: join("packages", "zcode-site-plugin"),
-    version: "0.4.2",
   },
   // superpowers 已从内置插件下线，改走 UI 推荐区按需安装；这里不再打入 SEA 资源清单。
 ];
