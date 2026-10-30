@@ -151,6 +151,7 @@ import {
   isExplicitE2ESpecSelection,
   resolveEnvironmentGatedFormalSpecExcludes,
 } from "./scripts/e2e-formal-spec-selection.mjs";
+import { NCODE_CLOSED_E2E_EXCLUDE_SPECS } from "./scripts/ncode-e2e-baseline.mjs";
 import {
   applyDynamicWorkflowConfigMockEnv,
   clearDynamicWorkflowConfigMockEnv,
@@ -205,7 +206,6 @@ import {
 } from "./test/e2e/helpers/passive-agent-startup-fixture.js";
 import { seedSessionHistoryFirstFixture } from "./test/e2e/helpers/session-history-first-fixture.js";
 import { seedTaskIndexRowAuthorityFixture } from "./test/e2e/helpers/task-list-row-authority-fixture.js";
-import { seedDeleteAllArchivedTasksFixture } from "./test/e2e/helpers/delete-all-archived-tasks-fixture.js";
 import { seedTaskTitleMarqueeFixture } from "./test/e2e/helpers/task-title-marquee-fixture.js";
 import { seedAppUsageE2EFixture } from "./test/e2e/helpers/usage-stats-app-usage-fixture.js";
 
@@ -857,7 +857,7 @@ function readE2EProviderPresetName(): E2EProviderPresetName {
   );
 }
 
-function resolveActiveE2EProviderEnv(specs: string[] = configuredE2ESpecs) {
+function resolveActiveE2EProviderEnv(_specs: string[] = configuredE2ESpecs) {
   return {
     providerId: e2eProviderPreset.providerId,
     providerName: e2eProviderPreset.providerName,
@@ -4678,6 +4678,8 @@ export const config: WebdriverIO.Config = {
       env: process.env,
       targeted: isExplicitE2ESpecSelection(requestedE2ESpecs),
     }),
+    // NCode：专测已关闭功能的正式 spec 只在默认全量运行排除，定向 --spec 仍可调试上游行为。
+    ...(requestedE2ESpecs.length > 0 ? [] : NCODE_CLOSED_E2E_EXCLUDE_SPECS),
     // Bugfix: MR 自动门禁可以临时 quarantine 已知不稳定正式 spec，但本地默认
     // `test:e2e` 不受影响，避免把 flaky case 从开发者回归入口永久隐藏。
     ...requestedE2EExcludeSpecs,

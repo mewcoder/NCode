@@ -2,6 +2,7 @@
   "name": "zcode",
   "version": "3.17.1",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev:web": "concurrently -k -n server,web -c blue,green \"pnpm --filter @zcode/server dev\" \"pnpm --filter @zcode/web dev\"",
@@ -22,6 +23,10 @@
     "dep:graph": "node scripts/dependency-graph.mjs",
     "dep:refs": "node scripts/dep-refs.mjs",
     "audit:agent-remnants": "node scripts/audit-zcode-agent-remnants.mjs",
+    "ncode:branding:check": "node scripts/ncode-branding.mjs --check",
+    "ncode:branding:sync": "node scripts/ncode-branding.mjs --sync",
+    "ncode:artifact:audit": "node scripts/ncode-artifact-audit.mjs",
+    "ncode:closure:impact": "node scripts/ncode-closure-impact.mjs",
     "audit:conversation-session-coverage": "node scripts/audit-conversation-session-case-coverage.mjs --check",
     "audit:conversation-session-complete": "node scripts/audit-conversation-session-case-coverage.mjs --check --require-complete",
     "test:e2e": "pnpm --filter @zcode/desktop test:e2e",
@@ -80,7 +85,11 @@
     "test:engineering": "vitest run --project engineering",
     "test:engineering:affected": "node scripts/run-affected-engineering-tests.mjs",
     "test:engineering-tools": "node --test scripts/test/affected-engineering-test-cli.test.mjs scripts/test/pre-push-worktree.test.mjs scripts/test/retired-app-unit-evidence.test.mjs scripts/test/e2e-remote-targets-check.test.mjs",
-    "check:e2e-remote-targets": "node scripts/check-e2e-remote-targets.mjs"
+    "check:e2e-remote-targets": "node scripts/check-e2e-remote-targets.mjs",
+    "ncode:port:plan": "node scripts/ncode-port-plan.mjs",
+    "ncode:upstream:check": "node scripts/ncode-upstream-check.mjs",
+    "ncode:locale:check": "node scripts/ncode-locale-check.mjs",
+    "ncode:mock-cdn:clean": "node scripts/ncode-mock-cdn-clean.mjs"
   },
   "dependencies": {
     "border-beam": "^1.0.1",
@@ -136,6 +145,5 @@
       "@aiden0z/pptx-renderer@1.2.4": "patches/@aiden0z__pptx-renderer@1.2.4.patch",
       "@extend-ai/react-xlsx@0.16.0": "patches/@extend-ai__react-xlsx@0.16.0.patch"
     }
-  },
-  "license": "Apache-2.0"
+  }
 }

@@ -9,10 +9,8 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { spawnCancellableStep, startStepExecution } from "./e2e-step-process.mjs";
-import {
-  hasRequiredSshE2EEnvironment,
-  isSshFormalSpec,
-} from "./e2e-formal-spec-selection.mjs";
+import { hasRequiredSshE2EEnvironment, isSshFormalSpec } from "./e2e-formal-spec-selection.mjs";
+import { isNcodeClosedE2ESpec } from "./ncode-e2e-baseline.mjs";
 
 const RUNNER_SHARD_ARG_PREFIX = "--shards=";
 const DEFAULT_SPEC_DURATION_PROFILE_PATH = "test/e2e/spec-duration-weights.json";
@@ -110,6 +108,8 @@ export function listDefaultFormalE2ESpecs(desktopDir, env = process.env) {
         entry.isFile() &&
         entry.name.endsWith(".test.ts") &&
         relativePath !== "upstream-provider.test.ts" &&
+        // NCode 关闭项对应的正式 spec 不进入默认全量基线（docs/ncode-closure-regression.spec.md）。
+        !isNcodeClosedE2ESpec(`./test/e2e/${relativePath}`) &&
         (includeSshSpecs || !isSshFormalSpec(`./test/e2e/${relativePath}`))
       ) {
         specs.push(`./test/e2e/${relativePath}`);

@@ -100,6 +100,51 @@ describe("Upstream replay fixture resolution", () => {
     },
   );
 
+  const ncodeSpec = "./test/e2e/ncode/manual-review/pending/ncode-workflow-policy.test.ts";
+  const ncodeFixture = join(root, "upstream", "ncode", "ncode-workflow-policy.json");
+  const ncodeManifest = join(root, "cases", "ncode", "ncode-workflow-policy.json");
+
+  it("NCode 候选自动发现 case-local fixture 并选择 replay", () => {
+    const available = hasUpstreamCaseLocalReplayFixtureForWorker({
+      caseFixtureDir,
+      specs: [ncodeSpec],
+      pathExists: (path) => path === ncodeFixture,
+    });
+    expect(available).toBe(true);
+    expect(
+      resolveUpstreamE2EHttpModeForWorker({
+        caseLocalReplayFixtureAvailable: available,
+        explicitReplayFixture: false,
+        specs: [ncodeSpec],
+      }),
+    ).toBe("replay");
+  });
+
+  it("NCode strict 回放隔离于 legacy fixture，兼容 Windows 路径", () => {
+    expect(
+      resolveUpstreamReplayFixturePaths({
+        ...createOptions([commonFixturePath, ncodeFixture, ncodeManifest]),
+        mode: "strict-case-local",
+        specs: [ncodeSpec.replaceAll("/", "\\")],
+      }),
+    ).toEqual([commonFixturePath, ncodeFixture]);
+  });
+
+  it.each([ncodeFixture, ncodeManifest])(
+    "NCode strict 回放缺少合同文件时拒绝继续：%s",
+    (missing) => {
+      expect(() =>
+        resolveUpstreamReplayFixturePaths({
+          ...createOptions(
+            [commonFixturePath, ncodeFixture, ncodeManifest].filter((p) => p !== missing),
+          ),
+          mode: "strict-case-local",
+          specs: [ncodeSpec],
+        }),
+      ).toThrow(/ncode-workflow-policy/);
+    },
+  );
+
   it("keeps manual-review on capture without an explicit replay fixture", () => {
     expect(
       resolveUpstreamE2EHttpMode({

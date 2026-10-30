@@ -2,7 +2,8 @@ import { createBotProjectFixture } from "./helpers/bots-service-harness.js";
 import { readFile } from "node:fs/promises";
 
 import type { BotsConfigFile, BotsStateFile, ZCodeStreamEvent } from "@zcode/shared";
-import { createBotsService } from "@zcode/services/node";
+// NCode：Bot 装配改经 ./bots 公开入口（node.ts 已不导出，见 harness 内注释）。
+import { createBotsService } from "@zcode/services/bots";
 import { createBotModelSelectionView } from "./helpers/bots-service-harness.js";
 import { resolveE2ERuntimePath } from "../helpers/e2e-runtime-paths.js";
 

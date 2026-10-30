@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "caseName": "ncode-help-menu-retained",
+  "spec": "./test/e2e/ncode/ncode-help-menu-retained.test.ts",
+  "fixtures": []
+}
