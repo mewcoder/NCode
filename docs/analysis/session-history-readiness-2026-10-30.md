@@ -9,7 +9,7 @@
 
 ## 范围与决策
 
-基线为 `ncode-v3.17.1-a60ba6a7` 的 `6f1d1652`。用户确认历史先显示，其他执行准备后置。
+基线为 `ncode-v3.17.1` 的 `6f1d1652`。用户确认历史先显示，其他执行准备后置。
 
 - CLI 仍拥有持久历史，Gateway 仍拥有唯一 publisher 与会话初始化状态；不新增缓存、数据库镜像、协议分支或输入队列。
 - app-server 直接加载 Bootstrap 的 protocol 公共入口；协议启动与内置插件描述使用 adapter 子入口，不经过全能力 barrel。
@@ -75,4 +75,4 @@ HF01 使用文件事件阻塞 resume hook，历史可见且可编辑草稿，发
 - 收尾重新运行根 typecheck、CLI typecheck（32/32）、根 lint（0 errors / 69 warnings）、CLI lint（0 errors / 84 warnings / 7 项原样上游行数诊断）、关闭项与 E2E 基线定向回归（58/58）、manifest 回归（4/4）和锚点预检（48/48），均通过。
 - CLI 六文件补跑首轮为 228 通过 / 5 失败：当时与正式构建前的插件产物重建并行，`prepare-agent-node-bundle.mjs` 会删除并重建插件 dist，失败均为 PDF/Spreadsheets 产物的 ENOENT。停止交叉重建后，未修改源码或放宽断言，完整复跑 6 文件 233/233 通过。最终发布不并行重建这些产物与读取它们的测试。
 - production 身份 macOS arm64 DMG/ZIP 已生成，`.app` 审计 25/25 通过，包内 buildCommitId 为 `dc125ab1`；体积与限制见 [3.17.1 收尾记录](ncode-upstream-3.17.1-2026-10-30.md#macos-arm64-正式产物补验)。本机安装的更新 skill 与仓库副本已逐字节同步。
-- 发布规则：`ncode` 与 `ncode-v3.17.1-a60ba6a7` 指向同一最终 tip，旧版本分支保留；收尾文档提交后仍须通过干净工作区门禁，推送使用显式 lease 并核对远端引用。不用前一阶段通过结果代替最终推送门禁。
+- 发布规则：`ncode` 与 `ncode-v3.17.1` 指向同一最终 tip，旧版本分支保留；收尾文档提交后仍须通过干净工作区门禁，推送使用显式 lease 并核对远端引用。不用前一阶段通过结果代替最终推送门禁。

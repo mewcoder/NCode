@@ -2,8 +2,8 @@
 
 ## 基线与工作区
 
-- 官方来源：https://github.com/zai-org/ZCode ，main `a60ba6a7e5a06742270ca605f5d2cc2766afa7e1`，提交日期 2026-10-30，package.json 版本 3.17.1；官方最新 tag 仍为 v3.15.1，按未打 tag 源码快照命名分支。
-- 工作分支：`ncode-v3.17.1-a60ba6a7`，从上述官方 commit 创建。
+- 官方来源：https://github.com/zai-org/ZCode ，main `a60ba6a7e5a06742270ca605f5d2cc2766afa7e1`，提交日期 2026-10-30，package.json 版本 3.17.1；上游已发布 tag v3.17.1，指向该 commit。
+- 工作分支：`ncode-v3.17.1`，从上述官方 commit 创建。
 - 需求、工作流与品牌来源：`ncode` / `ncode-v3.16.2` 的 `89f9a67215feb2ac0a361a8ebce6300abe0f47f9`，上版官方基线 `3c5b227649371507ddc4eb46ac5133afe6db1cab`。
 - 开始时工作区干净；freshness 与 origin 同步检查通过。旧版 19 个特性提交按序以 no-commit 方式移植，逐项处理结构漂移；适配已按特性整理为下述 4 个提交，未推送、未移动 main/ncode 或旧版本分支。
 - 根与 CLI 依赖按新版 lockfile 安装；Electron 44.7.0 已用于本轮隔离桌面 E2E。后续应用户要求启动正常数据 dev，并在历史优先加载实现后重建重启，见该 feature 的独立记录。
